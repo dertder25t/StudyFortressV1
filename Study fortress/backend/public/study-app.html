@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard Study Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* slate-900 */
+        }
+        .perspective { 
+            perspective: 2000px; 
+        }
+        .card { 
+            transition: all 0.3s ease; 
+        }
+        .card:hover { 
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+        }
+        .card-inner { 
+            transform-style: preserve-3d; 
+            transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .card.is-flipped .card-inner { 
+            transform: rotateY(180deg); 
+        }
+        .card-face { 
+            backface-visibility: hidden; 
+            -webkit-backface-visibility: hidden; 
+        }
+        .card-back { 
+            transform: rotateY(180deg); 
+        }
+        .fade-in { 
+            animation: fadeIn 0.5s ease-in-out; 
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        [name="learn-q-type"] + label i.fa-check-circle { display: none; }
+        [name="learn-q-type"]:checked + label i.fa-check-circle { display: inline-block; }
+        .dark [name="learn-q-type"]:checked + label { @apply bg-cyan-900/50 text-white border-cyan-500; }
+        .dark [name="learn-q-type"]:checked + label i.fa-check-circle { @apply text-cyan-400; }
+        
+        .matching-item.selected { transform: scale(1.05); @apply bg-cyan-600 border-cyan-500 text-white; }
+        .matching-item.correct { background-color: #10b981 !important; border-color: #059669 !important; color: white; opacity: 0.7; cursor: not-allowed; }
+        .matching-item.incorrect { animation: shake 0.5s; background-color: #ef4444 !important; border-color: #dc2626 !important; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        .note-content, .kg-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .is-open > .note-content, .is-open > .kg-content { max-height: 1000px; transition: max-height 0.5s ease-in; }
+        .is-open .note-chevron, .is-open .kg-chevron { transform: rotate(180deg); }
+        .note-chevron, .kg-chevron { transition: transform 0.3s; }
+        
+        .dot {
+          transition: transform .3s ease-in-out;
+        }
+        .peer:checked ~ .dot {
+          transform: translateX(1.5rem);
+          background-color: #22d3ee; /* cyan-400 */
+        }
+        .peer:checked ~ .block {
+            background-color: #06b6d4; /* cyan-600 */
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        /* Custom scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(100, 116, 139, 0.5); /* slate-500 with opacity */
+            border-radius: 20px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(100, 116, 139, 0.8);
+        }
+        
+        /* Resizer handle style */
+        .resizer {
+            background-color: transparent;
+            cursor: col-resize;
+            width: 16px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+         .resizer-line {
+            width: 4px;
+            height: 50px;
+            background-color: #334155; /* slate-700 */
+            border-radius: 4px;
+            transition: background-color 0.2s;
+         }
+        .resizer:hover .resizer-line {
+            background-color: #475569; /* slate-600 */
+        }
+
+        /* Notes Lab Specific Styles */
+        #note-editor-content {
+            outline: none;
+        }
+        #note-editor-content ul, #note-editor-content ol {
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #note-editor-content ul {
+            list-style: disc;
+        }
+        #note-editor-content ol {
+            list-style: decimal;
+        }
+        #note-editor-content p {
+            margin-bottom: 0.5rem;
+        }
+
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100">
+    <div id="view-login" class="min-h-screen flex items-center justify-center fade-in">
+        <div class="w-full max-w-sm p-8 space-y-6 bg-slate-800/50 border border-slate-700 rounded-2xl shadow-2xl">
+            <div>
+                <h2 id="login-title" class="text-center text-3xl font-bold tracking-tight text-white">
+                    <i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In
+                </h2>
+                <p class="mt-2 text-center text-sm text-slate-400">
+                    to your Study Fortress
+                </p>
+            </div>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-300">Email address</label>
+                    <div class="mt-1">
+                        <input id="email" name="email" type="email" autocomplete="email" required class="block w-full appearance-none rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+                    <div class="mt-1">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full appearance-none rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm">
+                    </div>
+                </div>
+                <div>
+                    <button id="submit-auth-btn" type="submit" class="flex w-full justify-center rounded-lg bg-cyan-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500">Sign In</button>
+                </div>
+            </form>
+            <p id="auth-error" class="text-xs text-center text-red-400 h-4"></p>
+            <div class="text-center text-sm">
+                <a href="#" id="auth-mode-toggle" class="font-medium text-cyan-400 hover:text-cyan-300">Need an account? Sign Up</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="absolute top-4 right-4 flex items-center space-x-4 z-10">
+            <div id="rewards-display" class="flex items-center space-x-4 text-slate-300 bg-slate-800/50 px-3 py-2 rounded-lg">
+                <div title="Total Points"><i class="fas fa-star text-yellow-400"></i> <span id="points-display">0</span></div>
+                <div title="Study Streak"><i class="fas fa-fire text-orange-500"></i> <span id="streak-display">0</span></div>
+            </div>
+            <div class="relative">
+                <button id="profile-button" class="text-slate-400 hover:text-white">
+                    <img id="header-avatar" src="https://placehold.co/40x40/1e293b/94a3b8?text=?" class="w-10 h-10 rounded-full object-cover">
+                </button>
+                <div id="profile-menu" class="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-20 hidden">
+                    <a href="#" id="btn-go-to-profile" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Profile & Settings</a>
+                    <a href="#" id="btn-sign-out" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Sign Out</a>
+                </div>
+            </div>
+        </div>
+        
+        <div id="view-folder-selection" class="max-w-4xl mx-auto fade-in mt-8">
+            <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                <h1 class="text-3xl font-bold">My Folders</h1>
+                <div class="flex items-center space-x-4">
+                    <div class="relative"><input type="text" id="search-input" placeholder="Search folders..." class="bg-slate-800 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i></div>
+                    <button id="btn-show-create-folder-modal" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600"><i class="fas fa-plus mr-2"></i>Create Folder</button>
+                </div>
+            </div>
+            <div id="folder-list" class="space-y-3"></div>
+            <div id="no-folders-message" class="text-center py-20 bg-slate-800 rounded-xl shadow-lg hidden"><i class="fas fa-folder-open text-5xl text-slate-500"></i><h3 class="mt-4 text-xl font-semibold">No folders yet</h3><p class="mt-1 text-slate-400">Click "Create Folder" to get started!</p></div>
+        </div>
+
+        <div id="view-folder-contents" class="hidden max-w-4xl mx-auto">
+          <button id="btn-back-to-folders" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folders</button>
+          <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-xl shadow-lg">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                  <div class="mb-4 sm:mb-0">
+                      <h1 id="folder-title" class="text-3xl font-bold mb-1"></h1>
+                      <p id="folder-description" class="text-slate-400"></p>
+                  </div>
+                  <button id="btn-study-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600 w-full sm:w-auto"><i class="fas fa-graduation-cap mr-2"></i>Study Folder</button>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-4">
+                  <button id="btn-add-card-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Card</button>
+                  <button id="btn-add-note-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-file-alt mr-2"></i>Add Note</button>
+                  <button id="btn-export-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-download mr-2"></i>Export</button>
+              </div>
+          </div>
+          <div id="folder-mastery-section" class="mt-8 bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg"></div>
+          <h2 class="text-xl font-semibold mt-8 mb-4">Notes</h2>
+          <div id="notes-list" class="space-y-3"></div>
+          <h2 class="text-xl font-semibold mt-8 mb-4">Cards from Notes</h2>
+          <div id="generated-cards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          <h2 class="text-xl font-semibold mt-8 mb-4">Manual Cards</h2>
+          <div id="manual-cards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+        
+        <div id="view-learn" class="hidden max-w-2xl mx-auto fade-in">
+             <button id="btn-back-to-folder-from-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folder</button>
+             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-4"><div id="learn-progress-bar-inner" class="bg-cyan-500 h-2.5 rounded-full" style="width: 0%"></div></div>
+             <div id="learn-question-container" class="bg-slate-800 border border-slate-700 p-6 sm:p-8 rounded-xl shadow-2xl min-h-[300px]"></div>
+             <div id="learn-feedback-area" class="hidden mt-4 p-4 rounded-lg">
+                 <p id="learn-feedback-text" class="font-semibold text-lg"></p><p id="learn-correct-answer" class="mt-1 text-slate-300"></p>
+             </div>
+             <button id="learn-continue-btn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600 w-full mt-4 text-lg hidden">Continue</button>
+        </div>
+        
+        <div id="view-profile" class="hidden max-w-2xl mx-auto fade-in mt-8">
+            <button id="btn-back-to-folders-from-profile" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folders</button>
+            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+                <h1 class="text-3xl font-bold mb-6">User Profile & Settings</h1>
+                <form id="profile-form" class="space-y-6">
+                    <div class="flex items-center space-x-4">
+                        <img id="avatar-preview" src="https://placehold.co/100x100/1e293b/94a3b8?text=?" alt="Avatar Preview" class="w-24 h-24 rounded-full object-cover">
+                        <div>
+                             <label for="avatar-input" class="cursor-pointer rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
+                                 <span>Upload Avatar</span>
+                                 <input type="file" id="avatar-input" class="hidden" accept="image/*">
+                             </label>
+                             <p class="text-xs text-slate-400 mt-2">Images are stored locally in the DB.</p>
+                        </div>
+                    </div>
+                     <div><label for="username-input" class="block text-sm font-medium text-slate-300">Username</label><input type="text" id="username-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white"></div>
+                    <div><label for="bio-input" class="block text-sm font-medium text-slate-300">Bio</label><textarea id="bio-input" rows="3" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Tell us about yourself..."></textarea></div>
+                    
+                    <div class="border-t border-slate-600 pt-6">
+                        <h2 class="text-lg font-semibold text-cyan-400">AI Settings</h2>
+                        <p class="text-sm text-slate-400 mb-2">Add your Google AI API key to enable flashcard generation from notes.</p>
+                        <div>
+                            <label for="api-key-input" class="block text-sm font-medium text-slate-300">Google AI API Key</label>
+                            <input type="password" id="api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter your API key here">
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-cyan-400 hover:text-cyan-300 mt-1 inline-block">Get your free API key from Google AI Studio &rarr;</a>
+                        </div>
+                    </div>
+
+                    <div class="text-right"><button type="submit" id="save-profile-btn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600">Save Changes</button></div>
+                </form>
+            </div>
+        </div>
+        
+        <div id="view-note-editor" class="hidden h-[calc(100vh-4rem)] flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                 <div class="flex items-center gap-2">
+                    <button id="btn-back-to-folder-from-editor" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-arrow-left mr-2"></i>Back</button>
+                    <button id="btn-cycle-layout" title="Cycle Layout" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-columns"></i></button>
+                 </div>
+                 <h2 id="notes-lab-title" class="text-xl font-bold text-cyan-400">Notes Lab</h2>
+                 <div class="flex items-center gap-2">
+                     <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600" disabled>
+                         <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
+                     </button>
+                     <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600"><i class="fas fa-save mr-2"></i>Save</button>
+                 </div>
+            </div>
+            <div id="note-editor-grid" class="flex-grow flex gap-2 min-h-0" data-layout-mode="split-h">
+                <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%;">
+                    <input type="hidden" id="note-editor-id">
+                    <div class="mb-2 flex-shrink-0 flex items-center gap-4">
+                        <input type="text" id="note-editor-title" placeholder="Note Title..." class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none">
+                        <div id="note-editor-controls" class="flex items-center gap-2">
+                           <button id="btn-bullet-list" title="Bulleted List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ul"></i></button>
+                           <button id="btn-ordered-list" title="Numbered List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                    </div>
+                    <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
+                </div>
+                <div id="note-editor-resizer" class="resizer">
+                   <div class="resizer-line"></div>
+                </div>
+                <div id="flashcard-hub-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0">
+                     <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar">
+                         </div>
+                     <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
+                         <i class="fas fa-plus mr-2"></i>Add Manual Card
+                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-container">
+        <div id="modal-create-folder" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-md p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-4">Create Folder</h2>
+                <input type="hidden" id="folder-id-input">
+                <div class="space-y-4">
+                    <div>
+                        <label for="folder-name-input" class="block text-sm font-medium text-slate-300">Folder Name</label>
+                        <input type="text" id="folder-name-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white p-2">
+                    </div>
+                    <div>
+                        <label for="folder-description-input" class="block text-sm font-medium text-slate-300">Description</label>
+                        <input type="text" id="folder-description-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white p-2">
+                    </div>
+                    <div>
+                        <label for="folder-color-input" class="block text-sm font-medium text-slate-300">Color</label>
+                        <input type="color" id="folder-color-input" value="#06b6d4" class="mt-1 block w-full h-10 bg-slate-700 border-slate-600 rounded-lg shadow-sm text-white">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="btn-cancel-create-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button>
+                    <button id="btn-save-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Folder</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-add-card" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-4">Add Manual Cards</h2>
+                <div id="add-cards-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    </div>
+                <div class="mt-6 flex justify-between">
+                    <button id="btn-add-another-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500"><i class="fas fa-plus mr-2"></i>Add Another</button>
+                    <div class="space-x-3">
+                        <button id="btn-cancel-add-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button>
+                        <button id="btn-save-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Cards</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="modal-learn-options" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-lg p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-1">Study Options</h2>
+                <p class="text-sm text-slate-400 mb-6">Choose how you want to study these cards.</p>
+                
+                <div class="border-y border-slate-700 py-6">
+                    <h3 class="font-semibold mb-3 text-lg">Question Types</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div><input type="checkbox" name="learn-q-type" id="q-type-mcq" value="mcq" checked class="hidden"><label for="q-type-mcq" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-list-ul text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Multiple Choice</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div>
+                        <div><input type="checkbox" name="learn-q-type" id="q-type-written" value="written" checked class="hidden"><label for="q-type-written" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-keyboard text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Written Answer</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div>
+                        <div><input type="checkbox" name="learn-q-type" id="q-type-tf" value="tf" class="hidden"><label for="q-type-tf" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-check-double text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">True / False</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div>
+                        <div><input type="checkbox" name="learn-q-type" id="q-type-matching" value="matching" class="hidden"><label for="q-type-matching" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-puzzle-piece text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Matching Game</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div>
+                    </div>
+                </div>
+
+                <div class="border-b border-slate-700 py-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                             <h3 class="font-semibold text-lg">Smart Review</h3>
+                             <p class="text-sm text-slate-400">Only study cards that are due today.</p>
+                        </div>
+                        <label for="smart-review-toggle" class="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" value="" id="smart-review-toggle" class="sr-only peer" checked>
+                          <div class="w-14 h-8 bg-slate-600 peer-focus:outline-none rounded-full peer block peer-checked:bg-cyan-600"></div>
+                          <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition peer-checked:translate-x-6"></div>
+                        </label>
+                    </div>
+                     <div id="study-planner-container" class="mt-4 p-4 bg-slate-900/50 rounded-lg">
+                        <label for="test-due-date-input" class="block text-sm font-medium text-slate-300">Optional: When is your test?</label>
+                        <input type="date" id="test-due-date-input" class="mt-1 w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white">
+                        <p id="study-plan-recommendation" class="text-xs text-cyan-300 mt-2 h-4"></p>
+                     </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="btn-cancel-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button>
+                    <button id="btn-start-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Start Studying</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="hidden fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50"></div>
+
+    <script type="module">
+        // --- GLOBAL CONFIG & STATE ---
+        const AppState = { 
+            currentFolderId: null, 
+            currentNoteId: null,
+            localData: { profile: {}, rewards: {}, folders: [], notes: {}, cards: {} },
+            learnState: {}, 
+            matchingState: {}, 
+        };
+        const API_BASE_URL = 'http://localhost:3000'; // IMPORTANT: Change this if your backend runs elsewhere
+
+        // --- UTILITIES ---
+        const Utils = { 
+            shuffle: (arr) => [...arr].sort(() => Math.random() - 0.5), 
+            escapeHtml: (str) => String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]), 
+            debounce: (func, wait) => { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; } 
+        };
+        
+        // --- API CONTROLLER ---
+        const ApiController = {
+            getToken: () => localStorage.getItem('accessToken'),
+            async fetchAllData() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/all-data`, {
+                        headers: { 'Authorization': `Bearer ${this.getToken()}` }
+                    });
+                    if (response.status === 401 || response.status === 403) {
+                         AuthController.signOut();
+                         return false;
+                    }
+                    if (!response.ok) throw new Error('Failed to fetch data from backend');
+                    const data = await response.json();
+                    
+                    AppState.localData.profile = data.profile;
+                    AppState.localData.rewards = data.rewards;
+                    AppState.localData.folders = data.folders;
+                    AppState.localData.notes = data.notesByFolder;
+                    AppState.localData.cards = data.cardsByFolder;
+
+                    return true;
+                } catch (error) {
+                    console.error("Could not connect to backend:", error);
+                    UI.showToast("Error: Could not connect to the local backend.", true);
+                    return false;
+                }
+            },
+            async apiCall(endpoint, method = 'GET', body = null) {
+                const headers = { 'Content-Type': 'application/json' };
+                const token = this.getToken();
+                if(token) headers['Authorization'] = `Bearer ${token}`;
+
+                const options = {
+                    method,
+                    headers,
+                };
+                if (body) options.body = JSON.stringify(body);
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                    if (response.status === 401 || response.status === 403) {
+                        AuthController.signOut();
+                        throw new Error("Authentication failed");
+                    }
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'API Request Failed');
+                    }
+                    return response.status === 204 ? { success: true } : await response.json();
+                } catch (error) {
+                    UI.showToast(error.message, true);
+                    throw error;
+                }
+            }
+        };
+
+        const AuthController = {
+            signOut() {
+                localStorage.removeItem('accessToken');
+                window.location.reload();
+            },
+            async handleAuth(email, password, isSignUp) {
+                const endpoint = isSignUp ? '/register' : '/login';
+                try {
+                    const result = await ApiController.apiCall(endpoint, 'POST', { email, password });
+                    if (isSignUp) {
+                        UI.showToast("Registration successful! Please sign in.");
+                        // Switch form to sign-in view
+                        document.getElementById('auth-mode-toggle').click();
+                    } else {
+                        localStorage.setItem('accessToken', result.accessToken);
+                        await runApplication();
+                    }
+                } catch (error) {
+                    // Error toast is already shown by apiCall
+                    console.error("Auth failed:", error);
+                }
+            }
+        };
+
+        // --- SRS ALGORITHM ---
+        const SRS = { 
+            MIN_EASE: 1.3, 
+            MAX_EASE: 3.5, 
+            INITIAL_INTERVAL: 1, 
+            MAXIMUM_INTERVAL: 365, 
+            addSRSData(card) { 
+                const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() };
+                const fullCard = { ...card, srs: srsData, createdAt: new Date().toISOString()};
+                // The backend API needs ease, interval, dueDate directly on the card for inserts
+                return { ...fullCard, ...srsData };
+            }, 
+            async updateCardSRS(card, isCorrect) { 
+                let { ease, interval } = card; 
+                if (isCorrect) { 
+                    interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); 
+                    ease = Math.min(this.MAX_EASE, ease + 0.1); 
+                } else { 
+                    interval = this.INITIAL_INTERVAL; 
+                    ease = Math.max(this.MIN_EASE, ease - 0.2); 
+                } 
+                const newDueDate = new Date(); 
+                newDueDate.setDate(newDueDate.getDate() + interval); 
+                const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() };
+                
+                await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate });
+                
+                const cardIndex = AppState.localData.cards[AppState.currentFolderId].findIndex(c => c.id === card.id);
+                if(cardIndex > -1) {
+                    Object.assign(AppState.localData.cards[AppState.currentFolderId][cardIndex], srsUpdate);
+                }
+            } 
+        };
+        
+        // --- REWARDS ---
+        const Rewards = { 
+            async update(isCorrect) { 
+                let rewards = AppState.localData.rewards;
+                const today = new Date().toDateString(); 
+                const lastStudiedDate = rewards.lastStudied ? new Date(rewards.lastStudied).toDateString() : null; 
+                if (isCorrect) { 
+                    rewards.points += 10; 
+                    if (lastStudiedDate !== today) { 
+                        const yesterday = new Date(); 
+                        yesterday.setDate(yesterday.getDate() - 1); 
+                        if (lastStudiedDate === yesterday.toDateString()) { 
+                            rewards.streak += 1; 
+                        } else { 
+                            rewards.streak = 1; 
+                        } 
+                    } 
+                } else { 
+                    rewards.streak = 0; 
+                } 
+                rewards.lastStudied = new Date().toISOString(); 
+                const updatedRewards = await ApiController.apiCall('/rewards', 'POST', rewards); 
+                AppState.localData.rewards = updatedRewards;
+                this.display(updatedRewards); 
+            }, 
+            display(rewardsData = null) { 
+                const rewards = rewardsData || AppState.localData.rewards;
+                document.getElementById('points-display').textContent = rewards ? rewards.points : 0; 
+                document.getElementById('streak-display').textContent = rewards ? rewards.streak : 0; 
+            } 
+        };
+
+        // --- UI MANIPULATION ---
+        const UI = { 
+            init() { 
+                this.views = { login: document.getElementById('view-login'), app: document.getElementById('app-container'), folderSelection: document.getElementById('view-folder-selection'), folderContents: document.getElementById('view-folder-contents'), learn: document.getElementById('view-learn'), profile: document.getElementById('view-profile'), noteEditor: document.getElementById('view-note-editor') }; 
+                this.modals = { createFolder: document.getElementById('modal-create-folder'), addCard: document.getElementById('modal-add-card'), learnOptions: document.getElementById('modal-learn-options') }; 
+                this.toast = document.getElementById('toast'); 
+            }, 
+            showView(viewId) { 
+                if(viewId === 'login') {
+                    this.views.login.classList.remove('hidden');
+                    this.views.app.classList.add('hidden');
+                    return;
+                }
+                this.views.login.classList.add('hidden');
+                this.views.app.classList.remove('hidden');
+
+                const appViews = [this.views.folderSelection, this.views.folderContents, this.views.learn, this.views.profile, this.views.noteEditor];
+                appViews.forEach(v => v.classList.add('hidden')); 
+                if (this.views[viewId]) this.views[viewId].classList.remove('hidden'); 
+            }, 
+            toggleModal(modalId, show) { 
+                if (this.modals[modalId]) this.modals[modalId].classList.toggle('hidden', !show); 
+            }, 
+            showToast(message, isError = false) { 
+                this.toast.textContent = message; 
+                this.toast.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50 fade-in ${isError ? 'bg-red-500' : 'bg-green-500'}`; 
+                this.toast.classList.remove('hidden'); 
+                setTimeout(() => this.toast.classList.add('hidden'), 3000); 
+            }, 
+            renderFolders() { 
+                const folders = AppState.localData.folders || [];
+                const list = document.getElementById('folder-list'); 
+                const emptyMsg = document.getElementById('no-folders-message'); 
+                emptyMsg.classList.toggle('hidden', folders.length > 0); 
+                list.innerHTML = folders.map(folder => {
+                    const cardCount = AppState.localData.cards[folder.id]?.length || 0;
+                    return `<div class="bg-slate-800 border border-slate-700 p-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer hover:bg-slate-700/50 hover:-translate-y-1 transition-all" data-id="${folder.id}"><div class="flex items-center"><div class="w-4 h-10 rounded mr-4" style="background-color: ${Utils.escapeHtml(folder.color || '#06b6d4')};"></div><div><h3 class="font-semibold text-lg">${Utils.escapeHtml(folder.name)}</h3><p class="text-sm text-slate-400">${Utils.escapeHtml(folder.description)}</p></div></div><div class="flex items-center space-x-2"><div class="text-sm text-slate-400">${cardCount} cards</div><button class="edit-folder-btn text-slate-400 hover:text-white" data-id="${folder.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-folder-btn text-slate-400 hover:text-red-500" data-id="${folder.id}"><i class="fas fa-trash-alt"></i></button></div></div>`
+                }).join(''); 
+            }, 
+            renderFolderContents(folderId) { 
+                const folder = AppState.localData.folders.find(f => f.id === folderId);
+                if (!folder) { 
+                    UI.showView('folderSelection'); 
+                    return; 
+                } 
+                document.getElementById('folder-title').textContent = folder.name; 
+                document.getElementById('folder-description').textContent = folder.description; 
+                
+                const notes = AppState.localData.notes[folderId] || [];
+                document.getElementById('notes-list').innerHTML = notes.length > 0 ? notes.map(UI.createNoteHTML).join('') : '<p class="text-slate-500 text-center py-4">No notes added yet.</p>'; 
+                
+                const allCards = AppState.localData.cards[folderId] || [];
+                const manualCards = allCards.filter(c => c.source === 'manual'); 
+                const generatedCards = allCards.filter(c => c.source === 'generated'); 
+                
+                document.getElementById('manual-cards-list').innerHTML = manualCards.length > 0 ? manualCards.map(UI.createCardHTML).join('') : '<p class="text-slate-500 text-center py-4">No manual cards added yet.</p>'; 
+                document.getElementById('generated-cards-list').innerHTML = generatedCards.length > 0 ? generatedCards.map(UI.createCardHTML).join('') : ''; 
+                UI.renderMastery(allCards); 
+            }, 
+            createNoteHTML(note) { 
+                return `<div class="bg-slate-800/50 border border-slate-700 rounded-lg shadow note-item" data-id="${note.id}"><div class="p-4 flex justify-between items-center cursor-pointer note-header"><div class="font-semibold">${Utils.escapeHtml(note.title)}</div><div class="flex items-center space-x-4"><span class="text-sm text-slate-400">${note.cardCount || 0} cards</span><button class="edit-note-btn text-slate-400 hover:text-white" data-id="${note.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-note-btn text-slate-400 hover:text-red-500" data-id="${note.id}"><i class="fas fa-trash"></i></button><i class="fas fa-chevron-down note-chevron"></i></div></div><div class="note-content px-4 pb-4 text-slate-300 border-t border-slate-700">${note.content}</div></div>`
+            }, 
+            createCardHTML: (card) => { 
+                const mastery = UI.getMasteryInfo(card.ease); 
+                return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold text-lg">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${mastery.textColor}" title="Mastery: ${mastery.label} / Due: ${new Date(card.dueDate).toLocaleDateString()}">Mastery: ${mastery.label}</span><button class="flip-card-btn text-cyan-400 hover:text-cyan-300">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold text-lg">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><div class="space-x-2"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button></div><button class="flip-card-btn text-cyan-400 hover:text-cyan-300">Flip</button></div></div></div></div>`; 
+            }, 
+            getMasteryInfo(ease) { 
+                if (ease < 2.0) return { label: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' }; 
+                if (ease < 2.8) return { label: 'Medium', color: 'bg-yellow-500', textColor: 'text-yellow-400' }; 
+                return { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' }; 
+            }, 
+            renderMastery(cards) { 
+                const section = document.getElementById('folder-mastery-section'); 
+                if (!cards || cards.length === 0) { section.innerHTML = ''; return; } 
+                const strongCount = cards.filter(c => c.ease >= 2.8).length; 
+                section.innerHTML = `<div class="p-4 cursor-pointer kg-header"><div class="flex justify-between items-center"><h2 class="text-xl font-semibold">Topic Mastery</h2><i class="fas fa-chevron-down kg-chevron"></i></div><p class="text-sm text-slate-400">You have mastered ${strongCount} of ${cards.length} cards.</p></div><div class="kg-content px-4 pb-4 border-t border-slate-700"><ul class="space-y-2 mt-4">${cards.map(card => { const mastery = UI.getMasteryInfo(card.ease); return `<li class="flex justify-between items-center"><span class="text-sm w-3/4 truncate" title="${Utils.escapeHtml(card.question)}">${Utils.escapeHtml(card.question)}</span><div class="w-1/4 h-2 bg-slate-600 rounded-full" title="Mastery: ${mastery.label}"><div class="h-2 rounded-full ${mastery.color}" style="width:${((card.ease - SRS.MIN_EASE) / (SRS.MAX_EASE - SRS.MIN_EASE)) * 100}%"></div></div></li>` }).join('')}</ul></div>`; 
+            }, 
+            updateProfileForm(profile) { 
+                if (!profile) return;
+                document.getElementById('username-input').value = profile.username || ''; 
+                document.getElementById('bio-input').value = profile.bio || ''; 
+                document.getElementById('api-key-input').value = profile.apiKey || ''; 
+                const avatar = profile.avatarUrl || 'https://placehold.co/100x100/1e293b/94a3b8?text=?'; 
+                document.getElementById('avatar-preview').src = avatar; 
+                document.getElementById('header-avatar').src = profile.avatarUrl || 'https://placehold.co/40x40/1e293b/94a3b8?text=?'; 
+            }, 
+            updateStudyPlanRecommendation() { 
+                const recommendationEl = document.getElementById('study-plan-recommendation'); 
+                const dueDateValue = document.getElementById('test-due-date-input').value; 
+                if (!dueDateValue) { recommendationEl.textContent = ''; return; } 
+                const dueDate = new Date(dueDateValue); 
+                const today = new Date(); today.setHours(0,0,0,0); 
+                const userTimezoneOffset = dueDate.getTimezoneOffset() * 60000; 
+                const correctedDueDate = new Date(dueDate.getTime() + userTimezoneOffset); 
+                const timeDiff = correctedDueDate.getTime() - today.getTime(); 
+                const daysUntilTest = Math.ceil(timeDiff / (1000 * 3600 * 24)); 
+                const cards = AppState.localData.cards[AppState.currentFolderId] || [];
+                const totalCards = cards.length; 
+                if (daysUntilTest <= 0) { recommendationEl.textContent = "Deadline is today or has passed!"; } else if (totalCards > 0) { const cardsPerDay = Math.ceil(totalCards / daysUntilTest); recommendationEl.textContent = `Recommended: ~${cardsPerDay} card(s) a day.`; } else { recommendationEl.textContent = ''; } 
+            } 
+        };
+        const LearnController = { 
+            start(allCards, options) { 
+                const useSmartReview = document.getElementById('smart-review-toggle').checked; 
+                let cardsToStudy; 
+                if (useSmartReview) { 
+                    cardsToStudy = allCards.filter(c => new Date(c.dueDate) <= new Date()); 
+                    if (cardsToStudy.length === 0) { UI.showToast("Smart Review: No cards are due today!"); return; } 
+                } else { 
+                    cardsToStudy = allCards; 
+                } 
+                if (cardsToStudy.length === 0) { UI.showToast("This folder has no cards to study!", true); return; } 
+                if (cardsToStudy.length < 4 && options.includes('matching')) { 
+                    options = options.filter(o => o !== 'matching'); 
+                    UI.showToast("Need at least 4 cards for a matching game.", true); 
+                } 
+                if (options.length === 0) { UI.showToast("Please select at least one question type.", true); return; } 
+                UI.toggleModal('learnOptions', false); 
+                UI.showView('learn'); 
+                AppState.learnState = { cards: Utils.shuffle(cardsToStudy), allCardsInFolder: allCards, options, currentIndex: 0, total: cardsToStudy.length, correctAnswers: 0 }; 
+                this.nextQuestion(); 
+            }, 
+            nextQuestion() { 
+                const { currentIndex, total } = AppState.learnState; 
+                document.getElementById('learn-progress-bar-inner').style.width = `${(currentIndex / total) * 100}%`; 
+                document.getElementById('learn-feedback-area').classList.add('hidden'); 
+                document.getElementById('learn-continue-btn').classList.add('hidden'); 
+                if (currentIndex >= total) { this.showSummary(); return; } 
+                const type = AppState.learnState.options[Math.floor(Math.random() * AppState.learnState.options.length)]; 
+                this.generateQuestion(type); 
+                AppState.learnState.currentIndex++; 
+            }, 
+            generateQuestion(type) { 
+                const container = document.getElementById('learn-question-container'); 
+                const currentCard = AppState.learnState.cards[AppState.learnState.currentIndex]; 
+                AppState.learnState.currentCard = currentCard; 
+                switch(type) { 
+                    case 'written': container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(currentCard.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600 w-full mt-4">Check Answer</button>`; document.getElementById('submit-written').addEventListener('click', () => this.checkAnswer()); break; 
+                    case 'mcq': const allAnswers = AppState.learnState.allCardsInFolder.map(c => c.answer); let options = [currentCard.answer]; const distractors = Utils.shuffle(allAnswers.filter(a => a !== currentCard.answer)); while (options.length < 4 && distractors.length > 0) { options.push(distractors.pop()); } options = Utils.shuffle(options); container.innerHTML = `<p class="text-slate-400 mb-2">Choose the correct answer:</p><h3 class="text-2xl font-semibold mb-6">${Utils.escapeHtml(currentCard.question)}</h3><div id="mcq-options" class="grid grid-cols-1 sm:grid-cols-2 gap-3">${options.map(opt => `<button class="mcq-option rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 text-left p-4">${Utils.escapeHtml(opt)}</button>`).join('')}</div>`; document.querySelectorAll('.mcq-option').forEach(btn => btn.addEventListener('click', (e) => this.checkAnswer(e.target.textContent))); break; 
+                    case 'tf': const isTrue = Math.random() > 0.5; const answerToShow = isTrue ? currentCard.answer : Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c => c.id !== currentCard.id))[0].answer; AppState.learnState.isTrueAnswer = isTrue; container.innerHTML = `<p class="text-slate-400 mb-2">Is this statement true or false?</p><div class="bg-slate-900/50 p-6 rounded-lg"><h3 class="text-xl font-semibold mb-2">${Utils.escapeHtml(currentCard.question)}</h3><hr class="border-slate-600 my-3"><p class="text-lg">${Utils.escapeHtml(answerToShow)}</p></div><div id="tf-options" class="flex justify-around mt-6"><button class="tf-option rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-green-600 hover:bg-green-700 text-white w-32 h-16 text-xl" data-value="true">True</button><button class="tf-option rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-red-600 hover:bg-red-700 text-white w-32 h-16 text-xl" data-value="false">False</button></div>`; document.querySelectorAll('.tf-option').forEach(btn => btn.addEventListener('click', (e) => this.checkAnswer(e.currentTarget.dataset.value === 'true'))); break; 
+                    case 'matching': MatchingGame.start(); break; 
+                } 
+            }, 
+            checkAnswer(userAnswer) { 
+                let isCorrect = false; 
+                const { currentCard, isTrueAnswer } = AppState.learnState; 
+                const questionType = document.getElementById('written-answer') ? 'written' : document.getElementById('mcq-options') ? 'mcq' : 'tf'; 
+                if (questionType === 'written') { 
+                    const writtenAnswer = document.getElementById('written-answer').value.trim().toLowerCase(); isCorrect = writtenAnswer === currentCard.answer.trim().toLowerCase(); 
+                } else if (questionType === 'mcq') { 
+                    isCorrect = userAnswer.trim() === currentCard.answer.trim(); 
+                } else { 
+                    isCorrect = userAnswer === isTrueAnswer; 
+                } 
+                SRS.updateCardSRS(currentCard, isCorrect); 
+                Rewards.update(isCorrect); 
+                const feedbackArea = document.getElementById('learn-feedback-area'), feedbackText = document.getElementById('learn-feedback-text'), correctAnswerText = document.getElementById('learn-correct-answer'); 
+                if (isCorrect) { 
+                    feedbackText.textContent = "Correct!"; 
+                    feedbackArea.className = 'mt-4 p-4 rounded-lg bg-green-500/20 text-green-300'; 
+                    correctAnswerText.textContent = ''; 
+                    AppState.learnState.correctAnswers++; 
+                } else { 
+                    feedbackText.textContent = "Incorrect!"; 
+                    feedbackArea.className = 'mt-4 p-4 rounded-lg bg-red-500/20 text-red-300'; 
+                    correctAnswerText.textContent = `The correct answer was: ${currentCard.answer}`; 
+                } 
+                feedbackArea.classList.remove('hidden'); 
+                document.getElementById('learn-continue-btn').classList.remove('hidden'); 
+                document.querySelectorAll('#learn-question-container button, #learn-question-container textarea').forEach(el => el.disabled = true); 
+            }, 
+            showSummary() { 
+                const container = document.getElementById('learn-question-container'); 
+                const { total, correctAnswers } = AppState.learnState; 
+                container.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-xl mb-2">You scored:</p><p class="text-5xl font-bold text-cyan-400 mb-8">${correctAnswers} / ${total}</p><div class="space-x-4"><button id="learn-again" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-cyan-600 text-white hover:bg-cyan-700 focus-visible:outline-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">Finish</button></div></div>`; 
+                document.getElementById('learn-again').addEventListener('click', () => FolderActions.openStudyModal()); 
+                document.getElementById('learn-finish').addEventListener('click', () => FolderActions.openFolder(AppState.currentFolderId)); 
+            } 
+        };
+        const MatchingGame = { 
+            start() { 
+                const container = document.getElementById('learn-question-container'); 
+                const gameCards = Utils.shuffle(AppState.learnState.cards).slice(0, 4); 
+                const terms = Utils.shuffle(gameCards.map(c => ({id: c.id, text: c.question}))); 
+                const definitions = Utils.shuffle(gameCards.map(c => ({id: c.id, text: c.answer}))); 
+                AppState.matchingState = { selectedTerm: null, selectedDefinition: null, correctPairs: 0, totalPairs: 4, cards: gameCards }; 
+                container.innerHTML = `<p class="text-slate-400 mb-4 text-center">Match the terms with their definitions.</p><div class="grid grid-cols-2 gap-4"><div id="terms-col" class="space-y-3">${terms.map((term) => `<button class="matching-item w-full rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 text-left p-4 h-24" data-id="${term.id}" data-type="term">${Utils.escapeHtml(term.text)}</button>`).join('')}</div><div id="definitions-col" class="space-y-3">${definitions.map((def) => `<button class="matching-item w-full rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 text-left p-4 h-24" data-id="${def.id}" data-type="definition">${Utils.escapeHtml(def.text)}</button>`).join('')}</div></div>`; 
+                document.querySelectorAll('.matching-item').forEach(btn => btn.addEventListener('click', (e) => this.handleSelection(e))); 
+            }, 
+            handleSelection(e) { 
+                const button = e.currentTarget; 
+                if (button.classList.contains('correct')) return; 
+                const type = button.dataset.type; 
+                if (type === 'term') { 
+                    if (AppState.matchingState.selectedTerm === button) { button.classList.remove('selected'); AppState.matchingState.selectedTerm = null; return; } 
+                    if(AppState.matchingState.selectedTerm) AppState.matchingState.selectedTerm.classList.remove('selected'); button.classList.add('selected'); 
+                    AppState.matchingState.selectedTerm = button; 
+                } else { 
+                    if (AppState.matchingState.selectedDefinition === button) { button.classList.remove('selected'); AppState.matchingState.selectedDefinition = null; return; } 
+                    if(AppState.matchingState.selectedDefinition) AppState.matchingState.selectedDefinition.classList.remove('selected'); button.classList.add('selected'); 
+                    AppState.matchingState.selectedDefinition = button; 
+                } 
+                this.checkMatch(); 
+            }, 
+            checkMatch() { 
+                const {selectedTerm, selectedDefinition} = AppState.matchingState; 
+                if (!selectedTerm || !selectedDefinition) return; 
+                const termId = selectedTerm.dataset.id, defId = selectedDefinition.dataset.id; 
+                const card = AppState.matchingState.cards.find(c => c.id === termId); 
+                if (termId === defId) { 
+                    selectedTerm.classList.remove('selected'); 
+                    selectedDefinition.classList.remove('selected'); 
+                    selectedTerm.classList.add('correct'); 
+                    selectedDefinition.classList.add('correct'); 
+                    selectedTerm.disabled = true; 
+                    selectedDefinition.disabled = true; 
+                    SRS.updateCardSRS(card, true); 
+                    Rewards.update(true); 
+                    AppState.matchingState.correctPairs++; 
+                    AppState.matchingState.selectedTerm = null; 
+                    AppState.matchingState.selectedDefinition = null; 
+                    if (AppState.matchingState.correctPairs === AppState.matchingState.totalPairs) { 
+                        const feedbackArea = document.getElementById('learn-feedback-area'), feedbackText = document.getElementById('learn-feedback-text'); 
+                        feedbackText.textContent = "Great job! All pairs matched."; 
+                        feedbackArea.className = 'mt-4 p-4 rounded-lg bg-green-500/20 text-green-300'; 
+                        feedbackArea.classList.remove('hidden'); 
+                        document.getElementById('learn-continue-btn').classList.remove('hidden'); 
+                    } 
+                } else { 
+                    selectedTerm.classList.add('incorrect'); 
+                    selectedDefinition.classList.add('incorrect'); 
+                    SRS.updateCardSRS(card, false); 
+                    Rewards.update(false); 
+                    setTimeout(() => { 
+                        selectedTerm.classList.remove('incorrect', 'selected'); 
+                        selectedDefinition.classList.remove('incorrect', 'selected'); 
+                        AppState.matchingState.selectedTerm = null; 
+                        AppState.matchingState.selectedDefinition = null; 
+                    }, 800); 
+                } 
+            } 
+        };
+        const AI = { 
+            async generateFlashcards(text) { 
+                const profile = AppState.localData.profile;
+                if (!profile.apiKey) { UI.showToast("Google AI API Key not found in Profile.", true); return null; } 
+                const payload = { contents: [{ role: "user", parts: [{ text: `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return the output as a JSON array of objects, where each object has a "question" and "answer" key.` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } }, required: ["question", "answer"] } } } }; 
+                try { 
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${profile.apiKey}`; 
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+                    if (!response.ok) throw new Error(`API request failed with status ${response.status}`); 
+                    const result = await response.json(); 
+                    if (result.candidates && result.candidates.length > 0) return JSON.parse(result.candidates[0].content.parts[0].text); 
+                    throw new Error("Could not generate flashcards from the notes."); 
+                } catch(error) { 
+                    console.error("Error generating flashcards:", error); 
+                    UI.showToast("An error occurred while generating flashcards.", true); 
+                    return null; 
+                } 
+            } 
+        };
+        const FolderActions = { 
+            init() { 
+                document.getElementById('btn-show-create-folder-modal').addEventListener('click', () => this.openCreateFolderModal()); 
+                document.getElementById('search-input').addEventListener('input', Utils.debounce((e) => this.filterFolders(e.target.value), 300)); 
+                document.getElementById('btn-save-folder').addEventListener('click', () => this.saveFolder()); 
+                document.getElementById('btn-cancel-create-folder').addEventListener('click', () => UI.toggleModal('createFolder', false)); 
+                document.getElementById('btn-back-to-folders').addEventListener('click', () => { UI.showView('folderSelection'); UI.renderFolders(); }); 
+                document.getElementById('btn-study-folder').addEventListener('click', () => this.openStudyModal()); 
+                document.getElementById('btn-add-card-to-folder').addEventListener('click', () => CardActions.openAddCardModal()); 
+                document.getElementById('btn-add-note-to-folder').addEventListener('click', () => NoteEditorActions.open()); 
+                document.getElementById('folder-list').addEventListener('click', async (e) => { 
+                    const target = e.target.closest('[data-id]'); 
+                    if (e.target.closest('.edit-folder-btn')) this.openCreateFolderModal(e.target.closest('.edit-folder-btn').dataset.id); 
+                    else if (e.target.closest('.delete-folder-btn')) { 
+                        if (confirm('Delete folder and all its contents?')) { 
+                           await ApiController.apiCall(`/folders/${e.target.closest('.delete-folder-btn').dataset.id}`, 'DELETE');
+                           await this.refreshData();
+                        }
+                    } else if (target) this.openFolder(target.dataset.id); 
+                }); 
+            }, 
+            async refreshData() {
+                await ApiController.fetchAllData();
+                UI.renderFolders();
+                if(AppState.currentFolderId) {
+                    UI.renderFolderContents(AppState.currentFolderId);
+                }
+            },
+            openCreateFolderModal(folderId = null) { 
+                const modal = document.getElementById('modal-create-folder'); 
+                document.getElementById('folder-id-input').value = folderId || ''; 
+                if (folderId) { 
+                    modal.querySelector('h2').textContent = 'Edit Folder'; 
+                    const data = AppState.localData.folders.find(f => f.id === folderId);
+                    document.getElementById('folder-name-input').value = data.name; 
+                    document.getElementById('folder-description-input').value = data.description; 
+                    document.getElementById('folder-color-input').value = data.color; 
+                } else { 
+                    modal.querySelector('h2').textContent = 'Create Folder'; 
+                    document.getElementById('folder-name-input').value = ''; 
+                    document.getElementById('folder-description-input').value = ''; 
+                    document.getElementById('folder-color-input').value = '#06b6d4'; 
+                } 
+                UI.toggleModal('createFolder', true); 
+            }, 
+            async saveFolder() { 
+                const folderData = { 
+                    id: document.getElementById('folder-id-input').value, 
+                    name: document.getElementById('folder-name-input').value.trim(), 
+                    description: document.getElementById('folder-description-input').value.trim(), 
+                    color: document.getElementById('folder-color-input').value 
+                }; 
+                if (!folderData.name) { UI.showToast('Folder name is required.', true); return; } 
+                await ApiController.apiCall('/folders', 'POST', folderData);
+                await this.refreshData();
+                UI.toggleModal('createFolder', false); 
+            }, 
+            filterFolders(searchTerm) { 
+                document.querySelectorAll('#folder-list > div').forEach(div => { 
+                    const name = div.querySelector('h3').textContent.toLowerCase(); 
+                    const desc = div.querySelector('p').textContent.toLowerCase(); 
+                    div.style.display = (name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase())) ? '' : 'none'; 
+                }); 
+            }, 
+            openFolder(folderId) { 
+                AppState.currentFolderId = folderId; 
+                UI.showView('folderContents'); 
+                UI.renderFolderContents(folderId);
+            }, 
+            openStudyModal() { 
+                const allCards = AppState.localData.cards[AppState.currentFolderId] || [];
+                if (allCards.length === 0) { 
+                    UI.showToast("Add some cards first!", true); return; 
+                } 
+                UI.toggleModal('learnOptions', true); 
+            } 
+        };
+        const CardActions = { 
+            init() { 
+                document.getElementById('btn-cancel-add-card').addEventListener('click', () => UI.toggleModal('addCard', false)); 
+                document.getElementById('btn-add-another-card').addEventListener('click', () => this.addAnotherCardInput()); 
+                document.getElementById('btn-save-cards').addEventListener('click', () => this.saveCards()); 
+                document.getElementById('add-cards-container').addEventListener('click', (e) => { 
+                    if (e.target.closest('.remove-card-input-btn')) e.target.closest('.card-input-group').remove(); 
+                }); 
+                const cardLists = [document.getElementById('manual-cards-list'), document.getElementById('generated-cards-list')]; 
+                cardLists.forEach(list => list.addEventListener('click', async e => { 
+                    const cardElement = e.target.closest('.card'); 
+                    if (!cardElement) return; 
+                    if (e.target.closest('.flip-card-btn')) cardElement.classList.toggle('is-flipped'); 
+                    else if (e.target.closest('.delete-card-btn')) { 
+                        const cardId = cardElement.dataset.id; 
+                        if(confirm('Delete this card?')) { 
+                            await ApiController.apiCall(`/cards/${cardId}`, 'DELETE');
+                            await FolderActions.refreshData();
+                        } 
+                    } 
+                })); 
+            }, 
+            createCardInputHTML: () => `<div class="card-input-group bg-slate-900/50 p-4 rounded-lg relative"><button class="remove-card-input-btn absolute top-2 right-2 text-slate-500 hover:text-red-400">&times;</button><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-slate-300">Question</label><textarea rows="3" class="mt-1 card-question block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm p-2 text-white"></textarea></div><div><label class="block text-sm font-medium text-slate-300">Answer</label><textarea rows="3" class="mt-1 card-answer block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm p-2 text-white"></textarea></div></div></div>`, 
+            addAnotherCardInput() { 
+                document.getElementById('add-cards-container').insertAdjacentHTML('beforeend', this.createCardInputHTML()); 
+            }, 
+            async saveCards() { 
+                const cardsRaw = Array.from(document.querySelectorAll('.card-input-group')).map(g => ({ question: g.querySelector('.card-question').value.trim(), answer: g.querySelector('.card-answer').value.trim() })).filter(c => c.question && c.answer); 
+                if (cardsRaw.length > 0) { 
+                    const cards = cardsRaw.map(c => SRS.addSRSData(c));
+                    await ApiController.apiCall('/manual-cards', 'POST', { folderId: AppState.currentFolderId, cards });
+                    await FolderActions.refreshData();
+                    UI.toggleModal('addCard', false); 
+                } else { 
+                    UI.showToast("Please fill out at least one card.", true); 
+                } 
+            }, 
+            openAddCardModal() { 
+                document.getElementById('add-cards-container').innerHTML = this.createCardInputHTML(); 
+                UI.toggleModal('addCard', true); 
+            } 
+        };
+        const NoteActions = { 
+            init() { 
+                document.getElementById('notes-list').addEventListener('click', async e => { 
+                    const noteItem = e.target.closest('.note-item'); 
+                    if (e.target.closest('.delete-note-btn')) { 
+                        const noteId = e.target.closest('.delete-note-btn').dataset.id; 
+                        if(confirm('Delete this note and all its cards?')) { 
+                            await ApiController.apiCall(`/notes/${noteId}`, 'DELETE');
+                            await FolderActions.refreshData();
+                        }
+                    } else if (e.target.closest('.edit-note-btn')) { 
+                        const noteId = e.target.closest('.edit-note-btn').dataset.id; 
+                        NoteEditorActions.open(noteId); 
+                    } else if (noteItem) { 
+                        noteItem.classList.toggle('is-open'); 
+                    } 
+                }); 
+            }
+        };
+        const NoteEditorActions = { 
+            init() { 
+                document.getElementById('btn-back-to-folder-from-editor').addEventListener('click', () => { 
+                    UI.showView('folderContents'); 
+                    UI.renderFolderContents(AppState.currentFolderId); 
+                }); 
+                document.getElementById('btn-save-note-and-cards').addEventListener('click', () => this.save()); 
+                document.getElementById('btn-cycle-layout').addEventListener('click', () => this.cycleLayout()); 
+                document.getElementById('btn-generate-from-note').addEventListener('click', () => this.generateCards()); 
+                document.getElementById('btn-add-manual-card-in-editor').addEventListener('click', () => { 
+                    document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend', this.createCardInputHTML({})); 
+                }); 
+                document.getElementById('note-editor-cards-list').addEventListener('click', e => { 
+                    if (e.target.closest('.remove-card-editor-btn')) { 
+                        e.target.closest('.card-editor-group').remove(); 
+                    } 
+                }); 
+                document.getElementById('btn-bullet-list').addEventListener('click', () => document.execCommand('insertUnorderedList', false, null)); 
+                document.getElementById('btn-ordered-list').addEventListener('click', () => document.execCommand('insertOrderedList', false, null)); 
+                document.getElementById('note-editor-content').addEventListener('paste', e => this.handlePaste(e)); 
+                this.initResizer(); 
+            }, 
+            open(noteId = null) { 
+                AppState.currentNoteId = noteId; 
+                const titleInput = document.getElementById('note-editor-title'); 
+                const contentInput = document.getElementById('note-editor-content'); 
+                const cardList = document.getElementById('note-editor-cards-list'); 
+                if (noteId) {
+                    const notesForFolder = AppState.localData.notes[AppState.currentFolderId] || [];
+                    const note = notesForFolder.find(n => n.id === noteId);
+                    const cardsForFolder = AppState.localData.cards[AppState.currentFolderId] || [];
+                    const cards = cardsForFolder.filter(c => c.noteId === noteId); 
+                    titleInput.value = note.title; 
+                    contentInput.innerHTML = note.content; 
+                    cardList.innerHTML = cards.map(c => this.createCardInputHTML(c, true)).join(''); 
+                } else { 
+                    titleInput.value = ''; 
+                    contentInput.innerHTML = ''; 
+                    cardList.innerHTML = ''; 
+                } 
+                this.setLayout('split-h'); 
+                this.updateGenerateButtonState(); 
+                UI.showView('noteEditor'); 
+            }, 
+            cycleLayout() { 
+                const grid = document.getElementById('note-editor-grid'); 
+                const currentMode = grid.dataset.layoutMode; 
+                if (currentMode === 'split-h') { this.setLayout('notes-only'); } 
+                else if (currentMode === 'notes-only') { this.setLayout('split-v'); } 
+                else { this.setLayout('split-h'); } 
+            }, 
+            setLayout(mode) { 
+                const grid = document.getElementById('note-editor-grid'); 
+                const notePanel = document.getElementById('note-editor-panel'); 
+                const hubPanel = document.getElementById('flashcard-hub-panel'); 
+                const resizer = document.getElementById('note-editor-resizer'); 
+                const button = document.getElementById('btn-cycle-layout'); 
+                grid.dataset.layoutMode = mode; 
+                grid.classList.remove('flex-row', 'flex-col'); 
+                notePanel.classList.remove('w-full'); 
+                hubPanel.classList.remove('hidden'); 
+                resizer.classList.add('hidden'); 
+                if (mode === 'split-h') { 
+                    grid.classList.add('flex-row'); 
+                    resizer.classList.remove('hidden'); 
+                    notePanel.style.flexBasis = '50%'; 
+                    hubPanel.style.flexBasis = '50%'; 
+                    button.innerHTML = '<i class="fas fa-expand"></i>'; 
+                    button.title = 'Notes Only View'; 
+                } else if (mode === 'notes-only') { 
+                    notePanel.classList.add('w-full'); 
+                    hubPanel.classList.add('hidden'); 
+                    button.innerHTML = '<i class="fas fa-layer-group"></i>'; 
+                    button.title = 'Vertical Split View'; 
+                } else if (mode === 'split-v') { 
+                    grid.classList.add('flex-col'); 
+                    notePanel.style.flexBasis = '50%'; 
+                    hubPanel.style.flexBasis = '50%'; 
+                    button.innerHTML = '<i class="fas fa-columns"></i>'; 
+                    button.title = 'Horizontal Split View'; 
+                } 
+            }, 
+            initResizer() { 
+                const resizer = document.getElementById('note-editor-resizer'); 
+                const grid = document.getElementById('note-editor-grid'); 
+                const leftPanel = document.getElementById('note-editor-panel'); 
+                let isResizing = false; 
+                const onMouseDown = (e) => { 
+                    if (grid.dataset.layoutMode !== 'split-h') return; 
+                    e.preventDefault(); isResizing = true; 
+                    document.body.style.cursor = 'col-resize'; 
+                    document.addEventListener('mousemove', onMouseMove); 
+                    document.addEventListener('mouseup', onMouseUp); 
+                }; 
+                const onMouseMove = (e) => { 
+                    if (!isResizing) return; 
+                    const totalWidth = grid.offsetWidth; 
+                    const newLeftWidth = e.clientX - grid.getBoundingClientRect().left; 
+                    if (newLeftWidth > 200 && totalWidth - newLeftWidth > 180) { 
+                        leftPanel.style.flexBasis = `${newLeftWidth}px`; 
+                    } 
+                }; 
+                const onMouseUp = () => { 
+                    isResizing = false; 
+                    document.body.style.cursor = 'default'; 
+                    document.removeEventListener('mousemove', onMouseMove); 
+                    document.removeEventListener('mouseup', onMouseUp); 
+                }; 
+                resizer.addEventListener('mousedown', onMouseDown); 
+            }, 
+            handlePaste(e) { 
+                e.preventDefault(); 
+                const clipboardData = e.clipboardData || window.clipboardData; 
+                let pastedHtml = clipboardData.getData('text/html') || clipboardData.getData('text/plain'); 
+                const sanitized = this.sanitizeHtml(pastedHtml); 
+                document.execCommand('insertHTML', false, sanitized); 
+            }, 
+            sanitizeHtml(htmlString) { 
+                const allowedTags = ['UL', 'OL', 'LI', 'P', 'BR', 'B', 'I', 'U', 'DIV']; 
+                const parser = new DOMParser(); 
+                const doc = parser.parseFromString(htmlString, 'text/html'); 
+                doc.querySelectorAll('style, script, meta, link, title').forEach(el => el.remove()); 
+                const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT); 
+                const nodesToRemove = []; 
+                const nodesToUnwrap = []; 
+                while(walker.nextNode()) { 
+                    const node = walker.currentNode; 
+                    if (node.nodeType === Node.COMMENT_NODE) { nodesToRemove.push(node); continue; } 
+                    if (allowedTags.includes(node.tagName)) { 
+                        while (node.attributes.length > 0) { node.removeAttribute(node.attributes[0].name); } 
+                    } else { nodesToUnwrap.push(node); } 
+                } 
+                nodesToUnwrap.forEach(node => { 
+                    const parent = node.parentNode; 
+                    while (node.firstChild) { parent.insertBefore(node.firstChild, node); } 
+                }); 
+                [...nodesToUnwrap, ...nodesToRemove].forEach(node => { 
+                    if (node.parentNode) { node.parentNode.removeChild(node); } 
+                }); 
+                return doc.body.innerHTML; 
+            }, 
+            async generateCards() { 
+                const content = document.getElementById('note-editor-content').textContent; 
+                if (!content.trim()) { UI.showToast("Please write some notes first.", true); return; } 
+                const btn = document.getElementById('btn-generate-from-note'); 
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...'; 
+                const generatedCards = await AI.generateFlashcards(content); 
+                btn.disabled = false; 
+                btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Generate'; 
+                if (generatedCards) { 
+                    const cardList = document.getElementById('note-editor-cards-list'); 
+                    generatedCards.forEach(card => cardList.insertAdjacentHTML('beforeend', this.createCardInputHTML(card, false))); 
+                } 
+            }, 
+            createCardInputHTML(card, isExisting) {
+                const q = isExisting ? card.question : (card.question || '');
+                const a = isExisting ? card.answer : (card.answer || '');
+                return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm font-medium">Question</label><textarea rows="2" class="mt-1 card-question block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-sm">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm font-medium">Answer</label><textarea rows="2" class="mt-1 card-answer block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-sm">${Utils.escapeHtml(a)}</textarea></div></div>`; 
+            }, 
+            async save() { 
+                const noteData = { 
+                    title: document.getElementById('note-editor-title').value.trim(), 
+                    content: document.getElementById('note-editor-content').innerHTML.trim() 
+                }; 
+                if (!noteData.title) { UI.showToast("Note title is required.", true); return; } 
+                const cardsRaw = Array.from(document.querySelectorAll('.card-editor-group')).map(g => ({ 
+                    question: g.querySelector('.card-question').value.trim(), 
+                    answer: g.querySelector('.card-answer').value.trim() 
+                })).filter(c => c.question && c.answer); 
+
+                const cardsWithSrs = cardsRaw.map(c => SRS.addSRSData({...c, source: 'generated'}));
+
+                await ApiController.apiCall('/notes', 'POST', {
+                    folderId: AppState.currentFolderId,
+                    noteId: AppState.currentNoteId,
+                    ...noteData,
+                    cards: cardsWithSrs
+                });
+                
+                await FolderActions.refreshData();
+                UI.showToast("Note and cards saved!"); 
+                UI.showView('folderContents'); 
+            }, 
+            updateGenerateButtonState() { 
+                const profile = AppState.localData.profile;
+                const btn = document.getElementById('btn-generate-from-note'); 
+                if (profile && profile.apiKey) { 
+                    btn.disabled = false; 
+                    btn.title = 'Generate flashcards using Google AI'; 
+                } else { 
+                    btn.disabled = true; 
+                    btn.title = 'Please add a Google AI API Key in your profile to use this feature.'; 
+                }
+            }
+        };
+        const ProfileActions = { 
+            init() { 
+                document.getElementById('profile-button').addEventListener('click', (e) => { 
+                    e.stopPropagation(); document.getElementById('profile-menu').classList.toggle('hidden'); 
+                }); 
+                document.getElementById('btn-go-to-profile').addEventListener('click', (e) => { e.preventDefault(); this.openProfile(); });
+                document.getElementById('btn-sign-out').addEventListener('click', (e) => { e.preventDefault(); AuthController.signOut(); });
+                document.getElementById('btn-back-to-folders-from-profile').addEventListener('click', () => UI.showView('folderSelection')); 
+                document.getElementById('profile-form').addEventListener('submit', (e) => this.saveProfile(e)); 
+                document.getElementById('avatar-input').addEventListener('change', (e) => this.handleAvatarChange(e)); 
+                window.addEventListener('click', (e) => { 
+                    const menu = document.getElementById('profile-menu'); 
+                    if (!menu.classList.contains('hidden') && !e.target.closest('#profile-button')) { 
+                        menu.classList.add('hidden'); 
+                    } 
+                }); 
+            }, 
+            openProfile() { 
+                UI.showView('profile'); 
+                document.getElementById('profile-menu').classList.add('hidden'); 
+            }, 
+            async saveProfile(e) { 
+                e.preventDefault(); 
+                const profileData = { 
+                    username: document.getElementById('username-input').value.trim(), 
+                    bio: document.getElementById('bio-input').value.trim(), 
+                    avatarUrl: document.getElementById('avatar-preview').src, 
+                    apiKey: document.getElementById('api-key-input').value.trim(), 
+                }; 
+                const updatedProfile = await ApiController.apiCall('/profile', 'POST', profileData); 
+                AppState.localData.profile = updatedProfile;
+                UI.updateProfileForm(updatedProfile); 
+                UI.showToast("Profile saved!"); 
+            }, 
+            handleAvatarChange(e) { 
+                const file = e.target.files[0]; 
+                if (!file) return; 
+                const reader = new FileReader(); 
+                reader.onload = (event) => { 
+                    document.getElementById('avatar-preview').src = event.target.result; 
+                }; 
+                reader.readAsDataURL(file); 
+            } 
+        };
+        const MiscEventListeners = { 
+            init() { 
+                document.getElementById('btn-cancel-learn').addEventListener('click', () => UI.toggleModal('learnOptions', false)); 
+                document.getElementById('btn-start-learn').addEventListener('click', () => { 
+                    const selectedOptions = Array.from(document.querySelectorAll('[name="learn-q-type"]:checked')).map(cb => cb.value); 
+                    const allCards = AppState.localData.cards[AppState.currentFolderId] || [];
+                    LearnController.start(allCards, selectedOptions); 
+                }); 
+                document.getElementById('btn-back-to-folder-from-learn').addEventListener('click', () => { 
+                    if (confirm('End study session?')) FolderActions.openFolder(AppState.currentFolderId); 
+                }); 
+                document.getElementById('learn-continue-btn').addEventListener('click', () => LearnController.nextQuestion()); 
+                document.getElementById('folder-mastery-section').addEventListener('click', e => { 
+                    if (e.target.closest('.kg-header')) e.currentTarget.classList.toggle('is-open'); 
+                }); 
+                document.getElementById('smart-review-toggle').addEventListener('change', (e) => { 
+                    document.getElementById('study-planner-container').classList.toggle('hidden', !e.target.checked); 
+                    if (e.target.checked) { 
+                        UI.updateStudyPlanRecommendation(); 
+                    } 
+                }); 
+                document.getElementById('test-due-date-input').addEventListener('change', () => { 
+                    UI.updateStudyPlanRecommendation(); 
+                }); 
+            } 
+        };
+
+        async function runApplication() {
+             const success = await ApiController.fetchAllData();
+            
+            if (success) {
+                // Initialize all the application logic now that we have data
+                FolderActions.init();
+                CardActions.init();
+                NoteActions.init();
+                NoteEditorActions.init();
+                ProfileActions.init();
+                MiscEventListeners.init();
+                
+                // Update the UI with the fetched data
+                UI.updateProfileForm(AppState.localData.profile);
+                Rewards.display(AppState.localData.rewards);
+                UI.renderFolders();
+                UI.showView('folderSelection');
+            } else {
+                // Auth failed or backend is down. Show login view.
+                UI.showView('login');
+            }
+        }
+
+        // --- APP INITIALIZATION ---
+        function main() {
+            UI.init();
+            
+            const token = ApiController.getToken();
+            if (token) {
+                runApplication();
+            } else {
+                UI.showView('login');
+                const loginForm = document.getElementById('login-form');
+                const authModeToggle = document.getElementById('auth-mode-toggle');
+                const loginTitle = document.getElementById('login-title');
+                const submitBtn = document.getElementById('submit-auth-btn');
+                let isSignUp = false;
+
+                authModeToggle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    isSignUp = !isSignUp;
+                    loginTitle.innerHTML = isSignUp ? '<i class="fas fa-user-plus text-cyan-400 mr-2"></i> Create Account' : '<i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In';
+                    submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+                    authModeToggle.textContent = isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up';
+                    document.getElementById('auth-error').textContent = '';
+                });
+                
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const email = loginForm.email.value;
+                    const password = loginForm.password.value;
+                    AuthController.handleAuth(email, password, isSignUp);
+                });
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', main);
+
+    </script>
+</body>
+</html>
