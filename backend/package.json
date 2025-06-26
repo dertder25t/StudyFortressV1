@@ -1,7 +1,7 @@
 {
   "name": "study-app-backend",
-  "version": "1.0.0",
-  "description": "Unified backend and web server for the self-hosted study app.",
+  "version": "1.1.0",
+  "description": "Unified backend and web server for the self-hosted study app with multi-provider AI support.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,10 +9,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@huggingface/inference": "^2.7.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "openai": "^4.52.7",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   }
