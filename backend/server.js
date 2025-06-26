@@ -13,14 +13,14 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = 'xk2/d}dfIM?H}6FD`+tQ%>XLkYoQ&=Zs4x8g1wmwrE£[ldx-F#'; 
+const JWT_SECRET = 'your-super-secret-key-that-you-should-change'; // CHANGE THIS!
 const SALT_ROUNDS = 10;
 
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// --- NEW PART: SERVE THE FRONTEND ---
+// --- SERVE THE FRONTEND ---
 // This tells Express to serve any static files (like .html, .css, .js)
 // from the 'public' directory.
 app.use(express.static(path.join(__dirname, 'public')));
@@ -256,6 +256,11 @@ app.delete('/api/cards/:id', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- THE FIX: ADD THIS ROUTE ---
+// This will catch requests to the root URL and send the main HTML file.
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
+});
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => {
