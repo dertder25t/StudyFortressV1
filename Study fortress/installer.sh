@@ -16,9 +16,10 @@ INSTALL_DIR="/opt/study-app" # The directory where the app will be installed
 echo "--- [STUDY APP INSTALLER] Starting setup... ---"
 
 # 1. Update system and install dependencies
-echo "[1/5] Updating system and installing Git, Node.js, and npm..."
+echo "[1/5] Updating system and installing Git, Node.js, npm, and curl..."
 apt-get update > /dev/null
-apt-get install -y git nodejs npm > /dev/null
+# Install curl first in case it's not present to run this script initially, though this is for robustness.
+apt-get install -y git nodejs npm curl > /dev/null
 
 # 2. Clone the repository
 echo "[2/5] Cloning repository from ${REPO_URL}..."
