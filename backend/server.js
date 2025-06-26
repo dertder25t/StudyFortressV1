@@ -4,12 +4,13 @@
 
 
 const express = require('express');
-const path = require('path'); // Core Node.js module for working with file paths
+const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto'); // <-- THIS IS THE FIX
 
 const app = express();
 const PORT = 3000;
@@ -21,8 +22,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // --- SERVE THE FRONTEND ---
-// This tells Express to serve any static files (like .html, .css, .js)
-// from the 'public' directory.
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -256,7 +255,6 @@ app.delete('/api/cards/:id', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- THE FIX: ADD THIS ROUTE ---
 // This will catch requests to the root URL and send the main HTML file.
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
@@ -268,3 +266,4 @@ app.listen(PORT, async () => {
   console.log(`Server is running!`);
   console.log(`Access your app at http://localhost:${PORT}`);
 });
+
