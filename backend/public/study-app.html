@@ -132,6 +132,7 @@
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100">
+    <!-- Login View -->
     <div id="view-login" class="min-h-screen flex items-center justify-center fade-in">
         <div class="w-full max-w-sm p-8 space-y-6 bg-slate-800/50 border border-slate-700 rounded-2xl shadow-2xl">
             <div>
@@ -166,6 +167,7 @@
         </div>
     </div>
 
+    <!-- Main App Container -->
     <div id="app-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
         <div class="absolute top-4 right-4 flex items-center space-x-4 z-10">
             <div id="rewards-display" class="flex items-center space-x-4 text-slate-300 bg-slate-800/50 px-3 py-2 rounded-lg">
@@ -183,6 +185,7 @@
             </div>
         </div>
         
+        <!-- Main Views -->
         <div id="view-folder-selection" class="max-w-4xl mx-auto fade-in mt-8">
             <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">My Folders</h1>
@@ -278,6 +281,7 @@
                  </div>
             </div>
             <div id="note-editor-grid" class="flex-grow flex gap-2 min-h-0" data-layout-mode="split-h">
+                <!-- Left Panel: Note Editor -->
                 <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%;">
                     <input type="hidden" id="note-editor-id">
                     <div class="mb-2 flex-shrink-0 flex items-center gap-4">
@@ -289,12 +293,15 @@
                     </div>
                     <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
                 </div>
+                <!-- Resizer Handle -->
                 <div id="note-editor-resizer" class="resizer">
                    <div class="resizer-line"></div>
                 </div>
+                <!-- Right Panel: Flashcard Hub -->
                 <div id="flashcard-hub-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0">
                      <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar">
-                         </div>
+                         <!-- Generated and manual cards will appear here -->
+                     </div>
                      <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors duration-200 bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
                          <i class="fas fa-plus mr-2"></i>Add Manual Card
                      </button>
@@ -303,7 +310,9 @@
         </div>
     </div>
 
+    <!-- Modals -->
     <div id="modal-container">
+        <!-- Create/Edit Folder Modal -->
         <div id="modal-create-folder" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
             <div class="bg-slate-800 border border-slate-700 w-full max-w-md p-6 rounded-xl shadow-2xl">
                 <h2 class="text-2xl font-bold mb-4">Create Folder</h2>
@@ -329,11 +338,13 @@
             </div>
         </div>
 
+        <!-- Add Manual Cards Modal -->
         <div id="modal-add-card" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
             <div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl">
                 <h2 class="text-2xl font-bold mb-4">Add Manual Cards</h2>
                 <div id="add-cards-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                    </div>
+                    <!-- Card input templates will be injected here -->
+                </div>
                 <div class="mt-6 flex justify-between">
                     <button id="btn-add-another-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500"><i class="fas fa-plus mr-2"></i>Add Another</button>
                     <div class="space-x-3">
@@ -344,6 +355,7 @@
             </div>
         </div>
         
+        <!-- Learn Options Modal -->
         <div id="modal-learn-options" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
             <div class="bg-slate-800 border border-slate-700 w-full max-w-lg p-6 rounded-xl shadow-2xl">
                 <h2 class="text-2xl font-bold mb-1">Study Options</h2>
@@ -397,7 +409,10 @@
             learnState: {}, 
             matchingState: {}, 
         };
-        const API_BASE_URL = 'http://localhost:3000'; // IMPORTANT: Change this if your backend runs elsewhere
+        // --- THIS IS THE FIX ---
+        // An empty string makes the API calls relative to the current domain,
+        // so it works whether you're on localhost or a server IP.
+        const API_BASE_URL = ''; 
 
         // --- UTILITIES ---
         const Utils = { 
@@ -1280,3 +1295,4 @@
     </script>
 </body>
 </html>
+
