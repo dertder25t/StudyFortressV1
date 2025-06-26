@@ -10,7 +10,7 @@ const { open } = require('sqlite');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto'); // <-- THIS IS THE FIX
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
@@ -215,7 +215,9 @@ app.post('/api/notes', authenticateToken, async (req, res) => {
             await db.run('INSERT INTO notes (id, userId, folderId, title, content, cardCount, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [finalNoteId, userId, folderId, title, content, cards.length, new Date().toISOString()]);
         }
         await db.run('DELETE FROM cards WHERE noteId = ? AND userId = ?', [finalNoteId, userId]);
-        const stmt = await db.prepare('INSERT INTO cards (id, userId, folderId, noteId, question, answer, source, ease, interval, dueDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        // --- THIS IS THE FIX ---
+        // Added the missing '?' for the 'createdAt' column.
+        const stmt = await db.prepare('INSERT INTO cards (id, userId, folderId, noteId, question, answer, source, ease, interval, dueDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         for (const card of cards) {
             await stmt.run(`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.srs.ease, card.srs.interval, card.srs.dueDate, card.createdAt);
         }
@@ -233,7 +235,7 @@ app.post('/api/manual-cards', authenticateToken, async (req, res) => {
     const { folderId, cards } = req.body;
     const userId = req.user.id;
     try {
-        const stmt = await db.prepare('INSERT INTO cards (id, userId, folderId, noteId, question, answer, source, ease, interval, dueDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        const stmt = await db.prepare('INSERT INTO cards (id, userId, folderId, noteId, question, answer, source, ease, interval, dueDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         for (const card of cards) {
             await stmt.run(`card_${crypto.randomUUID()}`, userId, folderId, null, card.question, card.answer, 'manual', card.srs.ease, card.srs.interval, card.srs.dueDate, card.createdAt);
         }
@@ -266,4 +268,3 @@ app.listen(PORT, async () => {
   console.log(`Server is running!`);
   console.log(`Access your app at http://localhost:${PORT}`);
 });
-
