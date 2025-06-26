@@ -7,10 +7,10 @@
 # --- Configuration ---
 # Set your GitHub repository details here.
 # IMPORTANT: This script assumes it's being run from a URL and needs to clone the repo.
-GITHUB_USER="YOUR_USERNAME"
-REPO_NAME="study-app" # Or whatever you named your repository
-REPO_URL="https://github.com/${GITHUB_USER}/${REPO_NAME}.git"
-INSTALL_DIR="/opt/study-app" # The directory where the app will be installed
+GITHUB_USER="dertder25t"
+REPO_NAME="StudyFortressV1" # Or whatever you named your repository
+REPO_URL="https://github.com/dertder25t/StudyFortressV1"
+INSTALL_DIR="/opt/StudyFortressV1" # The directory where the app will be installed
 
 # --- Script Start ---
 echo "--- [STUDY APP INSTALLER] Starting setup... ---"
