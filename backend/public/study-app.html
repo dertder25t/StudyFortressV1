@@ -280,7 +280,7 @@
             }
         };
 
-        // --- CORE LOGIC MODULES (SRS, REWARDS, UI) ---
+        // --- CORE LOGIC MODULES ---
         const SRS = { MIN_EASE: 1.3, MAX_EASE: 3.5, INITIAL_INTERVAL: 1, MAXIMUM_INTERVAL: 365, addSRSData(card) { const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() }; return { ...card, ...srsData, createdAt: new Date().toISOString() }; }, async updateCardSRS(card, isCorrect) { let { ease, interval } = card; if (isCorrect) { interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); ease = Math.min(this.MAX_EASE, ease + 0.1); } else { interval = this.INITIAL_INTERVAL; ease = Math.max(this.MIN_EASE, ease - 0.2); } const newDueDate = new Date(); newDueDate.setDate(newDueDate.getDate() + interval); const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() }; await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate }); const cardIndex = AppState.localData.cards[AppState.currentFolderId].findIndex(c => c.id === card.id); if(cardIndex > -1) Object.assign(AppState.localData.cards[AppState.currentFolderId][cardIndex], srsUpdate); } };
         const Rewards = { 
             async update(isCorrect) { 
@@ -317,12 +317,15 @@
                 if(viewId === 'login') {
                     this.views.login.classList.remove('hidden');
                     this.views.app.classList.add('hidden');
-                    return;
-                }
-                this.views.login.classList.add('hidden');
-                this.views.app.classList.remove('hidden'); 
-                Object.values(this.views).forEach(v => v.classList.add('hidden')); 
-                if (this.views[viewId]) this.views[viewId].classList.remove('hidden'); 
+                } else {
+                    this.views.login.classList.add('hidden');
+                    this.views.app.classList.remove('hidden');
+                    const subViews = [this.views.folderSelection, this.views.folderContents, this.views.learn, this.views.profile, this.views.noteEditor];
+                    subViews.forEach(v => v.classList.add('hidden'));
+                    if (this.views[viewId]) {
+                        this.views[viewId].classList.remove('hidden');
+                    }
+                } 
             }, 
             toggleModal(modalId, show) { if (this.modals[modalId]) this.modals[modalId].classList.toggle('hidden', !show); }, 
             showToast(message, isError = false) { this.toast.textContent = message; this.toast.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50 fade-in ${isError ? 'bg-red-500' : 'bg-green-500'}`; this.toast.classList.remove('hidden'); setTimeout(() => this.toast.classList.add('hidden'), 3000); }, 
