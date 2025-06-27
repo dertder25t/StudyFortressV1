@@ -345,23 +345,34 @@
         const ProfileActions = { init() { document.getElementById('profile-button').onclick=e=>{e.stopPropagation(); document.getElementById('profile-menu').classList.toggle('hidden');}; document.getElementById('btn-go-to-profile').onclick=e=>{e.preventDefault();this.openProfile();}; document.getElementById('btn-sign-out').onclick=e=>{e.preventDefault();AuthController.signOut();}; document.getElementById('btn-back-to-folders-from-profile').onclick=()=>UI.showView('folderSelection'); document.getElementById('profile-form').onsubmit=e=>this.saveProfile(e); document.getElementById('avatar-input').onchange=e=>this.handleAvatarChange(e); window.onclick=e=>{const m=document.getElementById('profile-menu'); if(!m.classList.contains('hidden')&&!e.target.closest('#profile-button')) m.classList.add('hidden');}; }, openProfile(){UI.showView('profile');document.getElementById('profile-menu').classList.add('hidden');}, async saveProfile(e){e.preventDefault(); const profileData={username:document.getElementById('username-input').value.trim(),bio:document.getElementById('bio-input').value.trim(),avatarUrl:document.getElementById('avatar-preview').src,googleApiKey:document.getElementById('google-api-key-input').value.trim(),openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),huggingfaceApiKey:document.getElementById('huggingface-api-key-input').value.trim(),}; AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); UI.updateProfileForm(AppState.localData.profile); UI.showToast("Profile saved!");}, handleAvatarChange(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;};r.readAsDataURL(f);} };
         const MiscEventListeners = { init() { document.getElementById('btn-cancel-learn').onclick=()=>UI.toggleModal('learnOptions', false); document.getElementById('btn-start-learn').onclick=()=>{const sel=Array.from(document.querySelectorAll('[name="learn-q-type"]:checked')).map(cb=>cb.value); const all=AppState.localData.cards[AppState.currentFolderId]||[]; LearnController.start(all,sel);}; document.getElementById('btn-back-to-folder-from-learn').onclick=()=>{if(confirm('End study session?'))FolderActions.openFolder(AppState.currentFolderId);}; document.getElementById('learn-continue-btn').onclick=()=>LearnController.nextQuestion(); document.getElementById('folder-mastery-section').onclick=e=>{if(e.target.closest('.kg-header'))e.currentTarget.classList.toggle('is-open');}; document.getElementById('smart-review-toggle').onchange=e=>{document.getElementById('study-planner-container').classList.toggle('hidden',!e.target.checked);if(e.target.checked){UI.updateStudyPlanRecommendation();}}; document.getElementById('test-due-date-input').onchange=()=>UI.updateStudyPlanRecommendation();} };
 
-        async function runApplication() { 
-            const success = await ApiController.apiCall('/all-data'); 
-            if(success){ 
-                AppState.localData = success; 
-                FolderActions.init(); 
-                CardActions.init(); 
-                NoteActions.init(); 
-                NoteEditorActions.init(); 
-                ProfileActions.init(); 
-                MiscEventListeners.init(); 
-                UI.updateProfileForm(AppState.localData.profile); 
-                Rewards.display(); 
-                UI.renderFolders(); 
-                UI.showView('folderSelection'); 
-            } else { 
-                UI.showView('login'); 
-            } 
+        async function runApplication() {
+            try {
+                const success = await ApiController.apiCall('/all-data');
+                if (success) {
+                    AppState.localData = success;
+            
+                    // Now, safely initialize the UI components
+                    FolderActions.init();
+                    CardActions.init();
+                    NoteActions.init();
+                    NoteEditorActions.init();
+                    ProfileActions.init();
+                    MiscEventListeners.init();
+            
+                    UI.updateProfileForm(AppState.localData.profile);
+                    Rewards.display();
+                    UI.renderFolders();
+                    UI.showView('folderSelection');
+                } else {
+                    // This case handles auth failures or if the backend returns a non-success status
+                    UI.showView('login');
+                }
+            } catch (error) {
+                // This will catch any error during the API call or the UI setup
+                console.error("Critical error during application startup:", error);
+                UI.showToast("Failed to start the application. Check console for details.", true);
+                AuthController.signOut(); // It's safest to sign out if the app can't load
+            }
         }
         function main() { 
             UI.init(); 
