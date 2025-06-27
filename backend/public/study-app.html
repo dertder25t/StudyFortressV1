@@ -280,33 +280,8 @@
             }
         };
 
-        // --- CORE LOGIC MODULES ---
-        const SRS = { 
-            MIN_EASE: 1.3, 
-            MAX_EASE: 3.5, 
-            INITIAL_INTERVAL: 1, 
-            MAXIMUM_INTERVAL: 365, 
-            addSRSData(card) { 
-                const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() }; 
-                return { ...card, ...srsData, createdAt: new Date().toISOString() }; 
-            }, 
-            async updateCardSRS(card, isCorrect) { 
-                let { ease, interval } = card; 
-                if (isCorrect) { 
-                    interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); 
-                    ease = Math.min(this.MAX_EASE, ease + 0.1); 
-                } else { 
-                    interval = this.INITIAL_INTERVAL; 
-                    ease = Math.max(this.MIN_EASE, ease - 0.2); 
-                } 
-                const newDueDate = new Date(); 
-                newDueDate.setDate(newDueDate.getDate() + interval); 
-                const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() }; 
-                await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate }); 
-                const cardIndex = AppState.localData.cards[AppState.currentFolderId].findIndex(c => c.id === card.id); 
-                if(cardIndex > -1) Object.assign(AppState.localData.cards[AppState.currentFolderId][cardIndex], srsUpdate); 
-            } 
-        };
+        // --- CORE LOGIC MODULES (SRS, REWARDS, UI) ---
+        const SRS = { MIN_EASE: 1.3, MAX_EASE: 3.5, INITIAL_INTERVAL: 1, MAXIMUM_INTERVAL: 365, addSRSData(card) { const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() }; return { ...card, ...srsData, createdAt: new Date().toISOString() }; }, async updateCardSRS(card, isCorrect) { let { ease, interval } = card; if (isCorrect) { interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); ease = Math.min(this.MAX_EASE, ease + 0.1); } else { interval = this.INITIAL_INTERVAL; ease = Math.max(this.MIN_EASE, ease - 0.2); } const newDueDate = new Date(); newDueDate.setDate(newDueDate.getDate() + interval); const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() }; await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate }); const cardIndex = AppState.localData.cards[AppState.currentFolderId].findIndex(c => c.id === card.id); if(cardIndex > -1) Object.assign(AppState.localData.cards[AppState.currentFolderId][cardIndex], srsUpdate); } };
         const Rewards = { 
             async update(isCorrect) { 
                 let r = AppState.localData.rewards; 
@@ -372,9 +347,15 @@
 
         async function runApplication() { 
             try {
-                const success = await ApiController.apiCall('/all-data'); 
-                if(success){ 
-                    AppState.localData = success; 
+                const data = await ApiController.apiCall('/all-data'); 
+                if(data){ 
+                    AppState.localData = {
+                        profile: data.profile || {},
+                        rewards: data.rewards || { points: 0, streak: 0 },
+                        folders: data.folders || [],
+                        notes: data.notesByFolder || {},
+                        cards: data.cardsByFolder || {}
+                    };
                     FolderActions.init(); 
                     CardActions.init(); 
                     NoteActions.init(); 
@@ -391,7 +372,7 @@
             } catch (error) {
                 console.error("Critical error during application startup:", error);
                 UI.showToast("Failed to start the application. Check console for details.", true);
-                AuthController.signOut(); // Safest to sign out if the app can't load
+                AuthController.signOut();
             }
         }
         function main() { 
