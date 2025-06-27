@@ -1,6 +1,6 @@
 // A simple, UNIFIED backend for the Study App.
 // This single file acts as BOTH the API server and the web server.
-// Version 1.4: Final bug fixes for data saving.
+// Version 1.5: Corrected data structure mismatch for card creation.
 
 const express = require('express');
 const path = require('path');
@@ -193,7 +193,7 @@ app.post('/api/notes', authenticateToken, async (req, res) => {
 
         for (const card of cards) {
             await db.run('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.srs.ease, card.srs.interval, card.srs.dueDate, card.createdAt]);
+                [`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.ease, card.interval, card.dueDate, card.createdAt]);
         }
         await db.run('COMMIT');
         res.status(201).json({ message: 'Note and cards saved' });
@@ -215,7 +215,7 @@ app.post('/api/manual-cards', authenticateToken, async (req, res) => {
         await db.run('BEGIN TRANSACTION');
         for (const card of cards) {
             await db.run('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [`card_${crypto.randomUUID()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.srs.ease, card.srs.interval, card.srs.dueDate, card.createdAt]);
+                [`card_${crypto.randomUUID()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.ease, card.interval, card.dueDate, card.createdAt]);
         }
         await db.run('COMMIT');
         res.status(201).json({ message: 'Cards saved' });
@@ -242,5 +242,4 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-ap
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
-
 
