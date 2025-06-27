@@ -7,65 +7,63 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        /* Import Inter font from Google Fonts */
+        /* Font Import */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        /* Set default font and background color */
+
+        /* Base Styles */
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
-        
-        /* Perspective for 3D effects */
+
+        /* Card Animation and 3D Effects */
         .perspective { perspective: 2000px; }
-        
-        /* Card styles */
         .card { transition: all 0.3s ease; }
         .card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2); }
         .card-inner { transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .card.is-flipped .card-inner { transform: rotateY(180deg); }
         .card-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
         .card-back { transform: rotateY(180deg); }
-        
-        /* Fade-in animation */
+
+        /* Fade Animation */
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        /* Custom checkbox styles */
+
+        /* Custom Checkbox Styles */
         [name="learn-q-type"] + label i.fa-check-circle { display: none; }
         [name="learn-q-type"]:checked + label i.fa-check-circle { display: inline-block; }
         .dark [name="learn-q-type"]:checked + label { @apply bg-cyan-900/50 text-white border-cyan-500; }
         .dark [name="learn-q-type"]:checked + label i.fa-check-circle { @apply text-cyan-400; }
-        
-        /* Matching game item styles */
+
+        /* Matching Game Styles */
         .matching-item.selected { transform: scale(1.05); @apply bg-cyan-600 border-cyan-500 text-white; }
         .matching-item.correct { background-color: #10b981 !important; border-color: #059669 !important; color: white; opacity: 0.7; cursor: not-allowed; }
         .matching-item.incorrect { animation: shake 0.5s; background-color: #ef4444 !important; border-color: #dc2626 !important; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        
-        /* Note and KG content styles */
+
+        /* Collapsible Content Styles */
         .note-content, .kg-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
         .is-open > .note-content, .is-open > .kg-content { max-height: 1000px; transition: max-height 0.5s ease-in; }
         .is-open .note-chevron, .is-open .kg-chevron { transform: rotate(180deg); }
         .note-chevron, .kg-chevron { transition: transform 0.3s; }
-        
-        /* Toggle switch styles */
+
+        /* Toggle Switch Styles */
         .dot { transition: transform .3s ease-in-out; }
         .peer:checked ~ .dot { transform: translateX(1.5rem); background-color: #22d3ee; }
         .peer:checked ~ .block { background-color: #06b6d4; }
-        
-        /* Date input styles */
+
+        /* Input Styles */
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
-        
-        /* Custom scrollbar styles */
+
+        /* Scrollbar Styles */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.8); }
-        
-        /* Resizer styles */
+
+        /* Resizer Styles */
         .resizer { background-color: transparent; cursor: col-resize; width: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .resizer-line { width: 4px; height: 50px; background-color: #334155; border-radius: 4px; transition: background-color 0.2s; }
         .resizer:hover .resizer-line { background-color: #475569; }
-        
-        /* Note editor content styles */
+
+        /* Note Editor Content Styles */
         #note-editor-content { outline: none; }
         #note-editor-content ul, #note-editor-content ol { padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
         #note-editor-content ul { list-style: disc; }
@@ -79,7 +77,7 @@
         <div class="w-full max-w-sm p-8 space-y-6 bg-slate-800/50 border border-slate-700 rounded-2xl shadow-2xl">
             <div>
                 <h2 id="login-title" class="text-center text-3xl font-bold tracking-tight text-white"><i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In</h2>
-                <p class="mt-2 text-center text-sm text slate-400">to your Study Fortress</p>
+                <p class="mt-2 text-center text-sm text-slate-400">to your Study Fortress</p>
             </div>
             <form id="login-form" class="space-y-6">
                 <div>
@@ -90,15 +88,16 @@
                     <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
                     <input id="password" name="password" type="password" autocomplete="current-password" required class="mt-1 block w-full appearance-none rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm">
                 </div>
-                <button id="submit-auth-btn" type="submit" class="flex w-full justify-center rounded-lg bg-cyan-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700">Sign In</button>
+                <button id="submit-auth-btn" type="submit" class="flex w-full justify-center rounded-lg bg-cyan                px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700">Sign In</button>
             </form>
             <p id="auth-error" class="text-xs text-center text-red-400 h-4"></p>
             <div class="text-center text-sm"><a href="#" id="auth-mode-toggle" class="font-medium text-cyan-400 hover:text-cyan-300">Need an account? Sign Up</a></div>
         </div>
     </div>
 
-    <!-- Main App Container -->
+    <!-- Main Application Container -->
     <div id="app-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
+        <!-- Header Section -->
         <div class="absolute top-4 right-4 flex items-center space-x-4 z-10">
             <div id="rewards-display" class="flex items-center space-x-4 text-slate-300 bg-slate-800/50 px-3 py-2 rounded-lg">
                 <div title="Total Points"><i class="fas fa-star text-yellow-400"></i> <span id="points-display">0</span></div>
@@ -112,8 +111,8 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Views -->
+
+        <!-- Folder Selection View -->
         <div id="view-folder-selection" class="max-w-4xl mx-auto fade-in mt-8">
             <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">My Folders</h1>
@@ -126,6 +125,7 @@
             <div id="no-folders-message" class="hidden text-center py-20 bg-slate-800 rounded-xl shadow-lg"><i class="fas fa-folder-open text-5xl text-slate-500"></i><h3 class="mt-4 text-xl font-semibold">No folders yet</h3><p class="mt-1 text-slate-400">Click "Create Folder" to get started!</p></div>
         </div>
 
+        <!-- Folder Contents View -->
         <div id="view-folder-contents" class="hidden max-w-4xl mx-auto">
             <button id="btn-back-to-folders" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folders</button>
             <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-xl shadow-lg">
@@ -150,15 +150,17 @@
             <h2 class="text-xl font-semibold mt-8 mb-4">Manual Cards</h2>
             <div id="manual-cards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
-        
+
+        <!-- Learn View -->
         <div id="view-learn" class="hidden max-w-2xl mx-auto fade-in">
-             <button id="btn-back-to-folder-from-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folder</button>
-             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-4"><div id="learn-progress-bar-inner" class="bg-cyan-500 h-2.5 rounded-full" style="width: 0%"></div></div>
-             <div id="learn-question-container" class="bg-slate-800 border border-slate-700 p-6 sm:p-8 rounded-xl shadow-2xl min-h-[300px]"></div>
-             <div id="learn-feedback-area" class="hidden mt-4 p-4 rounded-lg"><p id="learn-feedback-text" class="font-semibold text-lg"></p><p id="learn-correct-answer" class="mt-1 text-slate-300"></p></div>
-             <button id="learn-continue-btn" class="hidden rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4 text-lg">Continue</button>
+            <button id="btn-back-to-folder-from-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folder</button>
+            <div class="w-full bg-slate-700 rounded-full h-2.5 mb-4"><div id="learn-progress-bar-inner" class="bg-cyan-500 h-2.5 rounded-full" style="width: 0%"></div></div>
+            <div id="learn-question-container" class="bg-slate-800 border border-slate-700 p-6 sm:p-8 rounded-xl shadow-2xl min-h-[300px]"></div>
+            <div id="learn-feedback-area" class="hidden mt-4 p-4 rounded-lg"><p id="learn-feedback-text" class="font-semibold text-lg"></p><p id="learn-correct-answer" class="mt-1 text-slate-300"></p></div>
+            <button id="learn-continue-btn" class="hidden rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4 text-lg">Continue</button>
         </div>
-        
+
+        <!-- Profile View -->
         <div id="view-profile" class="hidden max-w-2xl mx-auto fade-in mt-8">
             <button id="btn-back-to-folders-from-profile" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600 mb-4"><i class="fas fa-arrow-left mr-2"></i>Back to Folders</button>
             <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
@@ -167,50 +169,36 @@
                     <div class="flex items-center space-x-4">
                         <img id="avatar-preview" src="https://placehold.co/100x100/1e293b/94a3b8?text=?" alt="Avatar Preview" class="w-24 h-24 rounded-full object-cover">
                         <div>
-                             <label for="avatar-input" class="cursor-pointer rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><span>Upload Avatar</span><input type="file" id="avatar-input" class="hidden" accept="image/*"></label>
-                             <p class="text-xs text-slate-400 mt-2">Images are stored locally in the DB.</p>
+                            <label for="avatar-input" class="cursor-pointer rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><span>Upload Avatar</span><input type="file" id="avatar-input" class="hidden" accept="image/*"></label>
+                            <p class="text-xs text-slate-400 mt-2">Images are stored locally in the DB.</p>
                         </div>
                     </div>
                     <div><label for="username-input" class="block text-sm font-medium text-slate-300">Username</label><input type="text" id="username-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white"></div>
                     <div><label for="bio-input" class="block text-sm font-medium text-slate-300">Bio</label><textarea id="bio-input" rows="3" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Tell us about yourself..."></textarea></div>
-                    
                     <div class="border-t border-slate-600 pt-6 space-y-4">
                         <h2 class="text-lg font-semibold text-cyan-400">AI Provider API Keys</h2>
-                        <div>
-                            <label for="google-api-key-input" class="block text-sm font-medium text-slate-300">Google AI API Key</label>
-                            <input type="password" id="google-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter Google AI key...">
-                        </div>
-                        <div>
-                            <label for="openai-api-key-input" class="block text-sm font-medium text-slate-300">OpenAI API Key (ChatGPT)</label>
-                            <input type="password" id="openai-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter OpenAI key...">
-                        </div>
-                        <div>
-                            <label for="huggingface-api-key-input" class="block text-sm font-medium text-slate-300">Hugging Face API Key</label>
-                            <input type="password" id="huggingface-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter Hugging Face key...">
-                        </div>
+                        <div><label for="google-api-key-input" class="block text-sm font-medium text-slate-300">Google AI API Key</label><input type="password" id="google-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter Google AI key..."></div>
+                        <div><label for="openai-api-key-input" class="block text-sm font-medium text-slate-300">OpenAI API Key (ChatGPT)</label><input type="password" id="openai-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter OpenAI key..."></div>
+                        <div><label for="huggingface-api-key-input" class="block text-sm font-medium text-slate-300">Hugging Face API Key</label><input type="password" id="huggingface-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter Hugging Face key..."></div>
                     </div>
-
                     <div class="text-right"><button type="submit" id="save-profile-btn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Changes</button></div>
                 </form>
             </div>
         </div>
-        
+
+        <!-- Note Editor View -->
         <div id="view-note-editor" class="hidden h-[calc(100vh-4rem)] flex flex-col">
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                 <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
                     <button id="btn-back-to-folder-from-editor" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-arrow-left mr-2"></i>Back</button>
                     <button id="btn-cycle-layout" title="Cycle Layout" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-columns"></i></button>
-                 </div>
-                 <h2 id="notes-lab-title" class="text-xl font-bold text-cyan-400">Notes Lab</h2>
-                 <div class="flex items-center gap-2">
-                     <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
-                         <option value="">Select AI Provider</option>
-                     </select>
-                     <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700" disabled>
-                         <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
-                     </button>
-                     <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>Save</button>
-                 </div>
+                </div>
+                <h2 id="notes-lab-title" class="text-xl font-bold text-cyan-400">Notes Lab</h2>
+                <div class="flex items-center gap-2">
+                    <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled><option value="">Select AI Provider</option></select>
+                    <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700" disabled><i class="fas fa-wand-magic-sparkles mr-2"></i>Generate</button>
+                    <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>Save</button>
+                </div>
             </div>
             <div id="note-editor-grid" class="flex-grow flex gap-2 min-h-0" data-layout-mode="split-h">
                 <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%;">
@@ -218,16 +206,16 @@
                     <div class="mb-2 flex-shrink-0 flex items-center gap-4">
                         <input type="text" id="note-editor-title" placeholder="Note Title..." class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none">
                         <div id="note-editor-controls" class="flex items-center gap-2">
-                           <button id="btn-bullet-list" title="Bulleted List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ul"></i></button>
-                           <button id="btn-ordered-list" title="Numbered List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
+                            <button id="btn-bullet-list" title="Bulleted List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ul"></i></button>
+                            <button id="btn-ordered-list" title="Numbered List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
                         </div>
                     </div>
                     <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
                 </div>
                 <div id="note-editor-resizer" class="resizer"><div class="resizer-line"></div></div>
                 <div id="flashcard-hub-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0">
-                     <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar"></div>
-                     <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Manual Card</button>
+                    <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar"></div>
+                    <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Manual Card</button>
                 </div>
             </div>
         </div>
@@ -248,6 +236,7 @@
                 <div class="mt-6 flex justify-end space-x-3"><button id="btn-cancel-create-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button><button id="btn-save-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Folder</button></div>
             </div>
         </div>
+
         <!-- Add Manual Cards Modal -->
         <div id="modal-add-card" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
             <div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl">
@@ -256,6 +245,7 @@
                 <div class="mt-6 flex justify-between"><button id="btn-add-another-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500"><i class="fas fa-plus mr-2"></i>Add Another</button><div class="space-x-3"><button id="btn-cancel-add-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button><button id="btn-save-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Cards</button></div></div>
             </div>
         </div>
+
         <!-- Learn Options Modal -->
         <div id="modal-learn-options" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
             <div class="bg-slate-800 border border-slate-700 w-full max-w-lg p-6 rounded-xl shadow-2xl">
@@ -267,29 +257,23 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Toast Notification -->
     <div id="toast" class="hidden fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50"></div>
 
+    <!-- JavaScript Section -->
     <script type="module">
-        // Application state management
+        // Application State Management
         const AppState = {
             currentFolderId: null,
             currentNoteId: null,
-            localData: {
-                profile: {},
-                rewards: {},
-                folders: [],
-                notes: {},
-                cards: {}
-            },
+            localData: { profile: {}, rewards: {}, folders: [], notes: {}, cards: {} },
             learnState: {},
             matchingState: {}
         };
-        
-        // API base URL
         const API_BASE_URL = '';
-        
-        // Utility functions
+
+        // Utility Functions
         const Utils = {
             shuffle: (array) => [...array].sort(() => Math.random() - 0.5),
             escapeHtml: (str) => String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]),
@@ -301,8 +285,8 @@
                 };
             }
         };
-        
-        // API Controller for handling API requests
+
+        // API Controller
         const ApiController = {
             getToken: () => localStorage.getItem('accessToken'),
             async apiCall(endpoint, method = 'GET', body = null) {
@@ -353,7 +337,7 @@
             }
         };
 
-        // Spaced Repetition System (SRS) for flashcards
+        // Spaced Repetition System (SRS)
         const SRS = {
             MIN_EASE: 1.3,
             MAX_EASE: 3.5,
@@ -385,32 +369,34 @@
             }
         };
 
+        // Rewards System
         const Rewards = {
             async update(isCorrect) {
-                let r = AppState.localData.rewards;
+                let rewards = AppState.localData.rewards;
                 const today = new Date().toDateString();
-                const last = r.lastStudied ? new Date(r.lastStudied).toDateString() : null;
+                const lastStudied = rewards.lastStudied ? new Date(rewards.lastStudied).toDateString() : null;
                 if (isCorrect) {
-                    r.points = (r.points || 0) + 10;
-                    if (last !== today) {
-                        const y = new Date();
-                        y.setDate(y.getDate() - 1);
-                        r.streak = last === y.toDateString() ? (r.streak || 0) + 1 : 1;
+                    rewards.points = (rewards.points || 0) + 10;
+                    if (lastStudied !== today) {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        rewards.streak = lastStudied === yesterday.toDateString() ? (rewards.streak || 0) + 1 : 1;
                     }
                 } else {
-                    r.streak = 0;
+                    rewards.streak = 0;
                 }
-                r.lastStudied = new Date().toISOString();
-                AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', r);
+                rewards.lastStudied = new Date().toISOString();
+                AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', rewards);
                 this.display();
             },
             display() {
-                const rewards = AppState.localData.rewards || {};
+                const rewards = AppState.localData.rewards;
                 document.getElementById('points-display').textContent = rewards.points || 0;
                 document.getElementById('streak-display').textContent = rewards.streak || 0;
             }
-        }; 
-        // UI Controller for managing user interface
+        };
+
+        // UI Controller
         const UI = {
             init() {
                 this.views = {
@@ -549,7 +535,7 @@
                 section.innerHTML = `
                     <div class="p-4 cursor-pointer kg-header">
                         <div class="flex justify-between items-center">
-                            <h2 class=" Baltica text-xl font-semibold">Topic Mastery</h2>
+                            <h2 class="text-xl font-semibold">Topic Mastery</h2>
                             <i class="fas fa-chevron-down kg-chevron"></i>
                         </div>
                         <p class="text-sm text-slate-400">You have mastered ${strongCount} of ${cards.length} cards.</p>
@@ -567,7 +553,7 @@
                                     </li>
                                 `;
                             }).join('')}
-                        </ul Rewrite with Baltica font>
+                        </ul>
                     </div>
                 `;
             },
@@ -608,13 +594,11 @@
             }
         };
 
-        // Learn Controller for managing study sessions
+        // Learn Controller
         const LearnController = {
             start(allCards, options) {
                 const useSmartReview = document.getElementById('smart-review-toggle').checked;
-                let cardsToStudy = useSmartReview ? allCards.filter(card => new Date(card.due >>
-
-Date) <= new Date()) : allCards;
+                let cardsToStudy = useSmartReview ? allCards.filter(card => new Date(card.dueDate) <= new Date()) : allCards;
                 if (cardsToStudy.length === 0) {
                     UI.showToast(useSmartReview ? "No cards due today!" : "No cards to study!");
                     return;
@@ -824,14 +808,14 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // AI Controller for generating flashcards
+        // AI Controller
         const AI = {
             async generateFlashcards(provider) {
                 if (!provider) {
                     UI.showToast("Please select an AI provider.", true);
                     return null;
                 }
-                const content = document.getElementById(' SENSOR-editor-content').textContent;
+                const content = document.getElementById('note-editor-content').textContent;
                 if (!content.trim()) {
                     UI.showToast("Please write some notes first.", true);
                     return null;
@@ -852,7 +836,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Folder Actions for managing folders
+        // Folder Actions
         const FolderActions = {
             init() {
                 document.getElementById('btn-show-create-folder-modal').onclick = () => this.openCreateFolderModal();
@@ -939,7 +923,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Card Actions for managing flashcards
+        // Card Actions
         const CardActions = {
             init() {
                 document.getElementById('btn-cancel-add-card').onclick = () => UI.toggleModal('addCard', false);
@@ -1002,7 +986,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Note Actions for managing notes
+        // Note Actions
         const NoteActions = {
             init() {
                 document.getElementById('notes-list').onclick = async e => {
@@ -1021,7 +1005,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Note Editor Actions for editing notes and cards
+        // Note Editor Actions
         const NoteEditorActions = {
             init() {
                 document.getElementById('btn-back-to-folder-from-editor').onclick = () => {
@@ -1219,7 +1203,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Profile Actions for managing user profile
+        // Profile Actions
         const ProfileActions = {
             init() {
                 document.getElementById('profile-button').onclick = e => {
@@ -1295,7 +1279,7 @@ Date) <= new Date()) : allCards;
             }
         };
 
-        // Run the application
+        // Application Initialization
         async function runApplication() {
             const success = await ApiController.apiCall('/all-data');
             if (success) {
@@ -1315,7 +1299,7 @@ Date) <= new Date()) : allCards;
             }
         }
 
-        // Main function to initialize the app
+        // Main Entry Point
         function main() {
             UI.init();
             if (ApiController.getToken()) {
