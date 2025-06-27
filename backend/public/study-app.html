@@ -406,7 +406,7 @@
                 this.display();
             },
             display() {
-                const rewards = AppState.localData.rewards;
+                const rewards = AppState.localData.rewards || {}; // This line is now correct
                 document.getElementById('points-display').textContent = rewards.points || 0;
                 document.getElementById('streak-display').textContent = rewards.streak || 0;
             }
