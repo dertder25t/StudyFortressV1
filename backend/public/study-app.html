@@ -404,14 +404,13 @@
                 rewards.lastStudied = new Date().toISOString();
                 AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', rewards);
                 this.display();
-            },
-            display() {
-                const rewards = AppState.localData.rewards || {}; // This line is now correct
+            }, 
+            display() { 
+                const rewards = AppState.localData.rewards || {};
                 document.getElementById('points-display').textContent = rewards.points || 0;
                 document.getElementById('streak-display').textContent = rewards.streak || 0;
-            }
+            } 
         };
-
         // UI Controller for managing user interface
         const UI = {
             init() {
