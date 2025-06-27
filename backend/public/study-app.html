@@ -385,32 +385,31 @@
             }
         };
 
-        // Rewards System for user engagement
         const Rewards = {
             async update(isCorrect) {
-                let rewards = AppState.localData.rewards;
+                let r = AppState.localData.rewards;
                 const today = new Date().toDateString();
-                const lastStudied = rewards.lastStudied ? new Date(rewards.lastStudied).toDateString() : null;
+                const last = r.lastStudied ? new Date(r.lastStudied).toDateString() : null;
                 if (isCorrect) {
-                    rewards.points = (rewards.points || 0) + 10;
-                    if (lastStudied !== today) {
-                        const yesterday = new Date();
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        rewards.streak = lastStudied === yesterday.toDateString() ? (rewards.streak || 0) + 1 : 1;
+                    r.points = (r.points || 0) + 10;
+                    if (last !== today) {
+                        const y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        r.streak = last === y.toDateString() ? (r.streak || 0) + 1 : 1;
                     }
                 } else {
-                    rewards.streak = 0;
+                    r.streak = 0;
                 }
-                rewards.lastStudied = new Date().toISOString();
-                AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', rewards);
+                r.lastStudied = new Date().toISOString();
+                AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', r);
                 this.display();
             },
             display() {
-                const rewards = AppState.localData.rewards;
+                const rewards = AppState.localData.rewards || {};
                 document.getElementById('points-display').textContent = rewards.points || 0;
                 document.getElementById('streak-display').textContent = rewards.streak || 0;
-        }
-
+            }
+        }; 
         // UI Controller for managing user interface
         const UI = {
             init() {
