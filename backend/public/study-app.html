@@ -501,12 +501,12 @@
 
                 const onMove = (e) => {
                     if (!isResizing) return;
-                     e.preventDefault();
+                    e.preventDefault();
                     const clientX = e.clientX || e.touches[0].clientX;
                     const containerRect = container.getBoundingClientRect();
                     const newLeftWidth = clientX - containerRect.left;
 
-                    if (newLeftWidth > 200 && (container.offsetWidth - newLeftWidth) > 50) {
+                    if (newLeftWidth > 200 && (container.offsetWidth - newLeftWidth) > 30) {
                         leftPanel.style.flexBasis = `${newLeftWidth}px`;
                     }
                 };
