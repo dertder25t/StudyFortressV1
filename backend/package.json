@@ -1,10 +1,11 @@
 {
-  "name": "study-app-backend",
+  "name": "study-fortress-backend",
   "version": "1.2.0",
-  "description": "Unified backend with document upload support.",
+  "description": "Backend server for the Study Fortress application.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "author": "",
   "license": "ISC",
@@ -15,8 +16,12 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "openai": "^4.52.7",
+    "openai": "^4.47.1",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7" 
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
+
