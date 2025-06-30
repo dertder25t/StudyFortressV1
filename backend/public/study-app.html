@@ -56,7 +56,7 @@
         <div class="w-full max-w-sm p-8 space-y-6 bg-slate-800/50 border border-slate-700 rounded-2xl shadow-2xl">
             <div>
                 <h2 id="login-title" class="text-center text-3xl font-bold tracking-tight text-white"><i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In</h2>
-                <p class="mt-2 text-center text-sm text slate-400">to your Study Fortress</p>
+                <p class="mt-2 text-center text-sm text-slate-400">to your Study Fortress</p>
             </div>
             <form id="login-form" class="space-y-6">
                 <div>
@@ -259,13 +259,22 @@
                 <div id="book-viewer-resizer" class="resizer hidden"><div class="resizer-line"></div></div>
                 <!-- Note Editor Panel -->
                 <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%;">
-                    <!-- ... note editor content ... -->
+                    <input type="hidden" id="note-editor-id">
+                    <div class="mb-2 flex-shrink-0 flex items-center gap-4">
+                        <input type="text" id="note-editor-title" placeholder="Note Title..." class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none">
+                        <div id="note-editor-controls" class="flex items-center gap-2">
+                           <button id="btn-bullet-list" title="Bulleted List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ul"></i></button>
+                           <button id="btn-ordered-list" title="Numbered List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                    </div>
+                    <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
                 </div>
                 <!-- Resizer for Notes -->
                 <div id="note-editor-resizer" class="resizer"><div class="resizer-line"></div></div>
                 <!-- Flashcard Hub -->
                 <div id="flashcard-hub-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0">
-                     <!-- ... flashcard hub content ... -->
+                     <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar"></div>
+                     <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Manual Card</button>
                 </div>
             </div>
         </div>
