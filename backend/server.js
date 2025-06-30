@@ -14,21 +14,17 @@ const { OpenAI } = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// IMPORTANT: Change this secret in a real application!
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
 
-// Determine the base directory for the application
 const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
 const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
 const DB_PATH = path.join(APP_DIR, 'database.db');
 
-// Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Multer storage configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => {
@@ -38,22 +34,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Middlewares
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-// Serve the main application from the 'public' folder
+app.use(express.json({ limit: '20mb' })); // Increased limit for larger avatar images
 app.use(express.static(path.join(__dirname, 'public')));
 
 
 let db;
 
-// --- DATABASE SETUP ---
 async function initializeDatabase() {
   try {
     db = await open({ filename: DB_PATH, driver: sqlite3.Database });
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
-    // Added ON DELETE CASCADE to notes' foreign key for proper cleanup
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
@@ -69,13 +61,12 @@ async function initializeDatabase() {
   }
 }
 
-// --- MIDDLEWARE & HELPERS ---
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401); // Unauthorized
+    if (token == null) return res.sendStatus(401);
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) { console.error("JWT Verification Error:", err); return res.sendStatus(403); } // Forbidden
+        if (err) { console.error("JWT Verification Error:", err); return res.sendStatus(403); }
         req.user = user;
         next();
     });
@@ -95,7 +86,7 @@ async function checkAdmin(req, res, next) {
 
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
 async function generateWithGoogle(text, apiKey) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: flashcardPrompt(text) }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } } } } } };
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
@@ -107,7 +98,7 @@ async function generateWithOpenAI(text, apiKey) {
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
-    return JSON.parse(response.choices[0].message.content).cards; // Assuming the AI wraps it in a 'cards' key
+    return JSON.parse(response.choices[0].message.content).cards;
 }
 async function generateWithHuggingFace(text, apiKey) {
     const hf = new HfInference(apiKey);
@@ -148,15 +139,13 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/all-data', authenticateToken, async (req, res) => {
  try {
     const userId = req.user.id;
-    const profilePromise = db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId);
-    const rewardsPromise = db.get('SELECT * FROM rewards WHERE userId = ?', userId);
-    const foldersPromise = db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const notesPromise = db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const cardsPromise = db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const documentsPromise = db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId);
-
     const [profileData, rewards, folders, notes, cards, documents] = await Promise.all([
-        profilePromise, rewardsPromise, foldersPromise, notesPromise, cardsPromise, documentsPromise
+        db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId),
+        db.get('SELECT * FROM rewards WHERE userId = ?', userId),
+        db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId)
     ]);
 
     const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
@@ -221,6 +210,31 @@ app.delete('/api/folders/:id', authenticateToken, async (req, res) => {
     try { await db.run('DELETE FROM folders WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
     catch (err) { console.error("Error deleting folder:", err); res.status(500).json({ error: "Failed to delete folder." }); }
 });
+
+// FIX: New endpoint for deleting all notes in a folder
+app.delete('/api/folders/:folderId/notes', authenticateToken, async (req, res) => {
+    try {
+        const { folderId } = req.params;
+        const userId = req.user.id;
+        
+        const folder = await db.get('SELECT id FROM folders WHERE id = ? AND userId = ?', [folderId, userId]);
+        if (!folder) {
+            return res.status(403).json({ error: "Forbidden: You do not own this folder." });
+        }
+        
+        await db.run('BEGIN TRANSACTION');
+        await db.run('DELETE FROM cards WHERE noteId IN (SELECT id FROM notes WHERE folderId = ?)', [folderId]);
+        await db.run('DELETE FROM notes WHERE folderId = ? AND userId = ?', [folderId, userId]);
+        await db.run('COMMIT');
+        
+        res.sendStatus(204);
+    } catch (err) {
+        await db.run('ROLLBACK');
+        console.error("Error deleting all notes in folder:", err);
+        res.status(500).json({ error: "Failed to delete all notes." });
+    }
+});
+
 
 app.post('/api/notes', authenticateToken, async (req, res) => {
     try {
@@ -299,7 +313,6 @@ app.post('/api/folders/:folderId/upload', authenticateToken, upload.single('docu
     } catch (err) { console.error("File Upload Error:", err); res.status(500).json({ error: "Failed to upload file." }); }
 });
 
-// --- FIX: NEW ENDPOINT TO SERVE DOCUMENT BY ID ---
 app.get('/api/documents/:documentId', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
@@ -337,7 +350,6 @@ app.delete('/api/documents/:documentId', authenticateToken, async (req, res) => 
 // --- VERSION & ADMIN ENDPOINTS ---
 app.get('/api/version', (req, res) => {
     try {
-        // Use path.resolve to ensure the path is correct regardless of execution context
         const packageJsonPath = path.resolve(__dirname, 'package.json');
         const packageJson = require(packageJsonPath);
         res.json({ version: packageJson.version });
@@ -346,7 +358,6 @@ app.get('/api/version', (req, res) => {
 
 app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     console.log(`[ADMIN UPDATE] - Admin user ${req.user.id} initiated an update.`);
-    // Simplified command, assuming server.js is at the project root.
     const command = `git pull && npm install`;
     exec(command, { cwd: APP_DIR }, (error, stdout, stderr) => {
         const fullOutput = `STDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`;
@@ -356,10 +367,8 @@ app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
             return res.status(500).json({ message: "Update script failed.", error: error.message, output: fullOutput });
         }
         res.status(200).json({ message: "Update successful! Restarting server...", output: fullOutput });
-        // Using a 1-second delay to allow the response to be sent before restarting.
         setTimeout(() => {
             console.log('[ADMIN UPDATE] - Issuing restart command to PM2...');
-            // Assumes the app is running under PM2 with the name 'study-app'
             exec('pm2 restart study-app', (restartError, restartStdout, restartStderr) => {
                 if (restartError) { console.error(`[ADMIN UPDATE] - PM2 Restart Error: ${restartError.message}`); }
                 if (restartStderr) { console.warn(`[ADMIN UPDATE] - PM2 Restart Stderr: ${restartStderr}`); }
@@ -369,11 +378,9 @@ app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     });
 });
 
-// Fallback to serve the main app file for any other GET request that isn't an API call.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
 });
 
 
-// --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
