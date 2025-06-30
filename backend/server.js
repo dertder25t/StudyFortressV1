@@ -1,4 +1,3 @@
-
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -7,18 +6,22 @@ const { open } = require('sqlite');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const crypto =require('crypto');
 const multer = require('multer');
 const { exec } = require('child_process');
 const { HfInference } = require('@huggingface/inference');
 const { OpenAI } = require('openai');
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = 'your-super-secret-key-that-you-should-change';
+const PORT = process.env.PORT || 3000;
+// IMPORTANT: Change this secret in a real application!
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
-const APP_DIR = '/opt/StudyFortressV1';
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+
+// Determine the base directory for the application
+const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
+const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
+const DB_PATH = path.join(APP_DIR, 'database.db');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -38,24 +41,26 @@ const upload = multer({ storage: storage });
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+// Serve the main application from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/api/documents', express.static(UPLOAD_DIR));
+
 
 let db;
 
 // --- DATABASE SETUP ---
 async function initializeDatabase() {
   try {
-    db = await open({ filename: './database.db', driver: sqlite3.Database });
+    db = await open({ filename: DB_PATH, driver: sqlite3.Database });
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
+    // Added ON DELETE CASCADE to notes' foreign key for proper cleanup
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
     `);
   } catch (error) {
@@ -68,9 +73,9 @@ async function initializeDatabase() {
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401);
+    if (token == null) return res.sendStatus(401); // Unauthorized
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) { console.error("JWT Verification Error:", err); return res.sendStatus(403); }
+        if (err) { console.error("JWT Verification Error:", err); return res.sendStatus(403); } // Forbidden
         req.user = user;
         next();
     });
@@ -102,7 +107,7 @@ async function generateWithOpenAI(text, apiKey) {
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
-    return JSON.parse(response.choices[0].message.content);
+    return JSON.parse(response.choices[0].message.content).cards; // Assuming the AI wraps it in a 'cards' key
 }
 async function generateWithHuggingFace(text, apiKey) {
     const hf = new HfInference(apiKey);
@@ -127,7 +132,7 @@ app.post('/api/register', async (req, res) => {
         res.status(201).json({ message: 'User created successfully.' });
     } catch (err) {
         console.error("Registration Error:", err);
-        res.status(err.code === 'SQLITE_CONSTRAINT' ? 409 : 500).json({ error: err.message });
+        res.status(err.code === 'SQLITE_CONSTRAINT' ? 409 : 500).json({ error: "Email already exists or server error." });
     }
 });
 
@@ -141,28 +146,33 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/all-data', authenticateToken, async (req, res) => {
-  try {
+ try {
     const userId = req.user.id;
-    const profileData = await db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId);
-    const rewards = await db.get('SELECT * FROM rewards WHERE userId = ?', userId);
-    const folders = await db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const notes = await db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const cards = await db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId);
-    const documents = await db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId);
+    const profilePromise = db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId);
+    const rewardsPromise = db.get('SELECT * FROM rewards WHERE userId = ?', userId);
+    const foldersPromise = db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId);
+    const notesPromise = db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId);
+    const cardsPromise = db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId);
+    const documentsPromise = db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId);
+
+    const [profileData, rewards, folders, notes, cards, documents] = await Promise.all([
+        profilePromise, rewardsPromise, foldersPromise, notesPromise, cardsPromise, documentsPromise
+    ]);
 
     const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
     const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
     const documentsByFolder = documents.reduce((acc, doc) => { (acc[doc.folderId] = acc[doc.folderId] || []).push(doc); return acc; }, {});
 
     res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder });
-  } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
+ } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
 });
 
 app.post('/api/profile', authenticateToken, async (req, res) => {
   try {
     const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey } = req.body;
     await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, req.user.id]);
-    res.json(await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id));
+    const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
+    res.json(updatedProfile);
   } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
 });
 
@@ -188,7 +198,8 @@ app.post('/api/rewards', authenticateToken, async (req, res) => {
     try {
         const { points, streak, lastStudied } = req.body;
         await db.run('UPDATE rewards SET points=?, streak=?, lastStudied=? WHERE userId=?', [points, streak, lastStudied, req.user.id]);
-        res.json(await db.get('SELECT * FROM rewards WHERE userId = ?', req.user.id));
+        const updatedRewards = await db.get('SELECT * FROM rewards WHERE userId = ?', req.user.id);
+        res.json(updatedRewards);
     } catch (err) { console.error("Error updating rewards:", err); res.status(500).json({ error: "Failed to update rewards." }); }
 });
 
@@ -223,9 +234,12 @@ app.post('/api/notes', authenticateToken, async (req, res) => {
         
         await db.run('DELETE FROM cards WHERE noteId=? AND userId=?', [finalNoteId, userId]);
 
-        for (const card of cards) {
-            await db.run('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.ease, card.interval, card.dueDate, card.createdAt]);
+        if (cards && cards.length > 0) {
+            const stmt = await db.prepare('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+            for (const card of cards) {
+                await stmt.run([`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.ease, card.interval, card.dueDate, card.createdAt]);
+            }
+            await stmt.finalize();
         }
         await db.run('COMMIT');
         res.status(201).json({ message: 'Note and cards saved' });
@@ -245,10 +259,11 @@ app.post('/api/manual-cards', authenticateToken, async (req, res) => {
     try {
         const { folderId, cards } = req.body;
         await db.run('BEGIN TRANSACTION');
+        const stmt = await db.prepare('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         for (const card of cards) {
-            await db.run('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [`card_${crypto.randomUUID()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.ease, card.interval, card.dueDate, card.createdAt]);
+            await stmt.run([`card_${crypto.randomUUID()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.ease, card.interval, card.dueDate, card.createdAt]);
         }
+        await stmt.finalize();
         await db.run('COMMIT');
         res.status(201).json({ message: 'Cards saved' });
     } catch (err) {
@@ -260,7 +275,8 @@ app.post('/api/manual-cards', authenticateToken, async (req, res) => {
 
 app.put('/api/cards/:id', authenticateToken, async (req, res) => {
     try {
-        await db.run('UPDATE cards SET ease=?, interval=?, dueDate=? WHERE id=? AND userId=?', [req.body.srs.ease, req.body.srs.interval, req.body.srs.dueDate, req.params.id, req.user.id]);
+        const { ease, interval, dueDate } = req.body.srs;
+        await db.run('UPDATE cards SET ease=?, interval=?, dueDate=? WHERE id=? AND userId=?', [ease, interval, dueDate, req.params.id, req.user.id]);
         res.json({ message: 'Card updated' });
     } catch (err) { console.error("Error updating card SRS data:", err); res.status(500).json({ error: "Failed to update card." }); }
 });
@@ -278,16 +294,41 @@ app.post('/api/folders/:folderId/upload', authenticateToken, upload.single('docu
         if (!file) { return res.status(400).json({ error: 'No file uploaded.' }); }
         const docId = `doc_${crypto.randomUUID()}`;
         await db.run('INSERT INTO documents (id, userId, folderId, originalName, serverPath, fileType, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [docId, userId, folderId, file.originalname, file.filename, file.mimetype, new Date().toISOString()]);
-        res.status(201).json(await db.get('SELECT * FROM documents WHERE id = ?', docId));
+        const newDocument = await db.get('SELECT * FROM documents WHERE id = ?', docId)
+        res.status(201).json(newDocument);
     } catch (err) { console.error("File Upload Error:", err); res.status(500).json({ error: "Failed to upload file." }); }
 });
+
+// --- FIX: NEW ENDPOINT TO SERVE DOCUMENT BY ID ---
+app.get('/api/documents/:documentId', authenticateToken, async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const doc = await db.get('SELECT * FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
+        if (!doc) {
+            return res.status(404).json({ error: "Document not found or you don't have permission." });
+        }
+        const filePath = path.join(UPLOAD_DIR, doc.serverPath);
+        if (fs.existsSync(filePath)) {
+            res.sendFile(filePath);
+        } else {
+            res.status(404).json({ error: "File not found on server."});
+        }
+    } catch (err) {
+        console.error("Error serving document:", err);
+        res.status(500).json({ error: "Failed to serve document."});
+    }
+});
+
 
 app.delete('/api/documents/:documentId', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
         const doc = await db.get('SELECT * FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
         if (!doc) { return res.status(404).json({ error: "Document not found or you don't have permission." }); }
-        fs.unlink(path.join(UPLOAD_DIR, doc.serverPath), (err) => { if (err) console.error("Error deleting file from disk:", err); });
+        const filePath = path.join(UPLOAD_DIR, doc.serverPath);
+        if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (err) => { if (err) console.error("Error deleting file from disk:", err); });
+        }
         await db.run('DELETE FROM documents WHERE id = ?', documentId);
         res.sendStatus(204);
     } catch (err) { console.error("Error deleting document:", err); res.status(500).json({ error: "Failed to delete document." }); }
@@ -296,24 +337,29 @@ app.delete('/api/documents/:documentId', authenticateToken, async (req, res) => 
 // --- VERSION & ADMIN ENDPOINTS ---
 app.get('/api/version', (req, res) => {
     try {
-        const packageJson = require('./package.json');
+        // Use path.resolve to ensure the path is correct regardless of execution context
+        const packageJsonPath = path.resolve(__dirname, 'package.json');
+        const packageJson = require(packageJsonPath);
         res.json({ version: packageJson.version });
     } catch (error) { console.error("Could not read package.json:", error); res.status(500).json({ error: "Could not determine app version." }); }
 });
 
 app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     console.log(`[ADMIN UPDATE] - Admin user ${req.user.id} initiated an update.`);
-    const command = `cd ${APP_DIR} && git pull && npm install --prefix backend`;
-    exec(command, (error, stdout, stderr) => {
+    // Simplified command, assuming server.js is at the project root.
+    const command = `git pull && npm install`;
+    exec(command, { cwd: APP_DIR }, (error, stdout, stderr) => {
         const fullOutput = `STDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`;
         console.log(`[ADMIN UPDATE] - Full Output:\n${fullOutput}`);
         if (error) {
             console.error(`[ADMIN UPDATE] - Execution Error: ${error.message}`);
             return res.status(500).json({ message: "Update script failed.", error: error.message, output: fullOutput });
         }
-        res.status(200).json({ message: "Update successful! Server is restarting now...", output: fullOutput });
+        res.status(200).json({ message: "Update successful! Restarting server...", output: fullOutput });
+        // Using a 1-second delay to allow the response to be sent before restarting.
         setTimeout(() => {
             console.log('[ADMIN UPDATE] - Issuing restart command to PM2...');
+            // Assumes the app is running under PM2 with the name 'study-app'
             exec('pm2 restart study-app', (restartError, restartStdout, restartStderr) => {
                 if (restartError) { console.error(`[ADMIN UPDATE] - PM2 Restart Error: ${restartError.message}`); }
                 if (restartStderr) { console.warn(`[ADMIN UPDATE] - PM2 Restart Stderr: ${restartStderr}`); }
@@ -323,8 +369,11 @@ app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     });
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-app.html')));
+// Fallback to serve the main app file for any other GET request that isn't an API call.
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
+});
+
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
-
