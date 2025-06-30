@@ -1,3 +1,4 @@
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -6,25 +7,25 @@ const { open } = require('sqlite');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto =require('crypto');
+const crypto = require('crypto');
 const multer = require('multer');
 const { exec } = require('child_process');
 const { HfInference } = require('@huggingface/inference');
 const { OpenAI } = require('openai');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
+const PORT = 3000;
+const JWT_SECRET = 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
+const APP_DIR = '/opt/StudyFortressV1';
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
-const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
-const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
-const DB_PATH = path.join(APP_DIR, 'database.db');
-
+// Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// Multer storage configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => {
@@ -34,16 +35,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// Middlewares
 app.use(cors());
-app.use(express.json({ limit: '20mb' })); // Increased limit for larger avatar images
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
+app.use('/uploads', express.static(UPLOAD_DIR)); // Serve uploaded files statically
 
 let db;
 
+// --- DATABASE SETUP ---
 async function initializeDatabase() {
   try {
-    db = await open({ filename: DB_PATH, driver: sqlite3.Database });
+    db = await open({ filename: './database.db', driver: sqlite3.Database });
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
     await db.exec(`
@@ -52,8 +55,8 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS audio_clips (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, noteId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
     `);
   } catch (error) {
     console.error("FATAL: Failed to initialize database:", error);
@@ -61,6 +64,7 @@ async function initializeDatabase() {
   }
 }
 
+// --- MIDDLEWARE & HELPERS ---
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -84,49 +88,93 @@ async function checkAdmin(req, res, next) {
     }
 }
 
+// --- AI HELPERS ---
+const subpointsPrompt = (text) => `Analyze the following text and generate a concise list of the main subpoints or topics discussed. Return ONLY a JSON array of strings, where each string is a subpoint. Example: ["Subpoint one", "Second key idea", "Final conclusion"].\n\nText: """${text}"""`;
+const keywordsPrompt = (text) => `Analyze the following text and extract the most important keywords and key phrases (2-4 words long). Return ONLY a JSON array of strings. Example: ["machine learning", "neural networks", "data processing"].\n\nText: """${text}"""`;
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
-async function generateWithGoogle(text, apiKey) {
+
+async function generateWithGoogle(text, apiKey, promptFunc) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-    const payload = { contents: [{ role: "user", parts: [{ text: flashcardPrompt(text) }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } } } } } };
+    const payload = { contents: [{ role: "user", parts: [{ text: promptFunc(text) }] }], generationConfig: { responseMimeType: "application/json" } };
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
     const result = await response.json();
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from Google AI");
     return JSON.parse(result.candidates[0].content.parts[0].text);
 }
-async function generateWithOpenAI(text, apiKey) {
+async function generateWithOpenAI(text, apiKey, promptFunc) {
     const openai = new OpenAI({ apiKey });
-    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
+    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: promptFunc(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
-    return JSON.parse(response.choices[0].message.content).cards;
-}
-async function generateWithHuggingFace(text, apiKey) {
-    const hf = new HfInference(apiKey);
-    const response = await hf.textGeneration({ model: 'mistralai/Mistral-7B-v0.1', inputs: flashcardPrompt(text), parameters: { max_new_tokens: 500 } });
-    const jsonString = response.generated_text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-    if (!jsonString) throw new Error("Could not find valid JSON in Hugging Face response.");
-    return JSON.parse(jsonString[0]);
+    return JSON.parse(response.choices[0].message.content);
 }
 
 // --- API ENDPOINTS ---
 
-app.post('/api/register', async (req, res) => {
+app.get('/api/all-data', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const [profileData, rewards, folders, notes, cards, audioClips] = await Promise.all([
+        db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId),
+        db.get('SELECT * FROM rewards WHERE userId = ?', userId),
+        db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM audio_clips WHERE userId = ? ORDER BY createdAt DESC', userId)
+    ]);
+
+    const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
+    const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
+    const audioByNote = audioClips.reduce((acc, clip) => { (acc[clip.noteId] = acc[clip.noteId] || []).push(clip); return acc; }, {});
+
+    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, audioByNote });
+  } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
+});
+
+app.post('/api/notes/:noteId/audio', authenticateToken, upload.single('audio'), async (req, res) => {
     try {
-        const { email, password } = req.body;
-        if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
-        const hash = await bcrypt.hash(password, SALT_ROUNDS);
-        const result = await db.run('INSERT INTO users (email, password_hash, isAdmin) VALUES (?, ?, 0)', [email, hash]);
-        const userId = result.lastID;
-        const username = email.split('@')[0];
-        await db.run('INSERT INTO profile (userId, username) VALUES (?, ?)', [userId, username]);
-        await db.run('INSERT INTO rewards (userId) VALUES (?)', [userId]);
-        res.status(201).json({ message: 'User created successfully.' });
+        const { noteId } = req.params;
+        const { file } = req;
+        if (!file) return res.status(400).json({ error: 'No audio file uploaded.' });
+
+        const clipId = `audio_${crypto.randomUUID()}`;
+        await db.run(
+            'INSERT INTO audio_clips (id, userId, noteId, originalName, serverPath, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+            [clipId, req.user.id, noteId, file.originalname, file.filename, new Date().toISOString()]
+        );
+        res.status(201).json(await db.get('SELECT * FROM audio_clips WHERE id = ?', clipId));
+    } catch (err) { console.error("Audio Upload Error:", err); res.status(500).json({ error: "Failed to upload audio." }); }
+});
+
+app.post('/api/ai/:feature', authenticateToken, async (req, res) => {
+    const { feature } = req.params;
+    const { provider, text } = req.body;
+    if (!provider || !text) return res.status(400).json({ error: 'Provider and text are required.' });
+
+    let promptFunc;
+    if (feature === 'subpoints') promptFunc = subpointsPrompt;
+    else if (feature === 'keywords') promptFunc = keywordsPrompt;
+    else if (feature === 'flashcards') promptFunc = flashcardPrompt;
+    else return res.status(400).json({ error: 'Invalid AI feature.' });
+
+    try {
+        const profile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = profile[`${provider}ApiKey`];
+        if (!apiKey) return res.status(400).json({ error: `API key for ${provider} not found.` });
+
+        let result;
+        if (provider === 'google') result = await generateWithGoogle(text, apiKey, promptFunc);
+        else if (provider === 'openai') result = await generateWithOpenAI(text, apiKey, promptFunc);
+        else return res.status(400).json({ error: 'Invalid provider.' });
+        
+        res.json(result);
     } catch (err) {
-        console.error("Registration Error:", err);
-        res.status(err.code === 'SQLITE_CONSTRAINT' ? 409 : 500).json({ error: "Email already exists or server error." });
+        console.error(`Error with ${provider} for ${feature}:`, err);
+        res.status(500).json({ error: `An error occurred with the ${provider} API: ${err.message}` });
     }
 });
 
+// Other endpoints filled in
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -135,63 +183,20 @@ app.post('/api/login', async (req, res) => {
         res.json({ accessToken: jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' }) });
     } catch (err) { console.error("Login Error:", err); res.status(500).json({ error: err.message }); }
 });
-
-app.get('/api/all-data', authenticateToken, async (req, res) => {
- try {
-    const userId = req.user.id;
-    const [profileData, rewards, folders, notes, cards, documents] = await Promise.all([
-        db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId),
-        db.get('SELECT * FROM rewards WHERE userId = ?', userId),
-        db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId),
-        db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId),
-        db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId),
-        db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId)
-    ]);
-
-    const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
-    const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
-    const documentsByFolder = documents.reduce((acc, doc) => { (acc[doc.folderId] = acc[doc.folderId] || []).push(doc); return acc; }, {});
-
-    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder });
- } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
-});
-
 app.post('/api/profile', authenticateToken, async (req, res) => {
   try {
     const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey } = req.body;
     await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, req.user.id]);
-    const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
-    res.json(updatedProfile);
+    res.json(await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id));
   } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
 });
-
-app.post('/api/generate-ai-cards', authenticateToken, async (req, res) => {
-    const { provider, text } = req.body;
-    if (!provider || !text) return res.status(400).json({ error: 'Provider and text are required.' });
-    try {
-        const profile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
-        const apiKey = profile[`${provider}ApiKey`];
-        if (!apiKey) return res.status(400).json({ error: `API key for ${provider} not found.` });
-        let cards;
-        switch(provider) {
-            case 'google': cards = await generateWithGoogle(text, apiKey); break;
-            case 'openai': cards = await generateWithOpenAI(text, apiKey); break;
-            case 'huggingface': cards = await generateWithHuggingFace(text, apiKey); break;
-            default: return res.status(400).json({ error: 'Invalid provider.' });
-        }
-        res.json(cards);
-    } catch (err) { console.error(`Error with ${provider}:`, err); res.status(500).json({ error: `An error occurred with the ${provider} API: ${err.message}` }); }
-});
-
 app.post('/api/rewards', authenticateToken, async (req, res) => {
     try {
         const { points, streak, lastStudied } = req.body;
         await db.run('UPDATE rewards SET points=?, streak=?, lastStudied=? WHERE userId=?', [points, streak, lastStudied, req.user.id]);
-        const updatedRewards = await db.get('SELECT * FROM rewards WHERE userId = ?', req.user.id);
-        res.json(updatedRewards);
+        res.json(await db.get('SELECT * FROM rewards WHERE userId = ?', req.user.id));
     } catch (err) { console.error("Error updating rewards:", err); res.status(500).json({ error: "Failed to update rewards." }); }
 });
-
 app.post('/api/folders', authenticateToken, async (req, res) => {
     try {
         const { id, name, description, color } = req.body;
@@ -205,37 +210,10 @@ app.post('/api/folders', authenticateToken, async (req, res) => {
         }
     } catch (err) { console.error("Error saving folder:", err); res.status(500).json({ error: "Failed to save folder." }); }
 });
-
 app.delete('/api/folders/:id', authenticateToken, async (req, res) => {
     try { await db.run('DELETE FROM folders WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
     catch (err) { console.error("Error deleting folder:", err); res.status(500).json({ error: "Failed to delete folder." }); }
 });
-
-// FIX: New endpoint for deleting all notes in a folder
-app.delete('/api/folders/:folderId/notes', authenticateToken, async (req, res) => {
-    try {
-        const { folderId } = req.params;
-        const userId = req.user.id;
-        
-        const folder = await db.get('SELECT id FROM folders WHERE id = ? AND userId = ?', [folderId, userId]);
-        if (!folder) {
-            return res.status(403).json({ error: "Forbidden: You do not own this folder." });
-        }
-        
-        await db.run('BEGIN TRANSACTION');
-        await db.run('DELETE FROM cards WHERE noteId IN (SELECT id FROM notes WHERE folderId = ?)', [folderId]);
-        await db.run('DELETE FROM notes WHERE folderId = ? AND userId = ?', [folderId, userId]);
-        await db.run('COMMIT');
-        
-        res.sendStatus(204);
-    } catch (err) {
-        await db.run('ROLLBACK');
-        console.error("Error deleting all notes in folder:", err);
-        res.status(500).json({ error: "Failed to delete all notes." });
-    }
-});
-
-
 app.post('/api/notes', authenticateToken, async (req, res) => {
     try {
         const { folderId, noteId, title, content, cards } = req.body;
@@ -263,12 +241,10 @@ app.post('/api/notes', authenticateToken, async (req, res) => {
         res.status(500).json({ error: "Failed to save note and associated cards." });
     }
 });
-
 app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
     try { await db.run('DELETE FROM notes WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
     catch (err) { console.error("Error deleting note:", err); res.status(500).json({ error: "Failed to delete note." }); }
 });
-
 app.post('/api/manual-cards', authenticateToken, async (req, res) => {
     try {
         const { folderId, cards } = req.body;
@@ -286,7 +262,6 @@ app.post('/api/manual-cards', authenticateToken, async (req, res) => {
         res.status(500).json({ error: "Failed to save manual cards." });
     }
 });
-
 app.put('/api/cards/:id', authenticateToken, async (req, res) => {
     try {
         const { ease, interval, dueDate } = req.body.srs;
@@ -294,93 +269,13 @@ app.put('/api/cards/:id', authenticateToken, async (req, res) => {
         res.json({ message: 'Card updated' });
     } catch (err) { console.error("Error updating card SRS data:", err); res.status(500).json({ error: "Failed to update card." }); }
 });
-
 app.delete('/api/cards/:id', authenticateToken, async (req, res) => {
     try { await db.run('DELETE FROM cards WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
     catch(err) { console.error("Error deleting card:", err); res.status(500).json({ error: "Failed to delete card." }); }
 });
 
-app.post('/api/folders/:folderId/upload', authenticateToken, upload.single('document'), async (req, res) => {
-    try {
-        const { folderId } = req.params;
-        const { file } = req;
-        const userId = req.user.id;
-        if (!file) { return res.status(400).json({ error: 'No file uploaded.' }); }
-        const docId = `doc_${crypto.randomUUID()}`;
-        await db.run('INSERT INTO documents (id, userId, folderId, originalName, serverPath, fileType, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [docId, userId, folderId, file.originalname, file.filename, file.mimetype, new Date().toISOString()]);
-        const newDocument = await db.get('SELECT * FROM documents WHERE id = ?', docId)
-        res.status(201).json(newDocument);
-    } catch (err) { console.error("File Upload Error:", err); res.status(500).json({ error: "Failed to upload file." }); }
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-app.html')));
 
-app.get('/api/documents/:documentId', authenticateToken, async (req, res) => {
-    try {
-        const { documentId } = req.params;
-        const doc = await db.get('SELECT * FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
-        if (!doc) {
-            return res.status(404).json({ error: "Document not found or you don't have permission." });
-        }
-        const filePath = path.join(UPLOAD_DIR, doc.serverPath);
-        if (fs.existsSync(filePath)) {
-            res.sendFile(filePath);
-        } else {
-            res.status(404).json({ error: "File not found on server."});
-        }
-    } catch (err) {
-        console.error("Error serving document:", err);
-        res.status(500).json({ error: "Failed to serve document."});
-    }
-});
-
-
-app.delete('/api/documents/:documentId', authenticateToken, async (req, res) => {
-    try {
-        const { documentId } = req.params;
-        const doc = await db.get('SELECT * FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
-        if (!doc) { return res.status(404).json({ error: "Document not found or you don't have permission." }); }
-        const filePath = path.join(UPLOAD_DIR, doc.serverPath);
-        if (fs.existsSync(filePath)) {
-            fs.unlink(filePath, (err) => { if (err) console.error("Error deleting file from disk:", err); });
-        }
-        await db.run('DELETE FROM documents WHERE id = ?', documentId);
-        res.sendStatus(204);
-    } catch (err) { console.error("Error deleting document:", err); res.status(500).json({ error: "Failed to delete document." }); }
-});
-
-// --- VERSION & ADMIN ENDPOINTS ---
-app.get('/api/version', (req, res) => {
-    try {
-        const packageJsonPath = path.resolve(__dirname, 'package.json');
-        const packageJson = require(packageJsonPath);
-        res.json({ version: packageJson.version });
-    } catch (error) { console.error("Could not read package.json:", error); res.status(500).json({ error: "Could not determine app version." }); }
-});
-
-app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
-    console.log(`[ADMIN UPDATE] - Admin user ${req.user.id} initiated an update.`);
-    const command = `git pull && npm install`;
-    exec(command, { cwd: APP_DIR }, (error, stdout, stderr) => {
-        const fullOutput = `STDOUT:\n${stdout}\n\nSTDERR:\n${stderr}`;
-        console.log(`[ADMIN UPDATE] - Full Output:\n${fullOutput}`);
-        if (error) {
-            console.error(`[ADMIN UPDATE] - Execution Error: ${error.message}`);
-            return res.status(500).json({ message: "Update script failed.", error: error.message, output: fullOutput });
-        }
-        res.status(200).json({ message: "Update successful! Restarting server...", output: fullOutput });
-        setTimeout(() => {
-            console.log('[ADMIN UPDATE] - Issuing restart command to PM2...');
-            exec('pm2 restart study-app', (restartError, restartStdout, restartStderr) => {
-                if (restartError) { console.error(`[ADMIN UPDATE] - PM2 Restart Error: ${restartError.message}`); }
-                if (restartStderr) { console.warn(`[ADMIN UPDATE] - PM2 Restart Stderr: ${restartStderr}`); }
-                console.log(`[ADMIN UPDATE] - PM2 Restart Stdout: ${restartStdout}`);
-            });
-        }, 1000);
-    });
-});
-
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
-});
-
-
+// --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
+
