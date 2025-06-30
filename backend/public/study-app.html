@@ -38,7 +38,7 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.8); }
-        .resizer { background-color: transparent; cursor: col-resize; width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .resizer { background-color: transparent; cursor: col-resize; width: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .resizer-line { width: 4px; height: 50px; background-color: #334155; border-radius: 4px; transition: background-color 0.2s; }
         .resizer:hover .resizer-line { background-color: #475569; }
         #note-editor-content { outline: none; }
@@ -201,19 +201,18 @@
                             <button type="button" id="btn-check-for-update" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">Check for Updates</button>
                         </div>
                     </div>
-
+                    
                     <!-- Admin Panel - This will be shown/hidden by JavaScript -->
                     <div id="admin-panel" class="hidden mt-6 border-t border-slate-600 pt-6">
                         <h2 class="text-lg font-semibold text-red-400">Admin Controls</h2>
                         <div class="mt-4 flex items-center justify-between bg-slate-900/50 p-4 rounded-lg">
                             <div>
                                 <p>Update Application</p>
-                                <p id="admin-update-status" class="text-sm text-slate-400">Pull latest changes from a repo and restart the server.</p>
+                                <p id="admin-update-status" class="text-sm text-slate-400">Pull latest changes from GitHub and restart the server.</p>
                             </div>
                             <button type="button" id="btn-update-app" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-red-600 text-white hover:bg-red-700">Update Now</button>
                         </div>
                     </div>
-                    
 
                     <div class="text-right"><button type="submit" id="save-profile-btn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Changes</button></div>
                 </form>
@@ -291,27 +290,13 @@
                 <div class="mt-6 flex justify-end space-x-3"><button id="btn-cancel-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button><button id="btn-start-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Start Studying</button></div>
             </div>
         </div>
-
-        <!-- NEW Update Log Modal -->
-        <div id="modal-update-log" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
-            <div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl flex flex-col" style="max-height: 80vh;">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold">Update Log</h2>
-                    <button id="btn-close-update-log" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
-                </div>
-                <div class="bg-black/50 p-4 rounded-lg overflow-y-auto custom-scrollbar flex-grow">
-                    <pre id="update-log-content" class="text-xs whitespace-pre-wrap"></pre>
-                </div>
-            </div>
-        </div>
-
     </div>
     
     <div id="toast" class="hidden fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50"></div>
 
     <script type="module">
         // --- GLOBAL STATE ---
-        const APP_VERSION = '1.1.0';
+        const APP_VERSION = '1.2.0';
         const AppState = { currentFolderId: null, currentNoteId: null, localData: { profile: {}, rewards: {}, folders: [], notes: {}, cards: {} }, learnState: {}, matchingState: {} };
         const API_BASE_URL = ''; 
 
@@ -322,18 +307,17 @@
         const ApiController = {
             getToken: () => localStorage.getItem('accessToken'),
             async apiCall(endpoint, method = 'GET', body = null) {
-                const headers = { 'Content-Type': 'application/json' };
+                const isFormData = body instanceof FormData;
+                const headers = {};
+                if (!isFormData) {
+                    headers['Content-Type'] = 'application/json';
+                }
                 const token = this.getToken(); if(token) headers['Authorization'] = `Bearer ${token}`;
-                const options = { method, headers }; if (body) options.body = JSON.stringify(body);
+                const options = { method, headers }; if (body) { options.body = isFormData ? body : JSON.stringify(body); }
                 try {
                     const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
                     if (response.status === 401 || response.status === 403) { AuthController.signOut(); throw new Error("Authentication failed"); }
-                    if (!response.ok) { 
-                        const errData = await response.json();
-                        const error = new Error(errData.message || 'API Request Failed');
-                        error.output = errData.stderr || errData.error; // Attach extra info if available
-                        throw error;
-                    }
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'API Request Failed'); }
                     return response.status === 204 ? { success: true } : await response.json();
                 } catch (error) { UI.showToast(error.message, true); throw error; }
             }
@@ -352,31 +336,7 @@
 
         // --- CORE LOGIC MODULES ---
         const SRS = { MIN_EASE: 1.3, MAX_EASE: 3.5, INITIAL_INTERVAL: 1, MAXIMUM_INTERVAL: 365, addSRSData(card) { const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() }; return { ...card, ...srsData, createdAt: new Date().toISOString() }; }, async updateCardSRS(card, isCorrect) { let { ease, interval } = card; if (isCorrect) { interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); ease = Math.min(this.MAX_EASE, ease + 0.1); } else { interval = this.INITIAL_INTERVAL; ease = Math.max(this.MIN_EASE, ease - 0.2); } const newDueDate = new Date(); newDueDate.setDate(newDueDate.getDate() + interval); const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() }; await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate }); const cardIndex = AppState.localData.cards[AppState.currentFolderId].findIndex(c => c.id === card.id); if(cardIndex > -1) Object.assign(AppState.localData.cards[AppState.currentFolderId][cardIndex], srsUpdate); } };
-        const Rewards = { 
-            async update(isCorrect) { 
-                let r = AppState.localData.rewards; 
-                const today = new Date().toDateString(); 
-                const last = r.lastStudied ? new Date(r.lastStudied).toDateString() : null; 
-                if (isCorrect) { 
-                    r.points = (r.points || 0) + 10; 
-                    if (last !== today) { 
-                        const y = new Date(); 
-                        y.setDate(y.getDate()-1); 
-                        r.streak = last === y.toDateString() ? (r.streak || 0) + 1 : 1; 
-                    } 
-                } else { 
-                    r.streak = 0; 
-                } 
-                r.lastStudied = new Date().toISOString(); 
-                AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', r); 
-                this.display(); 
-            }, 
-            display() { 
-                const rewards = AppState.localData.rewards || {}; 
-                document.getElementById('points-display').textContent = rewards.points || 0; 
-                document.getElementById('streak-display').textContent = rewards.streak || 0; 
-            } 
-        };
+        const Rewards = { async update(isCorrect) { let r = AppState.localData.rewards; const today = new Date().toDateString(); const last = r.lastStudied ? new Date(r.lastStudied).toDateString() : null; if (isCorrect) { r.points = (r.points || 0) + 10; if (last !== today) { const y = new Date(); y.setDate(y.getDate()-1); r.streak = last === y.toDateString() ? (r.streak || 0) + 1 : 1; } } else { r.streak = 0; } r.lastStudied = new Date().toISOString(); AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', r); this.display(); }, display() { const rewards = AppState.localData.rewards || {}; document.getElementById('points-display').textContent = rewards.points || 0; document.getElementById('streak-display').textContent = rewards.streak || 0; } };
         const UI = { 
             init() { 
                 this.views = { login: document.getElementById('view-login'), app: document.getElementById('app-container'), folderSelection: document.getElementById('view-folder-selection'), folderContents: document.getElementById('view-folder-contents'), learn: document.getElementById('view-learn'), profile: document.getElementById('view-profile'), noteEditor: document.getElementById('view-note-editor') }; 
@@ -400,30 +360,13 @@
             toggleModal(modalId, show) { if (this.modals[modalId]) this.modals[modalId].classList.toggle('hidden', !show); }, 
             showToast(message, isError = false) { this.toast.textContent = message; this.toast.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50 fade-in ${isError ? 'bg-red-500' : 'bg-green-500'}`; this.toast.classList.remove('hidden'); setTimeout(() => this.toast.classList.add('hidden'), 3000); }, 
             renderFolders() { const folders = AppState.localData.folders || []; const list = document.getElementById('folder-list'); const emptyMsg = document.getElementById('no-folders-message'); emptyMsg.classList.toggle('hidden', folders.length > 0); list.innerHTML = folders.map(f => { const count = AppState.localData.cards[f.id]?.length || 0; return `<div class="bg-slate-800 border border-slate-700 p-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer hover:bg-slate-700/50" data-id="${f.id}"><div class="flex items-center"><div class="w-4 h-10 rounded mr-4" style="background-color:${Utils.escapeHtml(f.color||'#06b6d4')}"></div><div><h3 class="font-semibold text-lg">${Utils.escapeHtml(f.name)}</h3><p class="text-sm text-slate-400">${Utils.escapeHtml(f.description)}</p></div></div><div class="flex items-center space-x-2"><div class="text-sm text-slate-400">${count} cards</div><button class="edit-folder-btn text-slate-400 h-8 w-8 hover:text-white" data-id="${f.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-folder-btn text-slate-400 h-8 w-8 hover:text-red-500" data-id="${f.id}"><i class="fas fa-trash-alt"></i></button></div></div>`;}).join(''); }, 
-            renderFolderContents(folderId) { const folder = AppState.localData.folders.find(f => f.id === folderId); if (!folder) { UI.showView('folderSelection'); return; } document.getElementById('folder-title').textContent = folder.name; document.getElementById('folder-description').textContent = folder.description; const notes = AppState.localData.notes[folderId] || []; document.getElementById('notes-list').innerHTML = notes.length > 0 ? notes.map(UI.createNoteHTML).join('') : '<p class="text-slate-500 text-center py-4">No notes added yet.</p>'; const allCards = AppState.localData.cards[folderId] || []; document.getElementById('manual-cards-list').innerHTML = allCards.filter(c => c.source === 'manual').map(UI.createCardHTML).join('') || '<p class="text-slate-500 text-center py-4">No manual cards added yet.</p>'; document.getElementById('generated-cards-list').innerHTML = allCards.filter(c => c.source === 'generated').map(UI.createCardHTML).join('') || ''; UI.renderMastery(allCards); }, 
+            renderFolderContents(folderId) { const folder = AppState.localData.folders.find(f => f.id === folderId); if (!folder) { UI.showView('folderSelection'); return; } document.getElementById('folder-title').textContent = folder.name; document.getElementById('folder-description').textContent = folder.description; const documents = AppState.localData.documentsByFolder[folderId] || []; document.getElementById('documents-list').innerHTML = documents.length > 0 ? documents.map(this.createDocumentHTML).join('') : '<p class="text-slate-500 text-center py-4">No books or documents uploaded yet.</p>'; const notes = AppState.localData.notes[folderId] || []; document.getElementById('notes-list').innerHTML = notes.length > 0 ? notes.map(UI.createNoteHTML).join('') : '<p class="text-slate-500 text-center py-4">No notes added yet.</p>'; const allCards = AppState.localData.cards[folderId] || []; document.getElementById('manual-cards-list').innerHTML = allCards.filter(c => c.source === 'manual').map(UI.createCardHTML).join('') || '<p class="text-slate-500 text-center py-4">No manual cards added yet.</p>'; document.getElementById('generated-cards-list').innerHTML = allCards.filter(c => c.source === 'generated').map(UI.createCardHTML).join('') || ''; UI.renderMastery(allCards); }, 
+            createDocumentHTML(doc) { return `<div class="bg-slate-800/50 border border-slate-700 rounded-lg shadow p-3 flex justify-between items-center"><div class="flex items-center space-x-3"><i class="fas fa-file-pdf text-red-400 text-lg"></i><span class="font-medium">${Utils.escapeHtml(doc.originalName)}</span></div><div class="flex items-center space-x-2"><button class="open-doc-btn text-slate-400 h-8 w-8 hover:text-white" data-id="${doc.id}" title="Open in Notes Lab"><i class="fas fa-book-reader"></i></button><button class="delete-doc-btn text-slate-400 h-8 w-8 hover:text-red-500" data-id="${doc.id}" title="Delete Document"><i class="fas fa-trash"></i></button></div></div>`; },
             createNoteHTML(note) { return `<div class="bg-slate-800/50 border border-slate-700 rounded-lg shadow note-item" data-id="${note.id}"><div class="p-4 flex justify-between items-center cursor-pointer note-header"><div class="font-semibold">${Utils.escapeHtml(note.title)}</div><div class="flex items-center space-x-4"><span class="text-sm text-slate-400">${note.cardCount || 0} cards</span><button class="edit-note-btn text-slate-400 h-8 w-8 hover:text-white" data-id="${note.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-note-btn text-slate-400 h-8 w-8 hover:text-red-500" data-id="${note.id}"><i class="fas fa-trash"></i></button><i class="fas fa-chevron-down note-chevron"></i></div></div><div class="note-content px-4 pb-4 text-slate-300 border-t border-slate-700">${note.content}</div></div>`}, 
             createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
             getMasteryInfo(ease) { if (ease < 2.0) return { label: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' }; if (ease < 2.8) return { label: 'Medium', color: 'bg-yellow-500', textColor: 'text-yellow-400' }; return { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' }; }, 
             renderMastery(cards) { const section = document.getElementById('folder-mastery-section'); if (!cards || cards.length === 0) { section.innerHTML = ''; return; } const strongCount = cards.filter(c => c.ease >= 2.8).length; section.innerHTML = `<div class="p-4 cursor-pointer kg-header"><div class="flex justify-between items-center"><h2 class="text-xl font-semibold">Topic Mastery</h2><i class="fas fa-chevron-down kg-chevron"></i></div><p class="text-sm text-slate-400">You have mastered ${strongCount} of ${cards.length} cards.</p></div><div class="kg-content px-4 pb-4 border-t border-slate-700"><ul class="space-y-2 mt-4">${cards.map(card => { const m = UI.getMasteryInfo(card.ease); return `<li class="flex justify-between items-center"><span class="text-sm w-3/4 truncate" title="${Utils.escapeHtml(card.question)}">${Utils.escapeHtml(card.question)}</span><div class="w-1/4 h-2 bg-slate-600 rounded-full" title="${m.label}"><div class="h-2 rounded-full ${m.color}" style="width:${((card.ease-1.3)/2.2)*100}%"></div></div></li>` }).join('')}</ul></div>`; }, 
-            updateProfileForm(profile) { 
-                if (!profile) return; 
-                document.getElementById('username-input').value = profile.username || ''; 
-                document.getElementById('bio-input').value = profile.bio || ''; 
-                const avatar = profile.avatarUrl || 'https://placehold.co/100x100/1e293b/94a3b8?text=?'; 
-                document.getElementById('avatar-preview').src = avatar; 
-                document.getElementById('header-avatar').src = avatar; 
-                document.getElementById('google-api-key-input').value = profile.googleApiKey || ''; 
-                document.getElementById('openai-api-key-input').value = profile.openaiApiKey || ''; 
-                document.getElementById('huggingface-api-key-input').value = profile.huggingfaceApiKey || ''; 
-                document.getElementById('app-version-display').textContent = APP_VERSION;
-                
-                const adminPanel = document.getElementById('admin-panel');
-                if (profile.isAdmin) {
-                    adminPanel.classList.remove('hidden');
-                } else {
-                    adminPanel.classList.add('hidden');
-                }
-            }, 
+            updateProfileForm(profile) { if (!profile) return; document.getElementById('username-input').value = profile.username || ''; document.getElementById('bio-input').value = profile.bio || ''; const avatar = profile.avatarUrl || 'https://placehold.co/100x100/1e293b/94a3b8?text=?'; document.getElementById('avatar-preview').src = avatar; document.getElementById('header-avatar').src = avatar; document.getElementById('google-api-key-input').value = profile.googleApiKey || ''; document.getElementById('openai-api-key-input').value = profile.openaiApiKey || ''; document.getElementById('huggingface-api-key-input').value = profile.huggingfaceApiKey || ''; document.getElementById('app-version-display').textContent = APP_VERSION; const adminPanel = document.getElementById('admin-panel'); if (profile.isAdmin) { adminPanel.classList.remove('hidden'); } else { adminPanel.classList.add('hidden'); } }, 
             updateStudyPlanRecommendation() { const el=document.getElementById('study-plan-recommendation'); const due=document.getElementById('test-due-date-input').value; if(!due){el.textContent='';return;}const d=new Date(due);const t=new Date();t.setHours(0,0,0,0);const o=d.getTimezoneOffset()*60000;const c=new Date(d.getTime()+o);const f=c.getTime()-t.getTime();const days=Math.ceil(f/(1000*3600*24));const cards=AppState.localData.cards[AppState.currentFolderId]||[];if(days<=0){el.textContent="Deadline passed!";}else if(cards.length>0){const p=Math.ceil(cards.length/days);el.textContent=`Recommended: ~${p} card(s)/day.`;}else{el.textContent='';}} 
         };
         const LearnController = { start(allCards, options) { const useSmartReview = document.getElementById('smart-review-toggle').checked; let cardsToStudy = useSmartReview ? allCards.filter(c => new Date(c.dueDate) <= new Date()) : allCards; if(cardsToStudy.length === 0){ UI.showToast(useSmartReview ? "No cards due today!" : "This folder has no cards to study!", true); return; } if(options.includes('matching') && cardsToStudy.length < 4){ if (options.length === 1) { UI.showToast("The Matching Game requires at least 4 cards.", true); return; } options = options.filter(o => o !== 'matching'); UI.showToast("Matching game disabled (needs 4+ cards). Continuing with other types.", false); } if (options.length === 0) { UI.showToast("Please select at least one valid question type.", true); return; } UI.toggleModal('learnOptions', false); UI.showView('learn'); AppState.learnState = { cards: Utils.shuffle(cardsToStudy), allCardsInFolder: allCards, options, currentIndex: 0, total: cardsToStudy.length, correctAnswers: 0 }; this.nextQuestion(); }, nextQuestion() { const { currentIndex, total } = AppState.learnState; document.getElementById('learn-progress-bar-inner').style.width = `${(currentIndex / total) * 100}%`; document.getElementById('learn-feedback-area').classList.add('hidden'); document.getElementById('learn-continue-btn').classList.add('hidden'); if (currentIndex >= total) { this.showSummary(); return; } const type = AppState.learnState.options[Math.floor(Math.random() * AppState.learnState.options.length)]; this.generateQuestion(type); AppState.learnState.currentIndex++; }, generateQuestion(type) { const container = document.getElementById('learn-question-container'); const card = AppState.learnState.currentCard = AppState.learnState.cards[AppState.learnState.currentIndex]; switch(type) { case 'written': container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4">Check Answer</button>`; document.getElementById('submit-written').onclick=()=>this.checkAnswer(); break; case 'mcq': let opts=[card.answer, ...Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.answer!==card.answer).map(c=>c.answer)).slice(0,3)]; container.innerHTML=`<p class="text-slate-400 mb-2">Choose the correct answer:</p><h3 class="text-2xl font-semibold mb-6">${Utils.escapeHtml(card.question)}</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${Utils.shuffle(opts).map(o=>`<button class="mcq-option rounded-lg p-4 text-left bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600">${Utils.escapeHtml(o)}</button>`).join('')}</div>`; document.querySelectorAll('.mcq-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.target.textContent)); break; case 'tf': const isTrue=Math.random()>0.5; const ans=isTrue?card.answer:Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.id!==card.id))[0].answer; AppState.learnState.isTrueAnswer=isTrue; container.innerHTML=`<p class="text-slate-400 mb-2">True or false?</p><div class="bg-slate-900/50 p-6 rounded-lg"><h3 class="text-xl font-semibold mb-2">${Utils.escapeHtml(card.question)}</h3><hr class="border-slate-600 my-3"><p class="text-lg">${Utils.escapeHtml(ans)}</p></div><div class="flex justify-around mt-6"><button class="tf-option w-32 h-16 text-xl rounded-lg bg-green-600 hover:bg-green-700" data-value="true">True</button><button class="tf-option w-32 h-16 text-xl rounded-lg bg-red-600 hover:bg-red-700" data-value="false">False</button></div>`; document.querySelectorAll('.tf-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.currentTarget.dataset.value==='true')); break; case 'matching': MatchingGame.start(); break; } }, checkAnswer(userAnswer) { let isCorrect = false; const { currentCard, isTrueAnswer } = AppState.learnState; const qType = document.getElementById('written-answer')?'written':document.querySelector('.mcq-option')?'mcq':'tf'; if(qType==='written'){isCorrect=document.getElementById('written-answer').value.trim().toLowerCase()===currentCard.answer.trim().toLowerCase();}else if(qType==='mcq'){isCorrect=userAnswer.trim()===currentCard.answer.trim();}else{isCorrect=userAnswer===isTrueAnswer;} SRS.updateCardSRS(currentCard, isCorrect); Rewards.update(isCorrect); const fb=document.getElementById('learn-feedback-area'),ft=document.getElementById('learn-feedback-text'),ca=document.getElementById('learn-correct-answer'); if(isCorrect){ft.textContent="Correct!";fb.className='mt-4 p-4 rounded-lg bg-green-500/20 text-green-300';ca.textContent='';AppState.learnState.correctAnswers++;}else{ft.textContent="Incorrect!";fb.className='mt-4 p-4 rounded-lg bg-red-500/20 text-red-300';ca.textContent=`Correct Answer: ${currentCard.answer}`;} fb.classList.remove('hidden'); document.getElementById('learn-continue-btn').classList.remove('hidden'); document.querySelectorAll('#learn-question-container button, #learn-question-container textarea').forEach(el=>el.disabled=true); }, showSummary() { const {total,correctAnswers}=AppState.learnState; document.getElementById('learn-question-container').innerHTML=`<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-cyan-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="rounded-lg px-4 py-2 bg-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`; document.getElementById('learn-again').onclick=()=>FolderActions.openStudyModal(); document.getElementById('learn-finish').onclick=()=>FolderActions.openFolder(AppState.currentFolderId);} };
@@ -432,206 +375,14 @@
         const FolderActions = { init() { document.getElementById('btn-show-create-folder-modal').onclick = () => this.openCreateFolderModal(); document.getElementById('search-input').oninput = Utils.debounce(e => this.filterFolders(e.target.value), 300); document.getElementById('btn-save-folder').onclick = () => this.saveFolder(); document.getElementById('btn-cancel-create-folder').onclick = () => UI.toggleModal('createFolder', false); document.getElementById('btn-back-to-folders').onclick = () => { UI.showView('folderSelection'); UI.renderFolders(); }; document.getElementById('btn-study-folder').onclick = () => this.openStudyModal(); document.getElementById('btn-add-card-to-folder').onclick = () => CardActions.openAddCardModal(); document.getElementById('btn-add-note-to-folder').onclick = () => NoteEditorActions.open(); document.getElementById('folder-list').onclick = async e => { const target = e.target.closest('[data-id]'); if(e.target.closest('.edit-folder-btn')) this.openCreateFolderModal(e.target.closest('[data-id]').dataset.id); else if(e.target.closest('.delete-folder-btn')) { if(confirm('Delete folder and all contents?')) { await ApiController.apiCall(`/folders/${e.target.closest('[data-id]').dataset.id}`, 'DELETE'); this.refreshData(); }} else if(target) this.openFolder(target.dataset.id); }; }, async refreshData() { try { const data = await ApiController.apiCall('/all-data'); if (data) { AppState.localData = { profile: data.profile || {}, rewards: data.rewards || { points: 0, streak: 0 }, folders: data.folders || [], notes: data.notesByFolder || {}, cards: data.cardsByFolder || {} }; } UI.renderFolders(); if(AppState.currentFolderId) UI.renderFolderContents(AppState.currentFolderId); } catch (error) { console.error("Failed to refresh data:", error); UI.showToast("Could not update data from server.", true); } }, openCreateFolderModal(folderId = null) { const modal = document.getElementById('modal-create-folder'); document.getElementById('folder-id-input').value = folderId || ''; if (folderId) { modal.querySelector('h2').textContent = 'Edit Folder'; const data = AppState.localData.folders.find(f => f.id === folderId); document.getElementById('folder-name-input').value = data.name; document.getElementById('folder-description-input').value = data.description; document.getElementById('folder-color-input').value = data.color; } else { modal.querySelector('h2').textContent = 'Create Folder'; document.getElementById('folder-name-input').value = ''; document.getElementById('folder-description-input').value = ''; document.getElementById('folder-color-input').value = '#06b6d4'; } UI.toggleModal('createFolder', true); }, async saveFolder() { const folderData = { id: document.getElementById('folder-id-input').value, name: document.getElementById('folder-name-input').value.trim(), description: document.getElementById('folder-description-input').value.trim(), color: document.getElementById('folder-color-input').value }; if (!folderData.name) { UI.showToast('Folder name is required.', true); return; } await ApiController.apiCall('/folders', 'POST', folderData); this.refreshData(); UI.toggleModal('createFolder', false); }, filterFolders(searchTerm) { document.querySelectorAll('#folder-list > div').forEach(div => { const name = div.querySelector('h3').textContent.toLowerCase(); const desc = div.querySelector('p').textContent.toLowerCase(); div.style.display = (name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase())) ? '' : 'none'; }); }, openFolder(folderId) { AppState.currentFolderId = folderId; UI.showView('folderContents'); UI.renderFolderContents(folderId); }, openStudyModal() { const allCards = AppState.localData.cards[AppState.currentFolderId] || []; if(allCards.length===0){UI.showToast("Add cards first!", true);return;} UI.toggleModal('learnOptions', true); } };
         const CardActions = { init() { document.getElementById('btn-cancel-add-card').onclick = () => UI.toggleModal('addCard', false); document.getElementById('btn-add-another-card').onclick = () => this.addAnotherCardInput(); document.getElementById('btn-save-cards').onclick = () => this.saveCards(); document.getElementById('add-cards-container').onclick = e => { if (e.target.closest('.remove-card-input-btn')) e.target.closest('.card-input-group').remove(); }; [document.getElementById('manual-cards-list'), document.getElementById('generated-cards-list')].forEach(list => list.onclick = async e => { const cardElement = e.target.closest('.card'); if(!cardElement) return; if(e.target.closest('.flip-card-btn')) cardElement.classList.toggle('is-flipped'); else if (e.target.closest('.delete-card-btn')) { if(confirm('Delete card?')) { await ApiController.apiCall(`/cards/${cardElement.dataset.id}`, 'DELETE'); FolderActions.refreshData(); } } }); }, createCardInputHTML: () => `<div class="card-input-group bg-slate-900/50 p-4 rounded-lg relative"><button class="remove-card-input-btn absolute top-2 right-2 text-slate-500 hover:text-red-400">&times;</button><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm">Question</label><textarea rows="3" class="mt-1 card-question block w-full bg-slate-700 p-2 rounded-lg"></textarea></div><div><label class="block text-sm">Answer</label><textarea rows="3" class="mt-1 card-answer block w-full bg-slate-700 p-2 rounded-lg"></textarea></div></div></div>`, addAnotherCardInput() { document.getElementById('add-cards-container').insertAdjacentHTML('beforeend', this.createCardInputHTML()); }, async saveCards() { const cardsRaw = Array.from(document.querySelectorAll('.card-input-group')).map(g => ({ question: g.querySelector('.card-question').value.trim(), answer: g.querySelector('.card-answer').value.trim() })).filter(c => c.question && c.answer); if (cardsRaw.length > 0) { const cards = cardsRaw.map(c => SRS.addSRSData(c)); await ApiController.apiCall('/manual-cards', 'POST', { folderId: AppState.currentFolderId, cards }); FolderActions.refreshData(); UI.toggleModal('addCard', false); } else { UI.showToast("Fill out at least one card.", true); } }, openAddCardModal() { document.getElementById('add-cards-container').innerHTML = this.createCardInputHTML(); UI.toggleModal('addCard', true); } };
         const NoteActions = { init() { document.getElementById('notes-list').onclick = async e => { const noteItem = e.target.closest('.note-item'); if (e.target.closest('.delete-note-btn')) { if(confirm('Delete note & its cards?')) { await ApiController.apiCall(`/notes/${e.target.closest('.note-item').dataset.id}`, 'DELETE'); FolderActions.refreshData(); }} else if (e.target.closest('.edit-note-btn')) { NoteEditorActions.open(e.target.closest('.note-item').dataset.id); } else if (noteItem) { noteItem.classList.toggle('is-open'); } }; }};
-        const NoteEditorActions = { 
-            init() { 
-                document.getElementById('btn-back-to-folder-from-editor').onclick=()=>{UI.showView('folderContents'); UI.renderFolderContents(AppState.currentFolderId);}; 
-                document.getElementById('btn-save-note-and-cards').onclick=()=>this.save(); 
-                document.getElementById('btn-cycle-layout').onclick=()=>this.cycleLayout(); 
-                document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const generated=await AI.generateFlashcards(provider); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; 
-                document.getElementById('btn-add-manual-card-in-editor').onclick=()=>{document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend',this.createCardInputHTML({}))}; 
-                document.getElementById('note-editor-cards-list').onclick=e=>{if(e.target.closest('.remove-card-editor-btn')){e.target.closest('.card-editor-group').remove()}}; 
-                document.getElementById('btn-bullet-list').onclick=()=>document.execCommand('insertUnorderedList',false,null); 
-                document.getElementById('btn-ordered-list').onclick=()=>document.execCommand('insertOrderedList',false,null); 
-                document.getElementById('note-editor-content').onpaste=e=>this.handlePaste(e); 
-                this.initResizer(); 
-            }, 
-            open(noteId=null){ 
-                AppState.currentNoteId=noteId; 
-                const title=document.getElementById('note-editor-title'); 
-                const content=document.getElementById('note-editor-content'); 
-                const cardList=document.getElementById('note-editor-cards-list'); 
-                if(noteId){
-                    const note=AppState.localData.notes[AppState.currentFolderId].find(n=>n.id===noteId); 
-                    const cards=(AppState.localData.cards[AppState.currentFolderId]||[]).filter(c=>c.noteId===noteId); 
-                    title.value=note.title; 
-                    content.innerHTML=note.content; 
-                    cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');
-                } else {
-                    title.value=''; 
-                    content.innerHTML=''; 
-                    cardList.innerHTML='';
-                } 
-                this.setLayout('split-h'); 
-                this.updateGenerateButtonState(); 
-                UI.showView('noteEditor');
-            }, 
-            cycleLayout(){
-                const g=document.getElementById('note-editor-grid'); 
-                const m=g.dataset.layoutMode; 
-                if(m==='split-h'){this.setLayout('notes-only');}
-                else if(m==='notes-only'){this.setLayout('split-v');}
-                else{this.setLayout('split-h');}
-            }, 
-            setLayout(mode){
-                const g=document.getElementById('note-editor-grid'),
-                      n=document.getElementById('note-editor-panel'),
-                      h=document.getElementById('flashcard-hub-panel'),
-                      r=document.getElementById('note-editor-resizer'),
-                      b=document.getElementById('btn-cycle-layout'); 
-                g.dataset.layoutMode=mode; 
-                g.className='flex-grow flex gap-2 min-h-0'; 
-                n.style.flexBasis='50%'; 
-                h.style.flexBasis='50%'; 
-                n.classList.remove('w-full'); 
-                h.classList.remove('hidden'); 
-                r.classList.add('hidden'); 
-                if(mode==='split-h'){
-                    g.classList.add('flex-row'); 
-                    r.classList.remove('hidden'); 
-                    b.innerHTML='<i class="fas fa-expand"></i>'; 
-                    b.title='Notes Only';
-                } else if(mode==='notes-only'){
-                    n.classList.add('w-full'); 
-                    h.classList.add('hidden'); 
-                    b.innerHTML='<i class="fas fa-layer-group"></i>'; 
-                    b.title='Vertical Split';
-                } else if(mode==='split-v'){
-                    g.classList.add('flex-col'); 
-                    b.innerHTML='<i class="fas fa-columns"></i>'; 
-                    b.title='Horizontal Split';
-                }
-            }, 
-            initResizer() {
-                const resizer = document.getElementById('note-editor-resizer');
-                const container = document.getElementById('note-editor-grid');
-                const leftPanel = document.getElementById('note-editor-panel');
-                let isResizing = false;
-
-                const onDown = (e) => {
-                    if (container.dataset.layoutMode !== 'split-h') return;
-                    e.preventDefault();
-                    isResizing = true;
-                    document.body.style.cursor = 'col-resize';
-                    document.addEventListener('mousemove', onMove);
-                    document.addEventListener('mouseup', onUp);
-                    document.addEventListener('touchmove', onMove, { passive: false });
-                    document.addEventListener('touchend', onUp);
-                };
-
-                const onMove = (e) => {
-                    if (!isResizing) return;
-                    e.preventDefault();
-                    const clientX = e.clientX || e.touches[0].clientX;
-                    const containerRect = container.getBoundingClientRect();
-                    const newLeftWidth = clientX - containerRect.left;
-
-                    // This is the updated constraint
-                    if (newLeftWidth > 400 && (container.offsetWidth - newLeftWidth) > 10) {
-                        leftPanel.style.flexBasis = `${newLeftWidth}px`;
-                    }
-                };
-
-                const onUp = () => {
-                    isResizing = false;
-                    document.body.style.cursor = 'default';
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                    document.removeEventListener('touchmove', onMove);
-                    document.removeEventListener('touchend', onUp);
-                };
-
-                resizer.addEventListener('mousedown', onDown);
-                resizer.addEventListener('touchstart', onDown, { passive: false });
-            },
-            handlePaste(e){
-                e.preventDefault(); 
-                const d=e.clipboardData||window.clipboardData; 
-                let p=d.getData('text/html')||d.getData('text/plain'); 
-                document.execCommand('insertHTML',false,this.sanitizeHtml(p));
-            }, 
-            sanitizeHtml(h){
-                const a=['UL','OL','LI','P','BR','B','I','U','DIV']; 
-                const p=new DOMParser(); 
-                const d=p.parseFromString(h,'text/html'); 
-                d.querySelectorAll('style,script,meta,link,title').forEach(e=>e.remove()); 
-                const w=d.createTreeWalker(d.body,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_COMMENT); 
-                const r=[],u=[]; 
-                while(w.nextNode()){
-                    const n=w.currentNode; 
-                    if(n.nodeType===Node.COMMENT_NODE){r.push(n);continue;}
-                    if(a.includes(n.tagName)){
-                        while(n.attributes.length>0)n.removeAttribute(n.attributes[0].name);
-                    }else{u.push(n);}
-                } 
-                u.forEach(n=>{const p=n.parentNode; while(n.firstChild)p.insertBefore(n.firstChild,n);});
-                [...u,...r].forEach(n=>{if(n.parentNode)n.parentNode.removeChild(n);}); 
-                return d.body.innerHTML;
-            }, 
-            createCardInputHTML(card,isExisting){
-                const q=isExisting?card.question:(card.question||''); 
-                const a=isExisting?card.answer:(card.answer||''); 
-                return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm">Question</label><textarea rows="2" class="mt-1 card-question w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm">Answer</label><textarea rows="2" class="mt-1 card-answer w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(a)}</textarea></div></div>`;
-            }, 
-            async save(){
-                const noteData={title:document.getElementById('note-editor-title').value.trim(),content:document.getElementById('note-editor-content').innerHTML.trim()};
-                if(!noteData.title){UI.showToast("Note title required.",true);return;}
-                const cardsRaw=Array.from(document.querySelectorAll('.card-editor-group')).map(g=>({question:g.querySelector('.card-question').value.trim(),answer:g.querySelector('.card-answer').value.trim()})).filter(c=>c.question&&c.answer); 
-                const cardsWithSrs=cardsRaw.map(c=>SRS.addSRSData({...c,source:'generated'})); 
-                await ApiController.apiCall('/notes','POST',{folderId:AppState.currentFolderId,noteId:AppState.currentNoteId,...noteData,cards:cardsWithSrs}); 
-                FolderActions.refreshData(); 
-                UI.showToast("Note and cards saved!"); 
-                UI.showView('folderContents');
-            }, 
-            updateGenerateButtonState(){
-                const p=AppState.localData.profile; 
-                const sel=document.getElementById('ai-provider-selector'); 
-                const btn=document.getElementById('btn-generate-from-note'); 
-                sel.innerHTML='<option value="">Select Provider</option>'; 
-                if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; 
-                if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; 
-                if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; 
-                const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; 
-                sel.disabled=!hasKeys; 
-                btn.disabled=!hasKeys;
-            }
-        };
-        const ProfileActions = { 
-            init() { 
-                document.getElementById('profile-button').onclick=e=>{e.stopPropagation(); document.getElementById('profile-menu').classList.toggle('hidden');}; 
-                document.getElementById('btn-go-to-profile').onclick=e=>{e.preventDefault();this.openProfile();}; 
-                document.getElementById('btn-sign-out').onclick=e=>{e.preventDefault();AuthController.signOut();}; 
-                document.getElementById('btn-back-to-folders-from-profile').onclick=()=>UI.showView('folderSelection'); 
-                document.getElementById('profile-form').onsubmit=e=>this.saveProfile(e); 
-                document.getElementById('avatar-input').onchange=e=>this.handleAvatarChange(e); 
-                document.getElementById('btn-check-for-update').onclick = () => this.checkForUpdate();
-                document.getElementById('btn-update-app').onclick = () => this.updateApplication();
-                document.getElementById('btn-close-update-log').onclick = () => UI.toggleModal('update-log', false);
-                window.onclick=e=>{const m=document.getElementById('profile-menu'); if(!m.classList.contains('hidden')&&!e.target.closest('#profile-button')) m.classList.add('hidden');}; 
-            }, 
-            openProfile(){
-                UI.showView('profile');
-                document.getElementById('profile-menu').classList.add('hidden');
-            }, 
-            async saveProfile(e){
-                e.preventDefault(); 
-                const profileData={username:document.getElementById('username-input').value.trim(),bio:document.getElementById('bio-input').value.trim(),avatarUrl:document.getElementById('avatar-preview').src,googleApiKey:document.getElementById('google-api-key-input').value.trim(),openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),huggingfaceApiKey:document.getElementById('huggingface-api-key-input').value.trim(),}; 
-                AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); 
-                UI.updateProfileForm(AppState.localData.profile); 
-                UI.showToast("Profile saved!");
-            }, 
-            handleAvatarChange(e){
-                const f=e.target.files[0];
-                if(!f)return;
-                const r=new FileReader();
-                r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;};
-                r.readAsDataURL(f);
-            },
+        const NoteEditorActions = { init() { document.getElementById('btn-back-to-folder-from-editor').onclick=()=>{UI.showView('folderContents'); UI.renderFolderContents(AppState.currentFolderId);}; document.getElementById('btn-save-note-and-cards').onclick=()=>this.save(); document.getElementById('btn-cycle-layout').onclick=()=>this.cycleLayout(); document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const generated=await AI.generateFlashcards(provider); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; document.getElementById('btn-add-manual-card-in-editor').onclick=()=>{document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend',this.createCardInputHTML({}))}; document.getElementById('note-editor-cards-list').onclick=e=>{if(e.target.closest('.remove-card-editor-btn')){e.target.closest('.card-editor-group').remove()}}; document.getElementById('btn-bullet-list').onclick=()=>document.execCommand('insertUnorderedList',false,null); document.getElementById('btn-ordered-list').onclick=()=>document.execCommand('insertOrderedList',false,null); document.getElementById('note-editor-content').onpaste=e=>this.handlePaste(e); this.initResizer(); }, open(noteId=null){ AppState.currentNoteId=noteId; const title=document.getElementById('note-editor-title'); const content=document.getElementById('note-editor-content'); const cardList=document.getElementById('note-editor-cards-list'); if(noteId){const note=AppState.localData.notes[AppState.currentFolderId].find(n=>n.id===noteId); const cards=(AppState.localData.cards[AppState.currentFolderId]||[]).filter(c=>c.noteId===noteId); title.value=note.title; content.innerHTML=note.content; cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');}else{title.value=''; content.innerHTML=''; cardList.innerHTML='';} this.setLayout('split-h'); this.updateGenerateButtonState(); UI.showView('noteEditor');}, cycleLayout(){const g=document.getElementById('note-editor-grid'); const m=g.dataset.layoutMode; if(m==='split-h'){this.setLayout('notes-only');}else if(m==='notes-only'){this.setLayout('split-v');}else{this.setLayout('split-h');}}, setLayout(mode){const g=document.getElementById('note-editor-grid'),n=document.getElementById('note-editor-panel'),h=document.getElementById('flashcard-hub-panel'),r=document.getElementById('note-editor-resizer'),b=document.getElementById('btn-cycle-layout'); g.dataset.layoutMode=mode; g.className='flex-grow flex gap-2 min-h-0'; n.style.flexBasis='50%'; h.style.flexBasis='50%'; n.classList.remove('w-full'); h.classList.remove('hidden'); r.classList.add('hidden'); if(mode==='split-h'){g.classList.add('flex-row'); r.classList.remove('hidden'); b.innerHTML='<i class="fas fa-expand"></i>'; b.title='Notes Only';}else if(mode==='notes-only'){n.classList.add('w-full'); h.classList.add('hidden'); b.innerHTML='<i class="fas fa-layer-group"></i>'; b.title='Vertical Split';}else if(mode==='split-v'){g.classList.add('flex-col'); b.innerHTML='<i class="fas fa-columns"></i>'; b.title='Horizontal Split';}}, initResizer(){const r=document.getElementById('note-editor-resizer'),g=document.getElementById('note-editor-grid'),l=document.getElementById('note-editor-panel');let i=false;const d=e=>{if(g.dataset.layoutMode!=='split-h')return;e.preventDefault();i=true;document.body.style.cursor='col-resize';document.addEventListener('mousemove',m);document.addEventListener('mouseup',u);};const m=e=>{if(!i)return;const t=g.offsetWidth;const n=e.clientX-g.getBoundingClientRect().left;if(n>200&&t-n>180)l.style.flexBasis=`${n}px`;};const u=()=>{i=false;document.body.style.cursor='default';document.removeEventListener('mousemove',m);document.removeEventListener('mouseup',u);};r.addEventListener('mousedown',d);}, handlePaste(e){e.preventDefault(); const d=e.clipboardData||window.clipboardData; let p=d.getData('text/html')||d.getData('text/plain'); document.execCommand('insertHTML',false,this.sanitizeHtml(p));}, sanitizeHtml(h){const a=['UL','OL','LI','P','BR','B','I','U','DIV']; const p=new DOMParser(); const d=p.parseFromString(h,'text/html'); d.querySelectorAll('style,script,meta,link,title').forEach(e=>e.remove()); const w=d.createTreeWalker(d.body,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_COMMENT); const r=[],u=[]; while(w.nextNode()){const n=w.currentNode; if(n.nodeType===Node.COMMENT_NODE){r.push(n);continue;}if(a.includes(n.tagName)){while(n.attributes.length>0)n.removeAttribute(n.attributes[0].name);}else{u.push(n);}} u.forEach(n=>{const p=n.parentNode; while(n.firstChild)p.insertBefore(n.firstChild,n);});[...u,...r].forEach(n=>{if(n.parentNode)n.parentNode.removeChild(n);}); return d.body.innerHTML;}, createCardInputHTML(card,isExisting){const q=isExisting?card.question:(card.question||''); const a=isExisting?card.answer:(card.answer||''); return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm">Question</label><textarea rows="2" class="mt-1 card-question w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm">Answer</label><textarea rows="2" class="mt-1 card-answer w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(a)}</textarea></div></div>`;}, async save(){const noteData={title:document.getElementById('note-editor-title').value.trim(),content:document.getElementById('note-editor-content').innerHTML.trim()};if(!noteData.title){UI.showToast("Note title required.",true);return;}const cardsRaw=Array.from(document.querySelectorAll('.card-editor-group')).map(g=>({question:g.querySelector('.card-question').value.trim(),answer:g.querySelector('.card-answer').value.trim()})).filter(c=>c.question&&c.answer); const cardsWithSrs=cardsRaw.map(c=>SRS.addSRSData({...c,source:'generated'})); await ApiController.apiCall('/notes','POST',{folderId:AppState.currentFolderId,noteId:AppState.currentNoteId,...noteData,cards:cardsWithSrs}); FolderActions.refreshData(); UI.showToast("Note and cards saved!"); UI.showView('folderContents');}, updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys;}};
+        const ProfileActions = { init() { document.getElementById('profile-button').onclick=e=>{e.stopPropagation(); document.getElementById('profile-menu').classList.toggle('hidden');}; document.getElementById('btn-go-to-profile').onclick=e=>{e.preventDefault();this.openProfile();}; document.getElementById('btn-sign-out').onclick=e=>{e.preventDefault();AuthController.signOut();}; document.getElementById('btn-back-to-folders-from-profile').onclick=()=>UI.showView('folderSelection'); document.getElementById('profile-form').onsubmit=e=>this.saveProfile(e); document.getElementById('avatar-input').onchange=e=>this.handleAvatarChange(e); document.getElementById('btn-check-for-update').onclick = () => this.checkForUpdate(); document.getElementById('btn-update-app').onclick = () => this.updateApplication(); document.getElementById('btn-close-update-log').onclick = () => UI.toggleModal('update-log', false); }, openProfile(){UI.showView('profile');document.getElementById('profile-menu').classList.add('hidden');}, async saveProfile(e){e.preventDefault(); const profileData={username:document.getElementById('username-input').value.trim(),bio:document.getElementById('bio-input').value.trim(),avatarUrl:document.getElementById('avatar-preview').src,googleApiKey:document.getElementById('google-api-key-input').value.trim(),openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),huggingfaceApiKey:document.getElementById('huggingface-api-key-input').value.trim(),}; AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); UI.updateProfileForm(AppState.localData.profile); UI.showToast("Profile saved!");}, handleAvatarChange(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;};r.readAsDataURL(f);},
             async checkForUpdate() {
                 const statusEl = document.getElementById('update-status');
                 statusEl.textContent = 'Checking for updates...';
                 statusEl.classList.remove('text-green-400', 'text-cyan-400');
                 document.getElementById('btn-check-for-update').disabled = true;
-                 try {
+                try {
                     const latest = await ApiController.apiCall('/version'); 
                     if (latest.version > APP_VERSION) {
                         statusEl.innerHTML = `Update available (v${latest.version})! <a href="https://github.com/dertder25t/StudyFortressV1" target="_blank" class="font-bold underline text-cyan-400 hover:text-cyan-300">View on GitHub</a>`;
@@ -653,15 +404,13 @@
                 }
                 const statusEl = document.getElementById('admin-update-status');
                 const logContentEl = document.getElementById('update-log-content');
-                
                 statusEl.textContent = 'Update initiated...';
                 logContentEl.textContent = 'Starting update process... please wait.';
                 UI.toggleModal('update-log', true);
-
                 try {
                     const result = await ApiController.apiCall('/admin/update-app', 'POST');
                     UI.showToast(result.message || 'Update process started.');
-                    logContentEl.textContent = result.output; // Display the captured log
+                    logContentEl.textContent = result.output;
                     statusEl.textContent = 'Update successful! The server is restarting.';
                 } catch (error) {
                     statusEl.textContent = 'Update failed. Check server logs.';
