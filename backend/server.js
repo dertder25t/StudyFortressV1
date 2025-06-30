@@ -1,6 +1,5 @@
 // A simple, UNIFIED backend for the Study App.
-// This single file acts as BOTH the API server and the web server.
-// Version 1.4: Final bug fixes for data saving.
+
 
 const express = require('express');
 const path = require('path');
@@ -10,6 +9,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { exec } = require('child_process'); // Import exec for running shell commands
 const { HfInference } = require('@huggingface/inference');
 const { OpenAI } = require('openai');
 
@@ -17,6 +17,7 @@ const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'your-super-secret-key-that-you-should-change'; // IMPORTANT: Change this!
 const SALT_ROUNDS = 10;
+const APP_DIR = '/opt/StudyFortressV1'; // The directory where the app is installed
 
 // Middlewares
 app.use(cors());
@@ -32,7 +33,7 @@ async function initializeDatabase() {
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
     await db.exec(`
-      CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
@@ -45,7 +46,7 @@ async function initializeDatabase() {
   }
 }
 
-// --- AUTHENTICATION & API HELPERS ---
+// --- MIDDLEWARE ---
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -56,9 +57,21 @@ function authenticateToken(req, res, next) {
         next();
     });
 }
+async function checkAdmin(req, res, next) {
+    try {
+        const user = await db.get('SELECT isAdmin FROM users WHERE id = ?', req.user.id);
+        if (user && user.isAdmin === 1) {
+            next();
+        } else {
+            res.status(403).json({ error: "Forbidden: Admin access required."});
+        }
+    } catch (err) {
+        res.status(500).json({ error: "Error verifying admin status."});
+    }
+}
 
+// --- AI HELPERS ---
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
-
 async function generateWithGoogle(text, apiKey) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: flashcardPrompt(text) }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } } } } } };
@@ -68,14 +81,12 @@ async function generateWithGoogle(text, apiKey) {
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from Google AI");
     return JSON.parse(result.candidates[0].content.parts[0].text);
 }
-
 async function generateWithOpenAI(text, apiKey) {
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
     return JSON.parse(response.choices[0].message.content);
 }
-
 async function generateWithHuggingFace(text, apiKey) {
     const hf = new HfInference(apiKey);
     const response = await hf.textGeneration({ model: 'mistralai/Mistral-7B-v0.1', inputs: flashcardPrompt(text), parameters: { max_new_tokens: 500 } });
@@ -90,8 +101,11 @@ app.post('/api/register', async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+        
+        // This no longer makes the first user an admin by default.
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
-        const result = await db.run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [email, hash]);
+        const result = await db.run('INSERT INTO users (email, password_hash, isAdmin) VALUES (?, ?, 0)', [email, hash]); // Always creates non-admin
+        
         const userId = result.lastID;
         const username = email.split('@')[0];
         await db.run('INSERT INTO profile (userId, username) VALUES (?, ?)', [userId, username]);
@@ -115,14 +129,14 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/all-data', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const profile = await db.get('SELECT * FROM profile WHERE userId = ?', userId);
+    const profileData = await db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId);
     const rewards = await db.get('SELECT * FROM rewards WHERE userId = ?', userId);
     const folders = await db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId);
     const notes = await db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId);
     const cards = await db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId);
     const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
     const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
-    res.json({ profile, rewards, folders, notesByFolder, cardsByFolder });
+    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder });
   } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
 });
 
@@ -238,7 +252,27 @@ app.delete('/api/cards/:id', authenticateToken, async (req, res) => {
     catch(err) { console.error("Error deleting card:", err); res.status(500).json({ error: "Failed to delete card." }); }
 });
 
+// --- ADMIN ENDPOINT ---
+app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
+    console.log(`Admin user ${req.user.id} initiated an update.`);
+    const command = `cd ${APP_DIR} && git pull && npm install --prefix backend && pm2 restart study-app`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Update Error: ${error.message}`);
+            return res.status(500).json({ message: "Update script failed.", error: error.message });
+        }
+        if (stderr) {
+            console.warn(`Update Stderr: ${stderr}`);
+        }
+        console.log(`Update Stdout: ${stdout}`);
+        res.status(200).json({ message: "Application update initiated successfully!", output: stdout });
+    });
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-app.html')));
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
+
+
