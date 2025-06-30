@@ -1,6 +1,6 @@
 // A simple, UNIFIED backend for the Study App.
 // This single file acts as BOTH the API server and the web server.
-// Version 1.5: Corrected data structure mismatch for card creation.
+// Version 1.4: Final bug fixes for data saving.
 
 const express = require('express');
 const path = require('path');
@@ -242,4 +242,5 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-ap
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
+
 
