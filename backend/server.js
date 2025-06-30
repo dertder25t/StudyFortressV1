@@ -71,9 +71,28 @@ async function checkAdmin(req, res, next) {
 
 // --- AI HELPERS ---
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
-async function generateWithGoogle(text, apiKey) { /* ... implementation ... */ }
-async function generateWithOpenAI(text, apiKey) { /* ... implementation ... */ }
-async function generateWithHuggingFace(text, apiKey) { /* ... implementation ... */ }
+async function generateWithGoogle(text, apiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: [{ role: "user", parts: [{ text: flashcardPrompt(text) }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } } } } } };
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
+    const result = await response.json();
+    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from Google AI");
+    return JSON.parse(result.candidates[0].content.parts[0].text);
+}
+async function generateWithOpenAI(text, apiKey) {
+    const openai = new OpenAI({ apiKey });
+    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
+    if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
+    return JSON.parse(response.choices[0].message.content);
+}
+async function generateWithHuggingFace(text, apiKey) {
+    const hf = new HfInference(apiKey);
+    const response = await hf.textGeneration({ model: 'mistralai/Mistral-7B-v0.1', inputs: flashcardPrompt(text), parameters: { max_new_tokens: 500 } });
+    const jsonString = response.generated_text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+    if (!jsonString) throw new Error("Could not find valid JSON in Hugging Face response.");
+    return JSON.parse(jsonString[0]);
+}
 
 // --- API ENDPOINTS ---
 
@@ -94,7 +113,14 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-app.post('/api/login', async (req, res) => { /* ... same as before ... */ });
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+        if (!user || !await bcrypt.compare(password, user.password_hash)) { return res.status(401).json({ error: 'Invalid credentials.' }); }
+        res.json({ accessToken: jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' }) });
+    } catch (err) { console.error("Login Error:", err); res.status(500).json({ error: err.message }); }
+});
 
 app.get('/api/all-data', authenticateToken, async (req, res) => {
   try {
@@ -110,18 +136,43 @@ app.get('/api/all-data', authenticateToken, async (req, res) => {
   } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
 });
 
-app.post('/api/profile', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.post('/api/generate-ai-cards', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.post('/api/rewards', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.post('/api/folders', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.delete('/api/folders/:id', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.post('/api/notes', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.delete('/api/notes/:id', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.post('/api/manual-cards', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.put('/api/cards/:id', authenticateToken, async (req, res) => { /* ... same as before ... */ });
-app.delete('/api/cards/:id', authenticateToken, async (req, res) => { /* ... same as before ... */ });
+app.post('/api/profile', authenticateToken, async (req, res) => {
+  try {
+    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey } = req.body;
+    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, req.user.id]);
+    res.json(await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id));
+  } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
+});
 
-// --- NEW VERSION ENDPOINT ---
+app.post('/api/generate-ai-cards', authenticateToken, async (req, res) => {
+    const { provider, text } = req.body;
+    if (!provider || !text) return res.status(400).json({ error: 'Provider and text are required.' });
+    try {
+        const profile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = profile[`${provider}ApiKey`];
+        if (!apiKey) return res.status(400).json({ error: `API key for ${provider} not found.` });
+        let cards;
+        switch(provider) {
+            case 'google': cards = await generateWithGoogle(text, apiKey); break;
+            case 'openai': cards = await generateWithOpenAI(text, apiKey); break;
+            case 'huggingface': cards = await generateWithHuggingFace(text, apiKey); break;
+            default: return res.status(400).json({ error: 'Invalid provider.' });
+        }
+        res.json(cards);
+    } catch (err) { console.error(`Error with ${provider}:`, err); res.status(500).json({ error: `An error occurred with the ${provider} API: ${err.message}` }); }
+});
+
+// --- Other API endpoints ---
+app.post('/api/rewards', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/folders', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.delete('/api/folders/:id', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/notes', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.delete('/api/notes/:id', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/manual-cards', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.put('/api/cards/:id', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+app.delete('/api/cards/:id', authenticateToken, async (req, res) => { /* ... implementation ... */ });
+
+// --- VERSION ENDPOINT ---
 app.get('/api/version', (req, res) => {
     try {
         const packageJson = require('./package.json');
@@ -135,18 +186,35 @@ app.get('/api/version', (req, res) => {
 // --- ADMIN ENDPOINT ---
 app.post('/api/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     console.log(`Admin user ${req.user.id} initiated an update.`);
-    const command = `cd ${APP_DIR} && git pull && npm install --prefix backend && pm2 restart study-app`;
+    const updateCommand = `cd ${APP_DIR} && git pull && npm install --prefix backend`;
 
-    exec(command, (error, stdout, stderr) => {
+    exec(updateCommand, (error, stdout, stderr) => {
         if (error) {
-            console.error(`Update Error: ${error.message}`);
-            return res.status(500).json({ message: "Update script failed.", error: error.message });
+            console.error(`Update Error (Phase 1 - Pull/Install): ${error.message}`);
+            return res.status(500).json({ message: "Update script failed during git pull or npm install.", error: error.message, stderr: stderr });
         }
+        
+        console.log(`Update Stdout (Pull/Install): ${stdout}`);
         if (stderr) {
-            console.warn(`Update Stderr: ${stderr}`);
+            console.warn(`Update Stderr (Pull/Install): ${stderr}`);
         }
-        console.log(`Update Stdout: ${stdout}`);
-        res.status(200).json({ message: "Application update initiated successfully!", output: stdout });
+
+        // Send a success response BEFORE restarting the server
+        res.status(200).json({ message: "Update commands executed! Server is now restarting...", output: stdout });
+
+        // Restart the server after a short delay to ensure the HTTP response is sent
+        setTimeout(() => {
+            console.log('Issuing restart command to PM2...');
+            exec('pm2 restart study-app', (restartError, restartStdout, restartStderr) => {
+                if (restartError) {
+                    console.error(`PM2 Restart Error: ${restartError.message}`);
+                }
+                if (restartStderr) {
+                    console.warn(`PM2 Restart Stderr: ${restartStderr}`);
+                }
+                console.log(`PM2 Restart Stdout: ${restartStdout}`);
+            });
+        }, 1000); // 1-second delay
     });
 });
 
