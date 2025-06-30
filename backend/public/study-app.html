@@ -526,7 +526,7 @@
                     const newLeftWidth = clientX - containerRect.left;
 
                     // This is the updated constraint
-                    if (newLeftWidth > 200 && (container.offsetWidth - newLeftWidth) > 30) {
+                    if (newLeftWidth > 400 && (container.offsetWidth - newLeftWidth) > 30) {
                         leftPanel.style.flexBasis = `${newLeftWidth}px`;
                     }
                 };
@@ -731,4 +731,3 @@
     </script>
 </body>
 </html>
-
