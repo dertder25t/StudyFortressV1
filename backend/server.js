@@ -327,3 +327,4 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'study-ap
 
 // --- SERVER STARTUP ---
 app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
+
