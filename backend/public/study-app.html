@@ -269,7 +269,6 @@
                       <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
                            <option value="">Select Provider</option>
                       </select>
-                      <!-- NEW: Model Selector Dropdown -->
                       <select id="ai-model-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
                            <option value="">Select Model</option>
                       </select>
@@ -382,6 +381,9 @@
                     if (response.status === 401 || response.status === 403) { AuthController.signOut(); throw new Error("Authentication failed. Please sign in again."); }
                     if (!response.ok) { 
                         const errText = await response.text();
+                        if (response.status === 429) {
+                            throw new Error("API rate limit exceeded. Please wait a moment and try again.");
+                        }
                         try {
                            const errJson = JSON.parse(errText);
                            throw new Error(errJson.error || 'API Request Failed');
@@ -634,15 +636,16 @@
         };
 
         const AI = { 
-            async generateFlashcards(provider) { if (!provider) { UI.showToast("Please select an AI provider.", true); return null; } const content = document.getElementById('note-editor-content').textContent; if (!content.trim()) { UI.showToast("Please write some notes first.", true); return null; } const btn = document.getElementById('btn-generate-from-note'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...'; try { const generatedCards = await ApiController.apiCall('/generate-ai-cards', 'POST', { provider, text: content }); return generatedCards; } catch (error) { console.error("Error generating flashcards:", error); return null; } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Generate'; } },
+            async generateFlashcards(provider, model) { if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return null; } const content = document.getElementById('note-editor-content').textContent; if (!content.trim()) { UI.showToast("Please write some notes first.", true); return null; } const btn = document.getElementById('btn-generate-from-note'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...'; try { const generatedCards = await ApiController.apiCall('/generate-ai-cards', 'POST', { provider, model, text: content }); return generatedCards; } catch (error) { console.error("Error generating flashcards:", error); return null; } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Generate'; } },
             async generateSubpoints() {
                 const selection = window.getSelection();
                 const text = selection.toString().trim();
                 const provider = document.getElementById('ai-provider-selector').value;
-                if (!provider) { UI.showToast("Please select an AI provider.", true); return; }
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return; }
                 if (!text) { UI.showToast("Please select some text to generate subpoints from.", true); return; }
                 try {
-                    const result = await ApiController.apiCall('/generate-subpoints', 'POST', { text, provider });
+                    const result = await ApiController.apiCall('/generate-subpoints', 'POST', { text, provider, model });
                     const range = selection.getRangeAt(0);
                     range.deleteContents();
                     const list = document.createElement('ul');
@@ -654,10 +657,11 @@
                 const noteContent = document.getElementById('note-editor-content');
                 const text = noteContent.innerText;
                 const provider = document.getElementById('ai-provider-selector').value;
-                if (!provider) { UI.showToast("Please select an AI provider.", true); return; }
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return; }
                 if (!text.trim()) { UI.showToast("There is no text to highlight.", true); return; }
                 try {
-                    const result = await ApiController.apiCall('/highlight-text', 'POST', { text, provider });
+                    const result = await ApiController.apiCall('/highlight-text', 'POST', { text, provider, model });
                     let newHtml = noteContent.innerHTML;
                     result.highlights.forEach(h => {
                         const regex = new RegExp(Utils.escapeHtml(h), "g");
@@ -669,7 +673,7 @@
             async transcribeAudio(clipId) {
                 const provider = document.getElementById('ai-provider-selector').value;
                 const model = document.getElementById('ai-model-selector').value;
-                if (!provider) { UI.showToast("Please select an AI provider for transcription.", true); return; }
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model for transcription.", true); return; }
                 UI.showToast('Transcribing audio...', false);
                 try {
                     const result = await ApiController.apiCall(`/audio-clips/${clipId}/transcribe`, 'POST', { provider, model });
