@@ -25,7 +25,7 @@
         .dark [name="learn-q-type"]:checked + label i.fa-check-circle { @apply text-cyan-400; }
         .matching-item.selected { transform: scale(1.05); @apply bg-cyan-600 border-cyan-500 text-white; }
         .matching-item.correct { background-color: #10b981 !important; border-color: #059669 !important; color: white; opacity: 0.7; cursor: not-allowed; }
-        .matching-item.incorrect { animation: shake 0.5s; background-color: #ef4444 !important; border-color: #dc2626 !important; }
+        .matching-item.incorrect { animation: shake 0.5s; background-color: #ef4444 !important; border-color: #dc2626 !important; color: white; cursor: not-allowed;}
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
         .note-content, .kg-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
         .is-open > .note-content, .is-open > .kg-content { max-height: 1000px; transition: max-height 0.5s ease-in; }
@@ -506,13 +506,22 @@
             scale: 1.5,
             canvas: null,
             ctx: null,
+            prevBtn: null,
+            nextBtn: null,
             init() {
                 this.canvas = document.getElementById('pdf-canvas');
                 this.ctx = this.canvas.getContext('2d');
-                document.getElementById('pdf-prev').onclick = () => this.onPrevPage();
-                document.getElementById('pdf-next').onclick = () => this.onNextPage();
+                this.prevBtn = document.getElementById('pdf-prev');
+                this.nextBtn = document.getElementById('pdf-next');
+
+                this.prevBtn.onclick = () => this.onPrevPage();
+                this.nextBtn.onclick = () => this.onNextPage();
+                
+                this.updateButtonState();
             },
             async loadDocument(url) {
+                this.pdfDoc = null;
+                this.updateButtonState();
                 try {
                     const { pdfjsLib } = globalThis;
                     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
@@ -524,10 +533,13 @@
                 } catch (error) {
                     UI.showToast("Failed to load PDF.", true);
                     console.error("PDF Load Error:", error);
+                    this.pdfDoc = null;
+                    this.updateButtonState();
                 }
             },
             renderPage(num) {
                 this.pageRendering = true;
+                this.updateButtonState();
                 this.pdfDoc.getPage(num).then((page) => {
                     const viewport = page.getViewport({ scale: this.scale });
                     this.canvas.height = viewport.height;
@@ -539,6 +551,7 @@
                             this.renderPage(this.pageNumPending);
                             this.pageNumPending = null;
                         }
+                        this.updateButtonState();
                     });
                 });
                 document.getElementById('pdf-page-num').textContent = num;
@@ -555,27 +568,25 @@
                 if (!this.pdfDoc || this.pageNum >= this.pdfDoc.numPages) return;
                 this.pageNum++;
                 this.queueRenderPage(this.pageNum);
+            },
+            updateButtonState() {
+                if (!this.pdfDoc) {
+                    this.prevBtn.disabled = true;
+                    this.nextBtn.disabled = true;
+                    return;
+                }
+                this.prevBtn.disabled = this.pageRendering || this.pageNum <= 1;
+                this.nextBtn.disabled = this.pageRendering || this.pageNum >= this.pdfDoc.numPages;
             }
         };
 
         const LearnController = { start(allCards, options) { const useSmartReview = document.getElementById('smart-review-toggle').checked; let cardsToStudy = useSmartReview ? allCards.filter(c => new Date(c.dueDate) <= new Date()) : allCards; if(cardsToStudy.length === 0){ UI.showToast(useSmartReview ? "No cards due today!" : "This folder has no cards to study!", true); return; } if(options.includes('matching') && cardsToStudy.length < 4){ if (options.length === 1) { UI.showToast("The Matching Game requires at least 4 cards.", true); return; } options = options.filter(o => o !== 'matching'); UI.showToast("Matching game disabled (needs 4+ cards). Continuing with other types.", false); } if (options.length === 0) { UI.showToast("Please select at least one valid question type.", true); return; } UI.toggleModal('learnOptions', false); UI.showView('learn'); AppState.learnState = { cards: Utils.shuffle(cardsToStudy), allCardsInFolder: allCards, options, currentIndex: 0, total: cardsToStudy.length, correctAnswers: 0 }; this.nextQuestion(); }, nextQuestion() { const { currentIndex, total } = AppState.learnState; document.getElementById('learn-progress-bar-inner').style.width = `${(currentIndex / total) * 100}%`; document.getElementById('learn-feedback-area').classList.add('hidden'); document.getElementById('learn-continue-btn').classList.add('hidden'); if (currentIndex >= total) { this.showSummary(); return; } const type = AppState.learnState.options[Math.floor(Math.random() * AppState.learnState.options.length)]; this.generateQuestion(type); AppState.learnState.currentIndex++; }, generateQuestion(type) { const container = document.getElementById('learn-question-container'); const card = AppState.learnState.currentCard = AppState.learnState.cards[AppState.learnState.currentIndex]; switch(type) { case 'written': container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4">Check Answer</button>`; document.getElementById('submit-written').onclick=()=>this.checkAnswer(); break; case 'mcq': let opts=[card.answer, ...Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.answer!==card.answer).map(c=>c.answer)).slice(0,3)]; container.innerHTML=`<p class="text-slate-400 mb-2">Choose the correct answer:</p><h3 class="text-2xl font-semibold mb-6">${Utils.escapeHtml(card.question)}</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${Utils.shuffle(opts).map(o=>`<button class="mcq-option rounded-lg p-4 text-left bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600">${Utils.escapeHtml(o)}</button>`).join('')}</div>`; document.querySelectorAll('.mcq-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.target.textContent)); break; case 'tf': const isTrue=Math.random()>0.5; const ans=isTrue?card.answer:Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.id!==card.id))[0].answer; AppState.learnState.isTrueAnswer=isTrue; container.innerHTML=`<p class="text-slate-400 mb-2">True or false?</p><div class="bg-slate-900/50 p-6 rounded-lg"><h3 class="text-xl font-semibold mb-2">${Utils.escapeHtml(card.question)}</h3><hr class="border-slate-600 my-3"><p class="text-lg">${Utils.escapeHtml(ans)}</p></div><div class="flex justify-around mt-6"><button class="tf-option w-32 h-16 text-xl rounded-lg bg-green-600 hover:bg-green-700" data-value="true">True</button><button class="tf-option w-32 h-16 text-xl rounded-lg bg-red-600 hover:bg-red-700" data-value="false">False</button></div>`; document.querySelectorAll('.tf-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.currentTarget.dataset.value==='true')); break; case 'matching': MatchingGame.start(); break; } }, checkAnswer(userAnswer) { let isCorrect = false; const { currentCard, isTrueAnswer } = AppState.learnState; const qType = document.getElementById('written-answer')?'written':document.querySelector('.mcq-option')?'mcq':'tf'; if(qType==='written'){isCorrect=document.getElementById('written-answer').value.trim().toLowerCase()===currentCard.answer.trim().toLowerCase();}else if(qType==='mcq'){isCorrect=userAnswer.trim()===currentCard.answer.trim();}else{isCorrect=userAnswer===isTrueAnswer;} SRS.updateCardSRS(currentCard, isCorrect); Rewards.update(isCorrect); const fb=document.getElementById('learn-feedback-area'),ft=document.getElementById('learn-feedback-text'),ca=document.getElementById('learn-correct-answer'); if(isCorrect){ft.textContent="Correct!";fb.className='mt-4 p-4 rounded-lg bg-green-500/20 text-green-300';ca.textContent='';AppState.learnState.correctAnswers++;}else{ft.textContent="Incorrect!";fb.className='mt-4 p-4 rounded-lg bg-red-500/20 text-red-300';ca.textContent=`Correct Answer: ${currentCard.answer}`;} fb.classList.remove('hidden'); document.getElementById('learn-continue-btn').classList.remove('hidden'); document.querySelectorAll('#learn-question-container button, #learn-question-container textarea').forEach(el=>el.disabled=true); }, showSummary() { const {total,correctAnswers}=AppState.learnState; document.getElementById('learn-question-container').innerHTML=`<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-cyan-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="rounded-lg px-4 py-2 bg-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`; document.getElementById('learn-again').onclick=()=>FolderActions.openStudyModal(); document.getElementById('learn-finish').onclick=()=>FolderActions.openFolder(AppState.currentFolderId);} };
         
         const MatchingGame = {
-            isLocked: false, // New state property to prevent clicks during animation
-
-            start() {
-                this.isLocked = false; // Reset lock on start
+            start(){
                 const container = document.getElementById('learn-question-container');
-                const cardsForGame = AppState.learnState.cards.filter(c => c.question && c.answer);
-                
-                if (cardsForGame.length < 4) {
-                    UI.showToast("Not enough unique cards for a matching game.", true);
-                    LearnController.nextQuestion();
-                    return;
-                }
-
-                const pairCount = Math.min(6, Math.floor(cardsForGame.length / 2) * 2);
-                const gameCards = Utils.shuffle(cardsForGame).slice(0, pairCount);
+                const pairCount = Math.min(6, Math.floor(AppState.learnState.cards.length / 2) * 2); 
+                const gameCards = Utils.shuffle(AppState.learnState.cards).slice(0, pairCount);
                 const terms = Utils.shuffle(gameCards.map(c => ({ id: c.id, text: c.question })));
                 const defs = Utils.shuffle(gameCards.map(c => ({ id: c.id, text: c.answer })));
 
@@ -598,88 +609,76 @@
                 document.getElementById('learn-continue-btn').classList.add('hidden');
             },
 
-            handleSelection(e) {
-                if (this.isLocked) return; // Prevent clicks while board is locked
-
+            handleSelection(e){
                 const btn = e.currentTarget;
-                if (btn.classList.contains('correct')) return; // Don't re-select correct items
+                if(btn.disabled) return;
 
                 const type = btn.dataset.type;
                 const state = AppState.matchingState;
 
-                if (type === 'term') {
-                    if (state.selectedTerm) state.selectedTerm.classList.remove('selected');
+                if(type === 'term'){
+                    if(state.selectedTerm) state.selectedTerm.classList.remove('selected');
                     state.selectedTerm = btn;
                     btn.classList.add('selected');
                 } else {
-                    if (state.selectedDef) state.selectedDef.classList.remove('selected');
+                    if(state.selectedDef) state.selectedDef.classList.remove('selected');
                     state.selectedDef = btn;
                     btn.classList.add('selected');
                 }
-
-                // Only check for a match if both a term and a definition are selected
+                
                 if (state.selectedTerm && state.selectedDef) {
                     this.checkMatch();
                 }
             },
 
-            checkMatch() {
+            checkMatch(){
                 const state = AppState.matchingState;
+                if (!state.selectedTerm || !state.selectedDef) return;
+
+                const termId = state.selectedTerm.dataset.id;
+                const defId = state.selectedDef.dataset.id;
+                const card = state.cards.find(c => c.id === termId);
                 const termEl = state.selectedTerm;
                 const defEl = state.selectedDef;
-                const termId = termEl.dataset.id;
-                const defId = defEl.dataset.id;
-                const card = state.cards.find(c => c.id === termId);
 
                 if (termId === defId) {
-                    // --- Correct Match ---
-                    termEl.classList.remove('selected');
-                    defEl.classList.remove('selected');
                     termEl.classList.add('correct');
                     defEl.classList.add('correct');
-                    
-                    if(card) {
-                        SRS.updateCardSRS(card, true);
-                        Rewards.update(true);
-                    }
-                    
+                    termEl.disabled = true;
+                    defEl.disabled = true;
+                    SRS.updateCardSRS(card, true);
+                    Rewards.update(true);
                     state.correctPairs++;
-                    if(state.correctPairs === 1) AppState.learnState.correctAnswers++; 
-                    
-                    state.selectedTerm = null;
-                    state.selectedDef = null;
-
-                    if (state.correctPairs === state.totalPairs) {
-                        setTimeout(() => {
-                            const fb = document.getElementById('learn-feedback-area');
-                            const ft = document.getElementById('learn-feedback-text');
-                            ft.textContent = "All pairs matched!";
-                            fb.className = 'mt-4 p-4 rounded-lg bg-green-500/20 text-green-300';
-                            document.getElementById('learn-correct-answer').textContent = '';
-                            fb.classList.remove('hidden');
-                            document.getElementById('learn-continue-btn').classList.remove('hidden');
-                        }, 500);
-                    }
+                    AppState.learnState.correctAnswers++;
                 } else {
-                    // --- Incorrect Match ---
-                    this.isLocked = true; // Lock the board to prevent more clicks
                     termEl.classList.add('incorrect');
                     defEl.classList.add('incorrect');
-                    
+                    termEl.disabled = true;
+                    defEl.disabled = true;
                     if(card) {
                         SRS.updateCardSRS(card, false);
                         Rewards.update(false);
                     }
+                }
+                
+                state.selectedTerm = null;
+                state.selectedDef = null;
+                termEl.classList.remove('selected');
+                defEl.classList.remove('selected');
 
-                    // After a delay, remove incorrect classes and unlock the board
+                const allItems = document.querySelectorAll('.matching-item');
+                const allDisabled = Array.from(allItems).every(item => item.disabled);
+
+                if (allDisabled) {
                     setTimeout(() => {
-                        termEl.classList.remove('incorrect', 'selected');
-                        defEl.classList.remove('incorrect', 'selected');
-                        this.isLocked = false; // Unlock the board
-                    }, 1000); // 1 second delay
-
-                    state.selectedTerm = null;
-                    state.selectedDef = null;
+                        const fb = document.getElementById('learn-feedback-area');
+                        const ft = document.getElementById('learn-feedback-text');
+                        ft.textContent = "Round complete!";
+                        fb.className = 'mt-4 p-4 rounded-lg bg-blue-500/20 text-blue-300';
+                        document.getElementById('learn-correct-answer').textContent = '';
+                        fb.classList.remove('hidden');
+                        document.getElementById('learn-continue-btn').classList.remove('hidden');
+                    }, 500);
                 }
             }
         };
