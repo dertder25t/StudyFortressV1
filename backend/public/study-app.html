@@ -390,13 +390,7 @@
                         } catch(e) { throw new Error(errText); }
                     }
                     if (responseType === 'blob') {
-                        const contentType = response.headers.get("content-type");
-                        if (contentType && contentType.indexOf("application/pdf") !== -1) {
-                            return response.blob();
-                        } else {
-                            const errorText = await response.text();
-                            throw new Error(`Expected a PDF file but received a different content type. Server response: ${errorText}`);
-                        }
+                        return response.blob();
                     }
                     return response.status === 204 ? { success: true } : await response.json();
                 } catch (error) { UI.showToast(error.message, true); throw error; }
@@ -953,7 +947,7 @@
                     this.setLayout('book-mode');
                     const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                     if (doc) {
-                        const documentUrl = `/documents/${doc.id}`;
+                        const documentUrl = `/api/documents/${doc.id}`;
                         await PDFViewer.loadDocument(documentUrl);
                     } else {
                         UI.showToast("Could not find the selected document.", true);
