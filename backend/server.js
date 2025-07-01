@@ -88,24 +88,27 @@ async function checkAdmin(req, res, next) {
 }
 
 // --- AI HELPER FUNCTIONS ---
+const cleanJsonString = (str) => {
+    return str.replace(/^```json\s*|```$/g, '').trim();
+};
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
 const subpointsPrompt = (text) => `Analyze the following text and extract the main ideas as a concise, bulleted list. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "subpoints" which is an array of strings.`;
 const highlightPrompt = (text) => `Analyze the following text and identify the most important keywords or key phrases. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "highlights" which is an array of strings.`;
 
-async function generateWithGoogle(text, apiKey, promptFunction) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+async function generateWithGoogle(text, apiKey, model, promptFunction) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: promptFunction(text) }] }] };
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
     const result = await response.json();
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from Google AI");
-    return JSON.parse(result.candidates[0].content.parts[0].text);
+    return JSON.parse(cleanJsonString(result.candidates[0].content.parts[0].text));
 }
-async function generateWithOpenAI(text, apiKey, promptFunction) {
+async function generateWithOpenAI(text, apiKey, model, promptFunction) {
     const openai = new OpenAI({ apiKey });
-    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: promptFunction(text) }] });
+    const response = await openai.chat.completions.create({ model: model, response_format: { type: "json_object" }, messages: [{ role: 'user', content: promptFunction(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
-    return JSON.parse(response.choices[0].message.content);
+    return JSON.parse(cleanJsonString(response.choices[0].message.content));
 }
 async function transcribeWithOpenAI(filePath, apiKey) {
     const openai = new OpenAI({ apiKey });
@@ -113,8 +116,24 @@ async function transcribeWithOpenAI(filePath, apiKey) {
         file: fs.createReadStream(filePath),
         model: "whisper-1",
     });
-    // Do not delete the file here, let the user decide when to delete the clip.
     return transcription;
+}
+async function transcribeWithGoogle(filePath, apiKey, model) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const audioData = fs.readFileSync(filePath).toString('base64');
+    const payload = {
+        contents: [{
+            parts: [
+                { text: "Transcribe this audio recording." },
+                { inline_data: { mime_type: 'audio/webm', data: audioData } }
+            ]
+        }]
+    };
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) throw new Error(`Google AI transcription failed with status ${response.status}`);
+    const result = await response.json();
+    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid transcription response from Google AI");
+    return { text: result.candidates[0].content.parts[0].text };
 }
 
 // --- API ROUTING ---
@@ -395,32 +414,53 @@ apiRouter.delete('/audio-clips/:clipId', authenticateToken, async (req, res) => 
 apiRouter.post('/audio-clips/:clipId/transcribe', authenticateToken, async (req, res) => {
     try {
         const { clipId } = req.params;
+        const { provider, model } = req.body;
         const clip = await db.get('SELECT * FROM audio_clips WHERE id = ? AND userId = ?', [clipId, req.user.id]);
         if (!clip) return res.status(404).json({ error: "Audio clip not found." });
         
-        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for transcription.' });
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        if (!apiKey) return res.status(400).json({ error: `${provider} API key is required for transcription.` });
 
         const filePath = path.join(UPLOAD_DIR, clip.serverPath);
         if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Audio file not found on server." });
 
-        const transcription = await transcribeWithOpenAI(filePath, profile.openaiApiKey);
+        const transcription = provider === 'google'
+            ? await transcribeWithGoogle(filePath, apiKey, model)
+            : await transcribeWithOpenAI(filePath, apiKey); // Whisper has one model for now
+        
         res.json(transcription);
     } catch (err) {
         console.error("Transcription Error:", err);
         res.status(500).json({ error: `Transcription failed: ${err.message}` });
     }
 });
-apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
+apiRouter.post('/generate-ai-cards', authenticateToken, async (req, res) => {
     try {
-        const { text, provider } = req.body;
+        const { text, provider, model } = req.body;
         const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
         const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
         if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
         
         const result = provider === 'google' 
-            ? await generateWithGoogle(text, apiKey, subpointsPrompt)
-            : await generateWithOpenAI(text, apiKey, subpointsPrompt);
+            ? await generateWithGoogle(text, apiKey, model, flashcardPrompt)
+            : await generateWithOpenAI(text, apiKey, model, flashcardPrompt);
+        res.json(result);
+    } catch (err) {
+        console.error("Flashcard Generation Error:", err);
+        res.status(500).json({ error: `Flashcard generation failed: ${err.message}` });
+    }
+});
+apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
+    try {
+        const { text, provider, model } = req.body;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
+        
+        const result = provider === 'google' 
+            ? await generateWithGoogle(text, apiKey, model, subpointsPrompt)
+            : await generateWithOpenAI(text, apiKey, model, subpointsPrompt);
         res.json(result);
     } catch (err) {
         console.error("Subpoint Generation Error:", err);
@@ -429,14 +469,14 @@ apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
 });
 apiRouter.post('/highlight-text', authenticateToken, async (req, res) => {
     try {
-        const { text, provider } = req.body;
+        const { text, provider, model } = req.body;
         const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
         const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
         if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
         
         const result = provider === 'google'
-            ? await generateWithGoogle(text, apiKey, highlightPrompt)
-            : await generateWithOpenAI(text, apiKey, highlightPrompt);
+            ? await generateWithGoogle(text, apiKey, model, highlightPrompt)
+            : await generateWithOpenAI(text, apiKey, model, highlightPrompt);
         res.json(result);
     } catch (err) {
         console.error("Highlighting Error:", err);
@@ -451,6 +491,13 @@ apiRouter.get('/version', (req, res) => {
         const packageJson = require(packageJsonPath);
         res.json({ version: packageJson.version });
     } catch (error) { console.error("Could not read package.json:", error); res.status(500).json({ error: "Could not determine app version." }); }
+});
+apiRouter.get('/ai-models', authenticateToken, (req, res) => {
+    res.json({
+        google: ['gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'],
+        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+        huggingface: [] // Placeholder for future expansion
+    });
 });
 apiRouter.get('/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
     try {
