@@ -267,7 +267,11 @@
                  <h2 id="notes-lab-title" class="text-xl font-bold text-cyan-400">Notes Lab</h2>
                  <div class="flex items-center gap-2">
                       <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
-                           <option value="">Select AI Provider</option>
+                           <option value="">Select Provider</option>
+                      </select>
+                      <!-- NEW: Model Selector Dropdown -->
+                      <select id="ai-model-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
+                           <option value="">Select Model</option>
                       </select>
                       <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700" disabled>
                            <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
@@ -453,9 +457,10 @@
             createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
             createAudioPlayerHTML(clip) {
                 const hasOpenAIKey = !!AppState.localData.profile.openaiApiKey;
-                const transcribeBtnDisabled = hasOpenAIKey ? '' : 'disabled';
-                const transcribeBtnTitle = hasOpenAIKey ? 'Transcribe Audio' : 'OpenAI API key required for transcription';
-                const transcribeBtnClasses = hasOpenAIKey ? 'text-cyan-400 hover:text-cyan-300' : 'text-slate-600 cursor-not-allowed';
+                const hasGoogleKey = !!AppState.localData.profile.googleApiKey;
+                const transcribeBtnDisabled = (hasOpenAIKey || hasGoogleKey) ? '' : 'disabled';
+                const transcribeBtnTitle = (hasOpenAIKey || hasGoogleKey) ? 'Transcribe Audio' : 'Google or OpenAI API key required for transcription';
+                const transcribeBtnClasses = (hasOpenAIKey || hasGoogleKey) ? 'text-cyan-400 hover:text-cyan-300' : 'text-slate-600 cursor-not-allowed';
 
                 return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
                             <audio id="audio-player-${clip.id}" controls class="w-full"></audio>
@@ -662,10 +667,12 @@
                 } catch (error) { console.error("Highlighting error:", error); }
             },
             async transcribeAudio(clipId) {
-                const provider = 'openai'; // Whisper is currently the only supported model
+                const provider = document.getElementById('ai-provider-selector').value;
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider) { UI.showToast("Please select an AI provider for transcription.", true); return; }
                 UI.showToast('Transcribing audio...', false);
                 try {
-                    const result = await ApiController.apiCall(`/audio-clips/${clipId}/transcribe`, 'POST', { provider });
+                    const result = await ApiController.apiCall(`/audio-clips/${clipId}/transcribe`, 'POST', { provider, model });
                     const noteContent = document.getElementById('note-editor-content');
                     noteContent.innerHTML += `<p>${result.text}</p>`;
                     UI.showToast('Transcription added to notes.', false);
@@ -741,7 +748,7 @@
                 document.getElementById('btn-save-note-and-cards').onclick=()=>this.save(); 
                 document.getElementById('btn-cycle-layout').onclick=()=>this.cycleLayout(); 
                 document.getElementById('btn-toggle-book-mode').onclick = () => this.toggleBookMode(); 
-                document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const generated=await AI.generateFlashcards(provider); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; 
+                document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const model=document.getElementById('ai-model-selector').value; const generated=await AI.generateFlashcards(provider, model); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; 
                 document.getElementById('btn-add-manual-card-in-editor').onclick=()=>{document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend',this.createCardInputHTML({}))}; 
                 document.getElementById('note-editor-cards-list').onclick=e=>{if(e.target.closest('.remove-card-editor-btn')){e.target.closest('.card-editor-group').remove()}}; 
                 document.getElementById('audio-clips-container').onclick = async e => {
@@ -766,6 +773,7 @@
                 document.getElementById('btn-record-audio').onclick = () => AudioRecorder.toggleRecording();
                 document.getElementById('btn-ai-subpoints').onclick = () => AI.generateSubpoints();
                 document.getElementById('btn-ai-highlight').onclick = () => AI.highlightText();
+                document.getElementById('ai-provider-selector').onchange = () => this.updateModelSelector();
             }, 
             async open(noteId=null, documentId = null){ 
                 if (!noteId && !documentId) {
@@ -805,6 +813,7 @@
                 
                 UI.showView('noteEditor'); 
                 this.updateGenerateButtonState();
+                this.updateModelSelector();
             }, 
             cycleLayout(){
                 const g=document.getElementById('note-editor-grid'); 
@@ -840,7 +849,26 @@
                     UI.showView('folderContents');
                 }
             }, 
-            updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;}
+            updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;},
+            async updateModelSelector() {
+                const provider = document.getElementById('ai-provider-selector').value;
+                const modelSelector = document.getElementById('ai-model-selector');
+                modelSelector.innerHTML = '<option value="">Select Model</option>';
+                modelSelector.disabled = true;
+
+                if (provider) {
+                    try {
+                        const models = await ApiController.apiCall('/ai-models');
+                        const providerModels = models[provider] || [];
+                        if (providerModels.length > 0) {
+                            modelSelector.innerHTML += providerModels.map(m => `<option value="${m}">${m}</option>`).join('');
+                            modelSelector.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error("Failed to fetch AI models:", error);
+                    }
+                }
+            }
         };
         const ProfileActions = { 
             init() { 
