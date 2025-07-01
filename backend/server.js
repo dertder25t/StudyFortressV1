@@ -1,6 +1,7 @@
 const express = require('express');
+const https = require('https'); // NEW: Import HTTPS module
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); // NEW: Import File System module
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const cors = require('cors');
@@ -394,4 +395,18 @@ app.get('*', (req, res) => {
 });
 
 // --- SERVER STARTUP ---
-app.listen(PORT, async () => { await initializeDatabase(); console.log(`Server running at http://localhost:${PORT}`); });
+// To generate a self-signed certificate for local development, run this command in your terminal:
+// openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
+const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
+};
+
+async function startServer() {
+    await initializeDatabase();
+    https.createServer(sslOptions, app).listen(PORT, () => {
+        console.log(`Server running securely at https://localhost:${PORT}`);
+    });
+}
+
+startServer();
