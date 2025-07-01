@@ -113,9 +113,7 @@ async function transcribeWithOpenAI(filePath, apiKey) {
         file: fs.createReadStream(filePath),
         model: "whisper-1",
     });
-    fs.unlink(filePath, (err) => { // Clean up the uploaded file after transcription
-        if (err) console.error("Error deleting temporary audio file:", err);
-    });
+    fs.unlink(filePath, (err) => { if (err) console.error("Error deleting temporary audio file:", err); });
     return transcription;
 }
 
@@ -407,10 +405,14 @@ apiRouter.post('/transcribe-audio', authenticateToken, upload.single('audio'), a
 });
 apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
     try {
-        const { text } = req.body;
-        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for this feature.' });
-        const result = await generateWithOpenAI(text, profile.openaiApiKey, subpointsPrompt);
+        const { text, provider } = req.body;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
+        
+        const result = provider === 'google' 
+            ? await generateWithGoogle(text, apiKey, subpointsPrompt)
+            : await generateWithOpenAI(text, apiKey, subpointsPrompt);
         res.json(result);
     } catch (err) {
         console.error("Subpoint Generation Error:", err);
@@ -419,10 +421,14 @@ apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
 });
 apiRouter.post('/highlight-text', authenticateToken, async (req, res) => {
     try {
-        const { text } = req.body;
-        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for this feature.' });
-        const result = await generateWithOpenAI(text, profile.openaiApiKey, highlightPrompt);
+        const { text, provider } = req.body;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
+        
+        const result = provider === 'google'
+            ? await generateWithGoogle(text, apiKey, highlightPrompt)
+            : await generateWithOpenAI(text, apiKey, highlightPrompt);
         res.json(result);
     } catch (err) {
         console.error("Highlighting Error:", err);
