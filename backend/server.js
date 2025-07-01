@@ -36,7 +36,7 @@ const upload = multer({ storage: storage });
 
 // --- MIDDLEWARES ---
 app.use(cors());
-app.use(express.json({ limit: '20mb' })); // Increased limit for larger avatar images
+app.use(express.json({ limit: '20mb' }));
 
 // --- DATABASE SETUP & HELPERS ---
 let db;
@@ -47,13 +47,16 @@ async function initializeDatabase() {
     await db.exec('PRAGMA foreign_keys = ON;');
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);
-      CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
     `);
+    await db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('maxUploadSize', '10')");
+    await db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('enableAudioCompression', 'true')");
   } catch (error) {
     console.error("FATAL: Failed to initialize database:", error);
     process.exit(1);
@@ -117,7 +120,7 @@ apiRouter.post('/register', async (req, res) => {
         const result = await db.run('INSERT INTO users (email, password_hash, isAdmin) VALUES (?, ?, 0)', [email, hash]);
         const userId = result.lastID;
         const username = email.split('@')[0];
-        await db.run('INSERT INTO profile (userId, username) VALUES (?, ?)', [userId, username]);
+        await db.run('INSERT INTO profile (userId, username, audioQuality) VALUES (?, ?, ?)', [userId, username, '64000']);
         await db.run('INSERT INTO rewards (userId) VALUES (?)', [userId]);
         res.status(201).json({ message: 'User created successfully.' });
     } catch (err) {
@@ -138,24 +141,26 @@ apiRouter.post('/login', async (req, res) => {
 apiRouter.get('/all-data', authenticateToken, async (req, res) => {
  try {
     const userId = req.user.id;
-    const [profileData, rewards, folders, notes, cards, documents] = await Promise.all([
+    const [profileData, rewards, folders, notes, cards, documents, settingsData] = await Promise.all([
         db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId),
         db.get('SELECT * FROM rewards WHERE userId = ?', userId),
         db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId),
         db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId),
         db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId),
-        db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId)
+        db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId),
+        db.all('SELECT * FROM settings')
     ]);
+    const settings = settingsData.reduce((acc, {key, value}) => ({ ...acc, [key]: value }), {});
     const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
     const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
     const documentsByFolder = documents.reduce((acc, doc) => { (acc[doc.folderId] = acc[doc.folderId] || []).push(doc); return acc; }, {});
-    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder });
+    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder, settings });
  } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
 });
 apiRouter.post('/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey } = req.body;
-    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, req.user.id]);
+    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, audioQuality } = req.body;
+    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, audioQuality, req.user.id]);
     const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
     res.json(updatedProfile);
   } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
@@ -264,7 +269,19 @@ apiRouter.delete('/cards/:id', authenticateToken, async (req, res) => {
 });
 
 // DOCUMENTS
-apiRouter.post('/folders/:folderId/upload', authenticateToken, upload.single('document'), async (req, res) => {
+const fileSizeCheck = async (req, res, next) => {
+    const setting = await db.get("SELECT value FROM settings WHERE key = 'maxUploadSize'");
+    const maxSize = (parseInt(setting.value, 10) || 10) * 1024 * 1024; // Default to 10MB
+    if (req.file && req.file.size > maxSize) {
+        fs.unlink(req.file.path, (err) => { // Clean up the oversized file
+            if (err) console.error("Error deleting oversized file:", err);
+        });
+        return res.status(413).json({ error: `File is too large. Max size is ${setting.value}MB.` });
+    }
+    next();
+};
+
+apiRouter.post('/folders/:folderId/upload', authenticateToken, upload.single('document'), fileSizeCheck, async (req, res) => {
     try {
         const { folderId } = req.params;
         const { file } = req;
@@ -309,16 +326,12 @@ apiRouter.delete('/documents/:documentId', authenticateToken, async (req, res) =
 // AI & AUDIO
 apiRouter.post('/transcribe-audio', authenticateToken, upload.single('audio'), async (req, res) => {
     console.log("Received audio file for transcription:", req.file);
-    // In a real app, you would integrate with an AI transcription service here.
-    // For now, we return placeholder text.
     res.json({ text: "This is a placeholder for the transcribed audio text. " });
 });
 apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
-    // Placeholder for subpoint generation
     res.json({ subpoints: ["This is a generated subpoint.", "This is another key takeaway."] });
 });
 apiRouter.post('/highlight-text', authenticateToken, async (req, res) => {
-    // Placeholder for text highlighting
     res.json({ highlights: ["placeholder", "key areas"] });
 });
 
@@ -329,6 +342,25 @@ apiRouter.get('/version', (req, res) => {
         const packageJson = require(packageJsonPath);
         res.json({ version: packageJson.version });
     } catch (error) { console.error("Could not read package.json:", error); res.status(500).json({ error: "Could not determine app version." }); }
+});
+apiRouter.get('/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
+    try {
+        const settingsData = await db.all('SELECT * FROM settings');
+        const settings = settingsData.reduce((acc, {key, value}) => ({ ...acc, [key]: value }), {});
+        res.json(settings);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve settings.' });
+    }
+});
+apiRouter.post('/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
+    try {
+        const { maxUploadSize, enableAudioCompression } = req.body;
+        await db.run("UPDATE settings SET value = ? WHERE key = 'maxUploadSize'", [maxUploadSize]);
+        await db.run("UPDATE settings SET value = ? WHERE key = 'enableAudioCompression'", [String(enableAudioCompression)]);
+        res.json({ message: 'Settings updated successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update settings.' });
+    }
 });
 apiRouter.post('/admin/update-app', authenticateToken, checkAdmin, (req, res) => {
     console.log(`[ADMIN UPDATE] - Admin user ${req.user.id} initiated an update.`);
@@ -355,8 +387,8 @@ apiRouter.post('/admin/update-app', authenticateToken, checkAdmin, (req, res) =>
 // Use the apiRouter for all /api routes
 app.use('/api', apiRouter);
 
-// --- FALLBACK FOR SPA ---
-// This route should be LAST, after all other routes
+// --- STATIC ASSETS & SPA FALLBACK ---
+app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'study-app.html'));
 });
