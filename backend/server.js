@@ -93,7 +93,7 @@ const subpointsPrompt = (text) => `Analyze the following text and extract the ma
 const highlightPrompt = (text) => `Analyze the following text and identify the most important keywords or key phrases. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "highlights" which is an array of strings.`;
 
 async function generateWithGoogle(text, apiKey, promptFunction) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: promptFunction(text) }] }] };
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
@@ -113,7 +113,7 @@ async function transcribeWithOpenAI(filePath, apiKey) {
         file: fs.createReadStream(filePath),
         model: "whisper-1",
     });
-    fs.unlink(filePath, (err) => { if (err) console.error("Error deleting temporary audio file:", err); });
+    // Do not delete the file here, let the user decide when to delete the clip.
     return transcription;
 }
 
