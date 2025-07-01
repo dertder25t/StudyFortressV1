@@ -559,15 +559,18 @@
         };
 
         const LearnController = { start(allCards, options) { const useSmartReview = document.getElementById('smart-review-toggle').checked; let cardsToStudy = useSmartReview ? allCards.filter(c => new Date(c.dueDate) <= new Date()) : allCards; if(cardsToStudy.length === 0){ UI.showToast(useSmartReview ? "No cards due today!" : "This folder has no cards to study!", true); return; } if(options.includes('matching') && cardsToStudy.length < 4){ if (options.length === 1) { UI.showToast("The Matching Game requires at least 4 cards.", true); return; } options = options.filter(o => o !== 'matching'); UI.showToast("Matching game disabled (needs 4+ cards). Continuing with other types.", false); } if (options.length === 0) { UI.showToast("Please select at least one valid question type.", true); return; } UI.toggleModal('learnOptions', false); UI.showView('learn'); AppState.learnState = { cards: Utils.shuffle(cardsToStudy), allCardsInFolder: allCards, options, currentIndex: 0, total: cardsToStudy.length, correctAnswers: 0 }; this.nextQuestion(); }, nextQuestion() { const { currentIndex, total } = AppState.learnState; document.getElementById('learn-progress-bar-inner').style.width = `${(currentIndex / total) * 100}%`; document.getElementById('learn-feedback-area').classList.add('hidden'); document.getElementById('learn-continue-btn').classList.add('hidden'); if (currentIndex >= total) { this.showSummary(); return; } const type = AppState.learnState.options[Math.floor(Math.random() * AppState.learnState.options.length)]; this.generateQuestion(type); AppState.learnState.currentIndex++; }, generateQuestion(type) { const container = document.getElementById('learn-question-container'); const card = AppState.learnState.currentCard = AppState.learnState.cards[AppState.learnState.currentIndex]; switch(type) { case 'written': container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4">Check Answer</button>`; document.getElementById('submit-written').onclick=()=>this.checkAnswer(); break; case 'mcq': let opts=[card.answer, ...Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.answer!==card.answer).map(c=>c.answer)).slice(0,3)]; container.innerHTML=`<p class="text-slate-400 mb-2">Choose the correct answer:</p><h3 class="text-2xl font-semibold mb-6">${Utils.escapeHtml(card.question)}</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${Utils.shuffle(opts).map(o=>`<button class="mcq-option rounded-lg p-4 text-left bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600">${Utils.escapeHtml(o)}</button>`).join('')}</div>`; document.querySelectorAll('.mcq-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.target.textContent)); break; case 'tf': const isTrue=Math.random()>0.5; const ans=isTrue?card.answer:Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.id!==card.id))[0].answer; AppState.learnState.isTrueAnswer=isTrue; container.innerHTML=`<p class="text-slate-400 mb-2">True or false?</p><div class="bg-slate-900/50 p-6 rounded-lg"><h3 class="text-xl font-semibold mb-2">${Utils.escapeHtml(card.question)}</h3><hr class="border-slate-600 my-3"><p class="text-lg">${Utils.escapeHtml(ans)}</p></div><div class="flex justify-around mt-6"><button class="tf-option w-32 h-16 text-xl rounded-lg bg-green-600 hover:bg-green-700" data-value="true">True</button><button class="tf-option w-32 h-16 text-xl rounded-lg bg-red-600 hover:bg-red-700" data-value="false">False</button></div>`; document.querySelectorAll('.tf-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.currentTarget.dataset.value==='true')); break; case 'matching': MatchingGame.start(); break; } }, checkAnswer(userAnswer) { let isCorrect = false; const { currentCard, isTrueAnswer } = AppState.learnState; const qType = document.getElementById('written-answer')?'written':document.querySelector('.mcq-option')?'mcq':'tf'; if(qType==='written'){isCorrect=document.getElementById('written-answer').value.trim().toLowerCase()===currentCard.answer.trim().toLowerCase();}else if(qType==='mcq'){isCorrect=userAnswer.trim()===currentCard.answer.trim();}else{isCorrect=userAnswer===isTrueAnswer;} SRS.updateCardSRS(currentCard, isCorrect); Rewards.update(isCorrect); const fb=document.getElementById('learn-feedback-area'),ft=document.getElementById('learn-feedback-text'),ca=document.getElementById('learn-correct-answer'); if(isCorrect){ft.textContent="Correct!";fb.className='mt-4 p-4 rounded-lg bg-green-500/20 text-green-300';ca.textContent='';AppState.learnState.correctAnswers++;}else{ft.textContent="Incorrect!";fb.className='mt-4 p-4 rounded-lg bg-red-500/20 text-red-300';ca.textContent=`Correct Answer: ${currentCard.answer}`;} fb.classList.remove('hidden'); document.getElementById('learn-continue-btn').classList.remove('hidden'); document.querySelectorAll('#learn-question-container button, #learn-question-container textarea').forEach(el=>el.disabled=true); }, showSummary() { const {total,correctAnswers}=AppState.learnState; document.getElementById('learn-question-container').innerHTML=`<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-cyan-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="rounded-lg px-4 py-2 bg-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`; document.getElementById('learn-again').onclick=()=>FolderActions.openStudyModal(); document.getElementById('learn-finish').onclick=()=>FolderActions.openFolder(AppState.currentFolderId);} };
+        
         const MatchingGame = {
+            isLocked: false, // New state property to prevent clicks during animation
+
             start() {
+                this.isLocked = false; // Reset lock on start
                 const container = document.getElementById('learn-question-container');
                 const cardsForGame = AppState.learnState.cards.filter(c => c.question && c.answer);
                 
                 if (cardsForGame.length < 4) {
-                    // This case should be handled by LearnController, but as a fallback:
                     UI.showToast("Not enough unique cards for a matching game.", true);
-                    LearnController.nextQuestion(); // Move to the next question type
+                    LearnController.nextQuestion();
                     return;
                 }
 
@@ -596,8 +599,10 @@
             },
 
             handleSelection(e) {
+                if (this.isLocked) return; // Prevent clicks while board is locked
+
                 const btn = e.currentTarget;
-                if (btn.classList.contains('correct') || btn.classList.contains('incorrect')) return;
+                if (btn.classList.contains('correct')) return; // Don't re-select correct items
 
                 const type = btn.dataset.type;
                 const state = AppState.matchingState;
@@ -612,30 +617,35 @@
                     btn.classList.add('selected');
                 }
 
-                this.checkMatch();
+                // Only check for a match if both a term and a definition are selected
+                if (state.selectedTerm && state.selectedDef) {
+                    this.checkMatch();
+                }
             },
 
             checkMatch() {
                 const state = AppState.matchingState;
-                if (!state.selectedTerm || !state.selectedDef) return;
-
-                const termId = state.selectedTerm.dataset.id;
-                const defId = state.selectedDef.dataset.id;
+                const termEl = state.selectedTerm;
+                const defEl = state.selectedDef;
+                const termId = termEl.dataset.id;
+                const defId = defEl.dataset.id;
                 const card = state.cards.find(c => c.id === termId);
 
                 if (termId === defId) {
-                    // Correct Match
-                    state.selectedTerm.classList.remove('selected');
-                    state.selectedDef.classList.remove('selected');
-                    state.selectedTerm.classList.add('correct');
-                    state.selectedDef.classList.add('correct');
+                    // --- Correct Match ---
+                    termEl.classList.remove('selected');
+                    defEl.classList.remove('selected');
+                    termEl.classList.add('correct');
+                    defEl.classList.add('correct');
+                    
                     if(card) {
                         SRS.updateCardSRS(card, true);
                         Rewards.update(true);
                     }
+                    
                     state.correctPairs++;
-                    // Only count as one correct answer for the session summary
                     if(state.correctPairs === 1) AppState.learnState.correctAnswers++; 
+                    
                     state.selectedTerm = null;
                     state.selectedDef = null;
 
@@ -651,10 +661,8 @@
                         }, 500);
                     }
                 } else {
-                    // Incorrect Match
-                    const termEl = state.selectedTerm;
-                    const defEl = state.selectedDef;
-
+                    // --- Incorrect Match ---
+                    this.isLocked = true; // Lock the board to prevent more clicks
                     termEl.classList.add('incorrect');
                     defEl.classList.add('incorrect');
                     
@@ -663,11 +671,12 @@
                         Rewards.update(false);
                     }
 
-                    // Reset after a delay
+                    // After a delay, remove incorrect classes and unlock the board
                     setTimeout(() => {
                         termEl.classList.remove('incorrect', 'selected');
                         defEl.classList.remove('incorrect', 'selected');
-                    }, 800);
+                        this.isLocked = false; // Unlock the board
+                    }, 1000); // 1 second delay
 
                     state.selectedTerm = null;
                     state.selectedDef = null;
@@ -915,6 +924,7 @@
                 PDFViewer.pdfDoc = null;
                 document.getElementById('pdf-page-num').textContent = '';
                 document.getElementById('pdf-page-count').textContent = '';
+                PDFViewer.updateButtonState();
 
 
                 if(AppState.currentNoteId){
@@ -935,7 +945,7 @@
                     this.setLayout('book-mode');
                     const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                     if (doc) {
-                        const documentUrl = `/documents/${doc.id}`;
+                        const documentUrl = `/api/documents/${doc.id}`;
                         await PDFViewer.loadDocument(documentUrl);
                     } else {
                         UI.showToast("Could not find the selected document.", true);
