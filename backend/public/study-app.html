@@ -909,61 +909,83 @@
                 document.getElementById('ai-provider-selector').onchange = () => this.updateModelSelector();
             }, 
             async open(noteId=null, documentId = null){ 
-                if (!noteId && !documentId) {
-                    await this.save(true);
-                } else {
-                    AppState.currentNoteId = noteId; 
-                    document.getElementById('note-editor-id').value = noteId || ''; 
-                }
-                
-                AppState.currentDocumentId = documentId; 
-                const title=document.getElementById('note-editor-title'); 
-                const content=document.getElementById('note-editor-content'); 
-                const cardList=document.getElementById('note-editor-cards-list'); 
-                const audioContainer = document.getElementById('audio-clips-container');
-                
-                title.value = '';
-                content.innerHTML = '';
-                cardList.innerHTML = '';
-                audioContainer.innerHTML = '';
-                // Reset PDF viewer state
+                 // 1. Reset the editor state and UI immediately
+                AppState.currentNoteId = null;
+                AppState.currentDocumentId = null;
+                document.getElementById('note-editor-id').value = '';
+                document.getElementById('note-editor-title').value = '';
+                document.getElementById('note-editor-content').innerHTML = '';
+                document.getElementById('note-editor-cards-list').innerHTML = '';
+                document.getElementById('audio-clips-container').innerHTML = '';
                 PDFViewer.pdfDoc = null;
                 document.getElementById('pdf-page-num').textContent = '';
                 document.getElementById('pdf-page-count').textContent = '';
                 PDFViewer.updateButtonState();
 
+                // 2. Show the editor view but with controls disabled
+                UI.showView('noteEditor');
+                this.setEditorControlsEnabled(false);
 
-                if(AppState.currentNoteId){
-                    const note = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId); 
-                    if (note) {
-                        const cards=(AppState.localData.cardsByFolder[AppState.currentFolderId]||[]).filter(c=>c.noteId===AppState.currentNoteId); 
-                        const audioClips = AppState.localData.audioClipsByNote[AppState.currentNoteId] || [];
-                        title.value=note.title; 
-                        content.innerHTML=note.content; 
-                        cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');
-                        audioContainer.innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
-                        audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
+                try {
+                    if (noteId) { // Opening an existing note
+                        AppState.currentNoteId = noteId;
+                        document.getElementById('note-editor-id').value = noteId;
+                        const note = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === noteId);
+                        if (note) {
+                            const cards=(AppState.localData.cardsByFolder[AppState.currentFolderId]||[]).filter(c=>c.noteId===noteId); 
+                            const audioClips = AppState.localData.audioClipsByNote[noteId] || [];
+                            document.getElementById('note-editor-title').value=note.title; 
+                            document.getElementById('note-editor-content').innerHTML=note.content; 
+                            document.getElementById('note-editor-cards-list').innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');
+                            document.getElementById('audio-clips-container').innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
+                            audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
+                        }
+                    } else if (documentId) { // Opening a document, which will also create a new note
+                        AppState.currentDocumentId = documentId;
+                        const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
+                        if (doc) {
+                            document.getElementById('note-editor-title').value = doc.originalName;
+                            await this.save(true); // Create the note associated with this document
+                            const documentUrl = `/api/documents/${doc.id}`;
+                            await PDFViewer.loadDocument(documentUrl);
+                            this.setLayout('book-mode');
+                        } else {
+                            UI.showToast("Could not find the selected document.", true);
+                            UI.showView('folderContents'); // Go back if doc not found
+                            return;
+                        }
+                    } else { // Creating a completely new note
+                        await this.save(true);
                     }
+
+                    // 4. Final UI updates now that everything is loaded/created
+                    if (!documentId) { // Don't mess with layout if we're in book mode
+                        const savedLayout = localStorage.getItem('noteEditorLayout') || 'split-h';
+                        this.setLayout(savedLayout);
+                    }
+                    this.updateGenerateButtonState();
+                    this.updateModelSelector();
+                } catch (error) {
+                    console.error("Error opening note editor:", error);
+                    UI.showToast("Could not open the editor.", true);
+                    UI.showView('folderContents');
+                } finally {
+                    this.setEditorControlsEnabled(true); // Re-enable controls
                 }
-
-                const savedLayout = localStorage.getItem('noteEditorLayout') || 'split-h';
-                if (documentId) { 
-                    this.setLayout('book-mode');
-                    const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
-                    if (doc) {
-                        const documentUrl = `/documents/${doc.id}`;
-                        await PDFViewer.loadDocument(documentUrl);
-                    } else {
-                        UI.showToast("Could not find the selected document.", true);
+            },
+            setEditorControlsEnabled(enabled) {
+                const btnIds = ['btn-record-audio', 'btn-ai-subpoints', 'btn-ai-highlight', 'btn-generate-from-note', 'btn-save-note-and-cards'];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        btn.disabled = !enabled;
+                        btn.classList.toggle('opacity-50', !enabled);
+                        btn.classList.toggle('cursor-not-allowed', !enabled);
                     }
-                } else { 
-                    this.setLayout(savedLayout); 
-                } 
-                
-                UI.showView('noteEditor'); 
-                this.updateGenerateButtonState();
-                this.updateModelSelector();
-            }, 
+                });
+                document.getElementById('ai-provider-selector').disabled = !enabled || !Object.keys(AppState.localData.profile).some(k => k.endsWith('ApiKey') && AppState.localData.profile[k]);
+                document.getElementById('ai-model-selector').disabled = !enabled || !document.getElementById('ai-provider-selector').value;
+            },
             cycleLayout(){
                 const g=document.getElementById('note-editor-grid'); 
                 const currentMode=g.dataset.layoutMode; 
@@ -1162,4 +1184,4 @@
         document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
-</html/>
+</html>
