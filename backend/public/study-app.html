@@ -547,12 +547,12 @@
                 if (this.pageRendering) { this.pageNumPending = num; } else { this.renderPage(num); }
             },
             onPrevPage() {
-                if (this.pageNum <= 1) return;
+                if (!this.pdfDoc || this.pageNum <= 1) return;
                 this.pageNum--;
                 this.queueRenderPage(this.pageNum);
             },
             onNextPage() {
-                if (this.pageNum >= this.pdfDoc.numPages) return;
+                if (!this.pdfDoc || this.pageNum >= this.pdfDoc.numPages) return;
                 this.pageNum++;
                 this.queueRenderPage(this.pageNum);
             }
@@ -911,6 +911,11 @@
                 content.innerHTML = '';
                 cardList.innerHTML = '';
                 audioContainer.innerHTML = '';
+                // Reset PDF viewer state
+                PDFViewer.pdfDoc = null;
+                document.getElementById('pdf-page-num').textContent = '';
+                document.getElementById('pdf-page-count').textContent = '';
+
 
                 if(AppState.currentNoteId){
                     const note = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId); 
@@ -926,8 +931,18 @@
                 }
 
                 const savedLayout = localStorage.getItem('noteEditorLayout') || 'split-h';
-                if (documentId) { this.setLayout('book-mode'); } 
-                else { this.setLayout(savedLayout); } 
+                if (documentId) { 
+                    this.setLayout('book-mode');
+                    const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
+                    if (doc) {
+                        const documentUrl = `/documents/${doc.id}`;
+                        await PDFViewer.loadDocument(documentUrl);
+                    } else {
+                        UI.showToast("Could not find the selected document.", true);
+                    }
+                } else { 
+                    this.setLayout(savedLayout); 
+                } 
                 
                 UI.showView('noteEditor'); 
                 this.updateGenerateButtonState();
