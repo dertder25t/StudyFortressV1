@@ -626,9 +626,11 @@
             async generateSubpoints() {
                 const selection = window.getSelection();
                 const text = selection.toString().trim();
+                const provider = document.getElementById('ai-provider-selector').value;
+                if (!provider) { UI.showToast("Please select an AI provider.", true); return; }
                 if (!text) { UI.showToast("Please select some text to generate subpoints from.", true); return; }
                 try {
-                    const result = await ApiController.apiCall('/generate-subpoints', 'POST', { text });
+                    const result = await ApiController.apiCall('/generate-subpoints', 'POST', { text, provider });
                     const range = selection.getRangeAt(0);
                     range.deleteContents();
                     const list = document.createElement('ul');
@@ -639,9 +641,11 @@
             async highlightText() {
                 const noteContent = document.getElementById('note-editor-content');
                 const text = noteContent.innerText;
+                const provider = document.getElementById('ai-provider-selector').value;
+                if (!provider) { UI.showToast("Please select an AI provider.", true); return; }
                 if (!text.trim()) { UI.showToast("There is no text to highlight.", true); return; }
                 try {
-                    const result = await ApiController.apiCall('/highlight-text', 'POST', { text });
+                    const result = await ApiController.apiCall('/highlight-text', 'POST', { text, provider });
                     let newHtml = noteContent.innerHTML;
                     result.highlights.forEach(h => {
                         const regex = new RegExp(Utils.escapeHtml(h), "g");
@@ -649,6 +653,18 @@
                     });
                     noteContent.innerHTML = newHtml;
                 } catch (error) { console.error("Highlighting error:", error); }
+            },
+            async transcribeAudio(clipId) {
+                const provider = 'openai'; // Whisper is currently the only supported model
+                UI.showToast('Transcribing audio...', false);
+                try {
+                    const result = await ApiController.apiCall(`/audio-clips/${clipId}/transcribe`, 'POST', { provider });
+                    const noteContent = document.getElementById('note-editor-content');
+                    noteContent.innerHTML += `<p>${result.text}</p>`;
+                    UI.showToast('Transcription added to notes.', false);
+                } catch (error) {
+                    console.error("Transcription error:", error);
+                }
             }
         };
 
@@ -730,6 +746,11 @@
                             clipWrapper.remove();
                         }
                     }
+                    if (e.target.closest('.transcribe-audio-btn')) {
+                        const clipWrapper = e.target.closest('.audio-player-wrapper');
+                        const clipId = clipWrapper.dataset.id;
+                        AI.transcribeAudio(clipId);
+                    }
                 };
                 document.getElementById('btn-bullet-list').onclick=()=>document.execCommand('insertUnorderedList',false,null); 
                 document.getElementById('btn-ordered-list').onclick=()=>document.execCommand('insertOrderedList',false,null); 
@@ -771,15 +792,25 @@
                     }
                 }
 
-                if (documentId) { PDFViewer.loadDocument(`/api/documents/${documentId}`); this.setLayout('book-mode'); } 
-                else { this.setLayout('notes-only'); } 
+                const savedLayout = localStorage.getItem('noteEditorLayout') || 'split-h';
+                if (documentId) { this.setLayout('book-mode'); } 
+                else { this.setLayout(savedLayout); } 
                 
                 UI.showView('noteEditor'); 
                 this.updateGenerateButtonState();
             }, 
-            cycleLayout(){const g=document.getElementById('note-editor-grid'); const m=g.dataset.layoutMode; if(m==='split-h'){this.setLayout('notes-only');}else if(m==='notes-only'){this.setLayout('split-v');}else{this.setLayout('split-h');}}, 
+            cycleLayout(){
+                const g=document.getElementById('note-editor-grid'); 
+                const currentMode=g.dataset.layoutMode; 
+                let nextMode = 'split-h';
+                if(currentMode==='split-h'){ nextMode = 'notes-only'; }
+                else if(currentMode==='notes-only'){ nextMode = 'split-v'; }
+                this.setLayout(nextMode);
+            }, 
             toggleBookMode() { if (!AppState.currentDocumentId) { UI.showToast("No document open to toggle.", true); return; } const grid = document.getElementById('note-editor-grid'); const currentMode = grid.dataset.layoutMode; if (currentMode === 'book-mode') { this.setLayout('notes-only'); } else { this.setLayout('book-mode'); } }, 
-            setLayout(mode){const g=document.getElementById('note-editor-grid'),b=document.getElementById('book-viewer-panel'),r1=document.getElementById('book-viewer-resizer'),n=document.getElementById('note-editor-panel'),r2=document.getElementById('note-editor-resizer'),h=document.getElementById('flashcard-hub-panel'),c=document.getElementById('btn-cycle-layout'); g.dataset.layoutMode=mode; g.className='flex-grow flex gap-2 min-h-0'; n.style.flexBasis='50%'; b.style.flexBasis='50%'; h.style.flexBasis='50%'; n.classList.remove('hidden'); h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.remove('hidden'); b.classList.add('hidden'); r1.classList.add('hidden'); if(mode==='split-h'){g.classList.add('flex-row');c.innerHTML='<i class="fas fa-expand"></i>';c.title='Notes Only';}else if(mode==='notes-only'){g.classList.add('flex-row');n.style.flexBasis='100%';h.classList.add('hidden');r2.classList.add('hidden');c.innerHTML='<i class="fas fa-layer-group"></i>';c.title='Vertical Split';}else if(mode==='split-v'){g.classList.add('flex-col');c.innerHTML='<i class="fas fa-columns"></i>';c.title='Horizontal Split';}else if(mode==='book-mode'){b.classList.remove('hidden');r1.classList.remove('hidden');g.classList.add('flex-row'); n.style.flexBasis = '50%'; h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.add('hidden');}}, 
+            setLayout(mode){
+                localStorage.setItem('noteEditorLayout', mode);
+                const g=document.getElementById('note-editor-grid'),b=document.getElementById('book-viewer-panel'),r1=document.getElementById('book-viewer-resizer'),n=document.getElementById('note-editor-panel'),r2=document.getElementById('note-editor-resizer'),h=document.getElementById('flashcard-hub-panel'),c=document.getElementById('btn-cycle-layout'); g.dataset.layoutMode=mode; g.className='flex-grow flex gap-2 min-h-0'; n.style.flexBasis='50%'; b.style.flexBasis='50%'; h.style.flexBasis='50%'; n.classList.remove('hidden'); h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.remove('hidden'); b.classList.add('hidden'); r1.classList.add('hidden'); if(mode==='split-h'){g.classList.add('flex-row');c.innerHTML='<i class="fas fa-expand"></i>';c.title='Notes Only';}else if(mode==='notes-only'){g.classList.add('flex-row');n.style.flexBasis='100%';h.classList.add('hidden');r2.classList.add('hidden');c.innerHTML='<i class="fas fa-layer-group"></i>';c.title='Vertical Split';}else if(mode==='split-v'){g.classList.add('flex-col');c.innerHTML='<i class="fas fa-columns"></i>';c.title='Horizontal Split';}else if(mode==='book-mode'){b.classList.remove('hidden');r1.classList.remove('hidden');g.classList.add('flex-row'); n.style.flexBasis = '50%'; h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.add('hidden');}}, 
             initResizer(){const r=document.getElementById('note-editor-resizer'),g=document.getElementById('note-editor-grid'),l=document.getElementById('note-editor-panel');let i=false;const d=e=>{if(g.dataset.layoutMode!=='split-h')return;e.preventDefault();i=true;document.body.style.cursor='col-resize';document.addEventListener('mousemove',m);document.addEventListener('mouseup',u);};const m=e=>{if(!i)return;const t=g.offsetWidth;const n=e.clientX-g.getBoundingClientRect().left;if(n>200&&t-n>180)l.style.flexBasis=`${n}px`;};const u=()=>{i=false;document.body.style.cursor='default';document.removeEventListener('mousemove',m);document.removeEventListener('mouseup',u);};r.addEventListener('mousedown',d);}, 
             handlePaste(e){e.preventDefault(); const d=e.clipboardData||window.clipboardData; let p=d.getData('text/html')||d.getData('text/plain'); document.execCommand('insertHTML',false,this.sanitizeHtml(p));}, 
             sanitizeHtml(h){const a=['UL','OL','LI','P','BR','B','I','U','DIV','SPAN']; const p=new DOMParser(); const d=p.parseFromString(h,'text/html'); d.querySelectorAll('style,script,meta,link,title').forEach(e=>e.remove()); const w=d.createTreeWalker(d.body,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_COMMENT); const r=[],u=[]; while(w.nextNode()){const n=w.currentNode; if(n.nodeType===Node.COMMENT_NODE){r.push(n);continue;}if(a.includes(n.tagName)){n.removeAttribute('style'); n.removeAttribute('class');}else{u.push(n);}} u.forEach(n=>{const p=n.parentNode; while(n.firstChild)p.insertBefore(n.firstChild,n);});[...u,...r].forEach(n=>{if(n.parentNode)n.parentNode.removeChild(n);}); return d.body.innerHTML;}, 
