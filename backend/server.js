@@ -89,7 +89,18 @@ async function checkAdmin(req, res, next) {
 
 // --- AI HELPER FUNCTIONS ---
 const cleanJsonString = (str) => {
-    return str.replace(/^```json\s*|```$/g, '').trim();
+    const firstBracket = str.indexOf('{');
+    const firstSquare = str.indexOf('[');
+    let start = -1;
+    if (firstBracket === -1) { start = firstSquare; } 
+    else if (firstSquare === -1) { start = firstBracket; } 
+    else { start = Math.min(firstBracket, firstSquare); }
+    if (start === -1) return str;
+    const lastBracket = str.lastIndexOf('}');
+    const lastSquare = str.lastIndexOf(']');
+    const end = Math.max(lastBracket, lastSquare);
+    if (end === -1) return str;
+    return str.substring(start, end + 1);
 };
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
 const subpointsPrompt = (text) => `Analyze the following text and extract the main ideas as a concise, bulleted list. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "subpoints" which is an array of strings.`;
