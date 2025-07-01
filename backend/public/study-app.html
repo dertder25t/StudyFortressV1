@@ -365,7 +365,7 @@
         // --- API & AUTHENTICATION CONTROLLERS ---
         const ApiController = {
             getToken: () => localStorage.getItem('accessToken'),
-            async apiCall(endpoint, method = 'GET', body = null) {
+            async apiCall(endpoint, method = 'GET', body = null, responseType = 'json') {
                 const isFormData = body instanceof FormData;
                 const headers = {};
                 if (!isFormData) { headers['Content-Type'] = 'application/json'; }
@@ -383,6 +383,7 @@
                            throw new Error(errJson.error || 'API Request Failed');
                         } catch(e) { throw new Error(errText); }
                     }
+                    if (responseType === 'blob') return response.blob();
                     return response.status === 204 ? { success: true } : await response.json();
                 } catch (error) { UI.showToast(error.message, true); throw error; }
             }
@@ -452,7 +453,7 @@
             createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
             createAudioPlayerHTML(clip) {
                 return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
-                            <audio controls src="${API_BASE_URL}/api/audio-clips/${clip.id}" class="w-full"></audio>
+                            <audio id="audio-player-${clip.id}" controls class="w-full"></audio>
                             <button class="delete-audio-clip-btn text-slate-500 hover:text-red-400 flex-shrink-0">&times;</button>
                         </div>`;
             },
@@ -500,15 +501,8 @@
                 try {
                     const { pdfjsLib } = globalThis;
                     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
-
-                    const response = await fetch(`${API_BASE_URL}${url}`, { headers: { 'Authorization': `Bearer ${ApiController.getToken()}` } });
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-                    }
-                    const pdfData = await response.arrayBuffer();
-                    
-                    this.pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
-
+                    const pdfData = await ApiController.apiCall(url, 'GET', null, 'blob');
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: await pdfData.arrayBuffer() }).promise;
                     document.getElementById('pdf-page-count').textContent = this.pdfDoc.numPages;
                     this.pageNum = 1;
                     this.renderPage(this.pageNum);
@@ -606,9 +600,22 @@
                     }
                     AppState.localData.audioClipsByNote[AppState.currentNoteId].push(newClip);
                     document.getElementById('audio-clips-container').insertAdjacentHTML('beforeend', UI.createAudioPlayerHTML(newClip));
+                    this.loadClip(newClip.id); // Load the new clip immediately
                     UI.showToast('Audio clip saved.', false);
                 } catch (error) {
                     console.error("Audio upload error:", error);
+                }
+            },
+            async loadClip(clipId) {
+                try {
+                    const audioBlob = await ApiController.apiCall(`/audio-clips/${clipId}`, 'GET', null, 'blob');
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayer = document.getElementById(`audio-player-${clipId}`);
+                    if (audioPlayer) {
+                        audioPlayer.src = audioUrl;
+                    }
+                } catch (error) {
+                    console.error(`Failed to load audio clip ${clipId}:`, error);
                 }
             }
         };
@@ -732,8 +739,8 @@
                 document.getElementById('btn-ai-highlight').onclick = () => AI.highlightText();
             }, 
             async open(noteId=null, documentId = null){ 
-                if (!noteId && !documentId) { // If it's a brand new note
-                    await this.save(true); // Save it immediately to get an ID
+                if (!noteId && !documentId) {
+                    await this.save(true);
                 } else {
                     AppState.currentNoteId = noteId; 
                     document.getElementById('note-editor-id').value = noteId || ''; 
@@ -745,7 +752,6 @@
                 const cardList=document.getElementById('note-editor-cards-list'); 
                 const audioContainer = document.getElementById('audio-clips-container');
                 
-                // Clear previous content
                 title.value = '';
                 content.innerHTML = '';
                 cardList.innerHTML = '';
@@ -760,6 +766,7 @@
                         content.innerHTML=note.content; 
                         cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');
                         audioContainer.innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
+                        audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
                     }
                 }
 
