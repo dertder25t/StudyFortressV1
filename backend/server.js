@@ -86,28 +86,37 @@ async function checkAdmin(req, res, next) {
         res.status(500).json({ error: "Error verifying admin status."});
     }
 }
+
+// --- AI HELPER FUNCTIONS ---
 const flashcardPrompt = (text) => `Based on the following notes, generate a list of question and answer flashcards. Provide at least 5 flashcards if possible. The questions should be clear and the answers concise. Notes: --- ${text} --- Return ONLY the output as a JSON array of objects, where each object has a "question" and "answer" key. Do not include any other text or markdown formatting.`;
-async function generateWithGoogle(text, apiKey) {
+const subpointsPrompt = (text) => `Analyze the following text and extract the main ideas as a concise, bulleted list. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "subpoints" which is an array of strings.`;
+const highlightPrompt = (text) => `Analyze the following text and identify the most important keywords or key phrases. Text: --- ${text} --- Return ONLY the output as a JSON object with a single key "highlights" which is an array of strings.`;
+
+async function generateWithGoogle(text, apiKey, promptFunction) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-    const payload = { contents: [{ role: "user", parts: [{ text: flashcardPrompt(text) }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answer: { type: "STRING" } } } } } };
+    const payload = { contents: [{ role: "user", parts: [{ text: promptFunction(text) }] }] };
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Google AI API request failed with status ${response.status}`);
     const result = await response.json();
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from Google AI");
     return JSON.parse(result.candidates[0].content.parts[0].text);
 }
-async function generateWithOpenAI(text, apiKey) {
+async function generateWithOpenAI(text, apiKey, promptFunction) {
     const openai = new OpenAI({ apiKey });
-    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: flashcardPrompt(text) }] });
+    const response = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', response_format: { type: "json_object" }, messages: [{ role: 'user', content: promptFunction(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
-    return JSON.parse(response.choices[0].message.content).cards;
+    return JSON.parse(response.choices[0].message.content);
 }
-async function generateWithHuggingFace(text, apiKey) {
-    const hf = new HfInference(apiKey);
-    const response = await hf.textGeneration({ model: 'mistralai/Mistral-7B-v0.1', inputs: flashcardPrompt(text), parameters: { max_new_tokens: 500 } });
-    const jsonString = response.generated_text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-    if (!jsonString) throw new Error("Could not find valid JSON in Hugging Face response.");
-    return JSON.parse(jsonString[0]);
+async function transcribeWithOpenAI(filePath, apiKey) {
+    const openai = new OpenAI({ apiKey });
+    const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(filePath),
+        model: "whisper-1",
+    });
+    fs.unlink(filePath, (err) => { // Clean up the uploaded file after transcription
+        if (err) console.error("Error deleting temporary audio file:", err);
+    });
+    return transcription;
 }
 
 // --- API ROUTING ---
@@ -385,11 +394,40 @@ apiRouter.delete('/audio-clips/:clipId', authenticateToken, async (req, res) => 
         res.status(500).json({ error: "Failed to delete audio clip." });
     }
 });
+apiRouter.post('/transcribe-audio', authenticateToken, upload.single('audio'), async (req, res) => {
+    try {
+        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for transcription.' });
+        const transcription = await transcribeWithOpenAI(req.file.path, profile.openaiApiKey);
+        res.json(transcription);
+    } catch (err) {
+        console.error("Transcription Error:", err);
+        res.status(500).json({ error: `Transcription failed: ${err.message}` });
+    }
+});
 apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
-    res.json({ subpoints: ["This is a generated subpoint.", "This is another key takeaway."] });
+    try {
+        const { text } = req.body;
+        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for this feature.' });
+        const result = await generateWithOpenAI(text, profile.openaiApiKey, subpointsPrompt);
+        res.json(result);
+    } catch (err) {
+        console.error("Subpoint Generation Error:", err);
+        res.status(500).json({ error: `Subpoint generation failed: ${err.message}` });
+    }
 });
 apiRouter.post('/highlight-text', authenticateToken, async (req, res) => {
-    res.json({ highlights: ["placeholder", "key areas"] });
+    try {
+        const { text } = req.body;
+        const profile = await db.get('SELECT openaiApiKey FROM profile WHERE userId = ?', req.user.id);
+        if (!profile || !profile.openaiApiKey) return res.status(400).json({ error: 'OpenAI API key is required for this feature.' });
+        const result = await generateWithOpenAI(text, profile.openaiApiKey, highlightPrompt);
+        res.json(result);
+    } catch (err) {
+        console.error("Highlighting Error:", err);
+        res.status(500).json({ error: `Highlighting failed: ${err.message}` });
+    }
 });
 
 // VERSION & ADMIN
