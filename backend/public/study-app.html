@@ -389,7 +389,15 @@
                            throw new Error(errJson.error || 'API Request Failed');
                         } catch(e) { throw new Error(errText); }
                     }
-                    if (responseType === 'blob') return response.blob();
+                    if (responseType === 'blob') {
+                        const contentType = response.headers.get("content-type");
+                        if (contentType && contentType.indexOf("application/pdf") !== -1) {
+                            return response.blob();
+                        } else {
+                            const errorText = await response.text();
+                            throw new Error(`Expected a PDF file but received a different content type. Server response: ${errorText}`);
+                        }
+                    }
                     return response.status === 204 ? { success: true } : await response.json();
                 } catch (error) { UI.showToast(error.message, true); throw error; }
             }
