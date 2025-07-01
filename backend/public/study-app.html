@@ -953,7 +953,7 @@
                     this.setLayout('book-mode');
                     const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                     if (doc) {
-                        const documentUrl = `/api/documents/${doc.id}`;
+                        const documentUrl = `/documents/${doc.id}`;
                         await PDFViewer.loadDocument(documentUrl);
                     } else {
                         UI.showToast("Could not find the selected document.", true);
