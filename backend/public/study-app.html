@@ -379,6 +379,13 @@
                 try {
                     const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
                     if (response.status === 401 || response.status === 403) { AuthController.signOut(); throw new Error("Authentication failed. Please sign in again."); }
+                    if (responseType === 'blob') {
+                        if (!response.ok) {
+                             const errorText = await response.text();
+                             throw new Error(`Failed to fetch file. Server response: ${errorText}`);
+                        }
+                        return response.blob();
+                    }
                     if (!response.ok) { 
                         const errText = await response.text();
                         if (response.status === 429) {
@@ -388,9 +395,6 @@
                            const errJson = JSON.parse(errText);
                            throw new Error(errJson.error || 'API Request Failed');
                         } catch(e) { throw new Error(errText); }
-                    }
-                    if (responseType === 'blob') {
-                        return response.blob();
                     }
                     return response.status === 204 ? { success: true } : await response.json();
                 } catch (error) { UI.showToast(error.message, true); throw error; }
@@ -947,7 +951,7 @@
                     this.setLayout('book-mode');
                     const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                     if (doc) {
-                        const documentUrl = `/api/documents/${doc.id}`;
+                        const documentUrl = `/documents/${doc.id}`;
                         await PDFViewer.loadDocument(documentUrl);
                     } else {
                         UI.showToast("Could not find the selected document.", true);
@@ -1158,4 +1162,4 @@
         document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
-</html>
+</html/>
