@@ -454,6 +454,7 @@
             createAudioPlayerHTML(clip) {
                 return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
                             <audio id="audio-player-${clip.id}" controls class="w-full"></audio>
+                            <button class="transcribe-audio-btn text-cyan-400 hover:text-cyan-300 flex-shrink-0 px-2" title="Transcribe Audio"><i class="fas fa-closed-captioning"></i></button>
                             <button class="delete-audio-clip-btn text-slate-500 hover:text-red-400 flex-shrink-0">&times;</button>
                         </div>`;
             },
