@@ -1,7 +1,7 @@
 const express = require('express');
-const https = require('https'); // NEW: Import HTTPS module
+const https = require('https');
 const path = require('path');
-const fs = require('fs'); // NEW: Import File System module
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const cors = require('cors');
@@ -54,6 +54,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS audio_clips (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, noteId TEXT NOT NULL, serverPath TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
     `);
     await db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('maxUploadSize', '10')");
@@ -142,20 +143,22 @@ apiRouter.post('/login', async (req, res) => {
 apiRouter.get('/all-data', authenticateToken, async (req, res) => {
  try {
     const userId = req.user.id;
-    const [profileData, rewards, folders, notes, cards, documents, settingsData] = await Promise.all([
+    const [profileData, rewards, folders, notes, cards, documents, settingsData, audioClips] = await Promise.all([
         db.get('SELECT p.*, u.isAdmin FROM profile p JOIN users u ON u.id = p.userId WHERE p.userId = ?', userId),
         db.get('SELECT * FROM rewards WHERE userId = ?', userId),
         db.all('SELECT * FROM folders WHERE userId = ? ORDER BY createdAt DESC', userId),
         db.all('SELECT * FROM notes WHERE userId = ? ORDER BY createdAt DESC', userId),
         db.all('SELECT * FROM cards WHERE userId = ? ORDER BY createdAt DESC', userId),
         db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', userId),
-        db.all('SELECT * FROM settings')
+        db.all('SELECT * FROM settings'),
+        db.all('SELECT * FROM audio_clips WHERE userId = ?', userId)
     ]);
     const settings = settingsData.reduce((acc, {key, value}) => ({ ...acc, [key]: value }), {});
     const notesByFolder = notes.reduce((acc, note) => { (acc[note.folderId] = acc[note.folderId] || []).push(note); return acc; }, {});
     const cardsByFolder = cards.reduce((acc, card) => { (acc[card.folderId] = acc[card.folderId] || []).push(card); return acc; }, {});
     const documentsByFolder = documents.reduce((acc, doc) => { (acc[doc.folderId] = acc[doc.folderId] || []).push(doc); return acc; }, {});
-    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder, settings });
+    const audioClipsByNote = audioClips.reduce((acc, clip) => { (acc[clip.noteId] = acc[clip.noteId] || []).push(clip); return acc; }, {});
+    res.json({ profile: profileData, rewards, folders, notesByFolder, cardsByFolder, documentsByFolder, settings, audioClipsByNote });
  } catch (err) { console.error("Error fetching all data:", err); res.status(500).json({ error: "Failed to fetch app data from server." }); }
 });
 apiRouter.post('/profile', authenticateToken, async (req, res) => {
@@ -190,7 +193,11 @@ apiRouter.post('/folders', authenticateToken, async (req, res) => {
     } catch (err) { console.error("Error saving folder:", err); res.status(500).json({ error: "Failed to save folder." }); }
 });
 apiRouter.delete('/folders/:id', authenticateToken, async (req, res) => {
-    try { await db.run('DELETE FROM folders WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
+    try { 
+        await db.run('DELETE FROM audio_clips WHERE noteId IN (SELECT id FROM notes WHERE folderId = ?)', [req.params.id]);
+        await db.run('DELETE FROM folders WHERE id=? AND userId=?', [req.params.id, req.user.id]); 
+        res.sendStatus(204); 
+    }
     catch (err) { console.error("Error deleting folder:", err); res.status(500).json({ error: "Failed to delete folder." }); }
 });
 apiRouter.delete('/folders/:folderId/notes', authenticateToken, async (req, res) => {
@@ -200,6 +207,7 @@ apiRouter.delete('/folders/:folderId/notes', authenticateToken, async (req, res)
         const folder = await db.get('SELECT id FROM folders WHERE id = ? AND userId = ?', [folderId, userId]);
         if (!folder) return res.status(403).json({ error: "Forbidden: You do not own this folder." });
         await db.run('BEGIN TRANSACTION');
+        await db.run('DELETE FROM audio_clips WHERE noteId IN (SELECT id FROM notes WHERE folderId = ?)', [folderId]);
         await db.run('DELETE FROM cards WHERE noteId IN (SELECT id FROM notes WHERE folderId = ?)', [folderId]);
         await db.run('DELETE FROM notes WHERE folderId = ? AND userId = ?', [folderId, userId]);
         await db.run('COMMIT');
@@ -218,8 +226,11 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const finalNoteId = noteId || `note_${crypto.randomUUID()}`;
         await db.run('BEGIN TRANSACTION');
-        if(noteId) { await db.run('UPDATE notes SET title=?, content=?, cardCount=? WHERE id=? AND userId=?', [title, content, cards.length, noteId, userId]); }
-        else { await db.run('INSERT INTO notes (id, userId, folderId, title, content, cardCount, createdAt) VALUES (?,?,?,?,?,?,?)', [finalNoteId, userId, folderId, title, content, cards.length, new Date().toISOString()]); }
+        if(noteId) { 
+            await db.run('UPDATE notes SET title=?, content=?, cardCount=? WHERE id=? AND userId=?', [title, content, cards.length, noteId, userId]); 
+        } else { 
+            await db.run('INSERT INTO notes (id, userId, folderId, title, content, cardCount, createdAt) VALUES (?,?,?,?,?,?,?)', [finalNoteId, userId, folderId, title, content, cards.length, new Date().toISOString()]); 
+        }
         await db.run('DELETE FROM cards WHERE noteId=? AND userId=?', [finalNoteId, userId]);
         if (cards && cards.length > 0) {
             const stmt = await db.prepare('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
@@ -229,7 +240,7 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
             await stmt.finalize();
         }
         await db.run('COMMIT');
-        res.status(201).json({ message: 'Note and cards saved' });
+        res.status(201).json({ message: 'Note and cards saved', noteId: finalNoteId });
     } catch (err) {
         await db.run('ROLLBACK');
         console.error("Error saving note:", err);
@@ -237,7 +248,11 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
     }
 });
 apiRouter.delete('/notes/:id', authenticateToken, async (req, res) => {
-    try { await db.run('DELETE FROM notes WHERE id=? AND userId=?', [req.params.id, req.user.id]); res.sendStatus(204); }
+    try { 
+        await db.run('DELETE FROM audio_clips WHERE noteId = ? AND userId = ?', [req.params.id, req.user.id]);
+        await db.run('DELETE FROM notes WHERE id=? AND userId=?', [req.params.id, req.user.id]); 
+        res.sendStatus(204); 
+    }
     catch (err) { console.error("Error deleting note:", err); res.status(500).json({ error: "Failed to delete note." }); }
 });
 apiRouter.post('/manual-cards', authenticateToken, async (req, res) => {
@@ -272,11 +287,9 @@ apiRouter.delete('/cards/:id', authenticateToken, async (req, res) => {
 // DOCUMENTS
 const fileSizeCheck = async (req, res, next) => {
     const setting = await db.get("SELECT value FROM settings WHERE key = 'maxUploadSize'");
-    const maxSize = (parseInt(setting.value, 10) || 10) * 1024 * 1024; // Default to 10MB
+    const maxSize = (parseInt(setting.value, 10) || 10) * 1024 * 1024;
     if (req.file && req.file.size > maxSize) {
-        fs.unlink(req.file.path, (err) => { // Clean up the oversized file
-            if (err) console.error("Error deleting oversized file:", err);
-        });
+        fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting oversized file:", err); });
         return res.status(413).json({ error: `File is too large. Max size is ${setting.value}MB.` });
     }
     next();
@@ -325,9 +338,52 @@ apiRouter.delete('/documents/:documentId', authenticateToken, async (req, res) =
 });
 
 // AI & AUDIO
-apiRouter.post('/transcribe-audio', authenticateToken, upload.single('audio'), async (req, res) => {
-    console.log("Received audio file for transcription:", req.file);
-    res.json({ text: "This is a placeholder for the transcribed audio text. " });
+apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, upload.single('audio'), fileSizeCheck, async (req, res) => {
+    try {
+        const { noteId } = req.params;
+        const { file } = req;
+        if (!file) return res.status(400).json({ error: 'No audio file uploaded.' });
+        const clipId = `audio_${crypto.randomUUID()}`;
+        await db.run('INSERT INTO audio_clips (id, userId, noteId, serverPath, createdAt) VALUES (?, ?, ?, ?, ?)', 
+            [clipId, req.user.id, noteId, file.filename, new Date().toISOString()]);
+        const newClip = await db.get('SELECT * FROM audio_clips WHERE id = ?', clipId);
+        res.status(201).json(newClip);
+    } catch (err) {
+        console.error("Audio upload error:", err);
+        res.status(500).json({ error: 'Failed to save audio clip.' });
+    }
+});
+apiRouter.get('/audio-clips/:clipId', authenticateToken, async (req, res) => {
+    try {
+        const { clipId } = req.params;
+        const clip = await db.get('SELECT * FROM audio_clips WHERE id = ? AND userId = ?', [clipId, req.user.id]);
+        if (!clip) return res.status(404).json({ error: "Audio clip not found." });
+        const filePath = path.join(UPLOAD_DIR, clip.serverPath);
+        if (fs.existsSync(filePath)) {
+            res.sendFile(filePath);
+        } else {
+            res.status(404).json({ error: "Audio file not found on server." });
+        }
+    } catch (err) {
+        console.error("Error serving audio clip:", err);
+        res.status(500).json({ error: "Failed to serve audio clip." });
+    }
+});
+apiRouter.delete('/audio-clips/:clipId', authenticateToken, async (req, res) => {
+    try {
+        const { clipId } = req.params;
+        const clip = await db.get('SELECT * FROM audio_clips WHERE id = ? AND userId = ?', [clipId, req.user.id]);
+        if (!clip) return res.status(404).json({ error: "Audio clip not found." });
+        const filePath = path.join(UPLOAD_DIR, clip.serverPath);
+        if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (err) => { if (err) console.error("Error deleting audio file from disk:", err); });
+        }
+        await db.run('DELETE FROM audio_clips WHERE id = ?', clipId);
+        res.sendStatus(204);
+    } catch (err) {
+        console.error("Error deleting audio clip:", err);
+        res.status(500).json({ error: "Failed to delete audio clip." });
+    }
 });
 apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
     res.json({ subpoints: ["This is a generated subpoint.", "This is another key takeaway."] });
@@ -395,8 +451,6 @@ app.get('*', (req, res) => {
 });
 
 // --- SERVER STARTUP ---
-// To generate a self-signed certificate for local development, run this command in your terminal:
-// openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
 const sslOptions = {
     key: fs.readFileSync(path.join(__dirname, 'key.pem')),
     cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
