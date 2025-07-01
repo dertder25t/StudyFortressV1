@@ -570,6 +570,7 @@
                 this.queueRenderPage(this.pageNum);
             },
             updateButtonState() {
+                if (!this.prevBtn || !this.nextBtn) return; // Guard against elements not being ready
                 if (!this.pdfDoc) {
                     this.prevBtn.disabled = true;
                     this.nextBtn.disabled = true;
