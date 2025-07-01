@@ -356,7 +356,7 @@
     <script type="module">
         // --- GLOBAL STATE ---
         const APP_VERSION = '1.2.0';
-        const AppState = { currentFolderId: null, currentNoteId: null, currentDocumentId: null, localData: { profile: {}, rewards: {}, folders: [], notesByFolder: {}, cardsByFolder: {}, documentsByFolder: {}, settings: {} }, learnState: {}, matchingState: {} };
+        const AppState = { currentFolderId: null, currentNoteId: null, currentDocumentId: null, localData: { profile: {}, rewards: {}, folders: [], notesByFolder: {}, cardsByFolder: {}, documentsByFolder: {}, settings: {}, audioClipsByNote: {} }, learnState: {}, matchingState: {} };
         const API_BASE_URL = ''; 
 
         // --- UTILITY FUNCTIONS ---
@@ -450,6 +450,12 @@
             },
             createNoteHTML(note) { return `<div class="bg-slate-800/50 border border-slate-700 rounded-lg shadow note-item" data-id="${note.id}"><div class="p-4 flex justify-between items-center cursor-pointer note-header"><div class="font-semibold">${Utils.escapeHtml(note.title)}</div><div class="flex items-center space-x-4"><span class="text-sm text-slate-400">${note.cardCount || 0} cards</span><button class="edit-note-btn text-slate-400 h-8 w-8 hover:text-white" data-id="${note.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-note-btn text-slate-400 h-8 w-8 hover:text-red-500" data-id="${note.id}"><i class="fas fa-trash"></i></button><i class="fas fa-chevron-down note-chevron"></i></div></div><div class="note-content px-4 pb-4 text-slate-300 border-t border-slate-700">${note.content}</div></div>`}, 
             createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
+            createAudioPlayerHTML(clip) {
+                return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
+                            <audio controls src="${API_BASE_URL}/api/audio-clips/${clip.id}" class="w-full"></audio>
+                            <button class="delete-audio-clip-btn text-slate-500 hover:text-red-400 flex-shrink-0">&times;</button>
+                        </div>`;
+            },
             getMasteryInfo(ease) { if (ease < 2.0) return { label: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' }; if (ease < 2.8) return { label: 'Medium', color: 'bg-yellow-500', textColor: 'text-yellow-400' }; return { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' }; }, 
             renderMastery(cards) { const section = document.getElementById('folder-mastery-section'); if (!cards || cards.length === 0) { section.innerHTML = ''; return; } const strongCount = cards.filter(c => c.ease >= 2.8).length; section.innerHTML = `<div class="p-4 cursor-pointer kg-header"><div class="flex justify-between items-center"><h2 class="text-xl font-semibold">Topic Mastery</h2><i class="fas fa-chevron-down kg-chevron"></i></div><p class="text-sm text-slate-400">You have mastered ${strongCount} of ${cards.length} cards.</p></div><div class="kg-content px-4 pb-4 border-t border-slate-700"><ul class="space-y-2 mt-4">${cards.map(card => { const m = UI.getMasteryInfo(card.ease); return `<li class="flex justify-between items-center"><span class="text-sm w-3/4 truncate" title="${Utils.escapeHtml(card.question)}">${Utils.escapeHtml(card.question)}</span><div class="w-1/4 h-2 bg-slate-600 rounded-full" title="${m.label}"><div class="h-2 rounded-full ${m.color}" style="width:${((card.ease-1.3)/2.2)*100}%"></div></div></li>` }).join('')}</ul></div>`; }, 
             updateProfileForm(profile, settings) { 
@@ -551,6 +557,10 @@
             chunks: [],
             isRecording: false,
             async toggleRecording() {
+                if (!AppState.currentNoteId) {
+                    UI.showToast("Please save your note before recording audio.", true);
+                    return;
+                }
                 if (this.isRecording) {
                     this.recorder.stop();
                 } else {
@@ -581,21 +591,24 @@
             handleStop() {
                 this.isRecording = false;
                 document.getElementById('btn-record-audio').classList.remove('animate-pulse', 'text-red-500');
-                UI.showToast('Recording stopped. Transcribing...', false);
+                UI.showToast('Recording stopped. Uploading...', false);
                 const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
-                this.transcribe(audioBlob);
+                this.uploadAndProcessAudio(audioBlob);
                 this.recorder.stream.getTracks().forEach(track => track.stop());
             },
-            async transcribe(audioBlob) {
+            async uploadAndProcessAudio(audioBlob) {
                 const formData = new FormData();
                 formData.append('audio', audioBlob, 'recording.webm');
                 try {
-                    const result = await ApiController.apiCall('/transcribe-audio', 'POST', formData);
-                    const noteContent = document.getElementById('note-editor-content');
-                    noteContent.innerHTML += `<p>${result.text}</p>`;
-                    UI.showToast('Transcription added to notes.', false);
+                    const newClip = await ApiController.apiCall(`/notes/${AppState.currentNoteId}/upload-audio`, 'POST', formData);
+                    if (!AppState.localData.audioClipsByNote[AppState.currentNoteId]) {
+                        AppState.localData.audioClipsByNote[AppState.currentNoteId] = [];
+                    }
+                    AppState.localData.audioClipsByNote[AppState.currentNoteId].push(newClip);
+                    document.getElementById('audio-clips-container').insertAdjacentHTML('beforeend', UI.createAudioPlayerHTML(newClip));
+                    UI.showToast('Audio clip saved.', false);
                 } catch (error) {
-                    console.error("Transcription error:", error);
+                    console.error("Audio upload error:", error);
                 }
             }
         };
@@ -700,6 +713,16 @@
                 document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const generated=await AI.generateFlashcards(provider); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; 
                 document.getElementById('btn-add-manual-card-in-editor').onclick=()=>{document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend',this.createCardInputHTML({}))}; 
                 document.getElementById('note-editor-cards-list').onclick=e=>{if(e.target.closest('.remove-card-editor-btn')){e.target.closest('.card-editor-group').remove()}}; 
+                document.getElementById('audio-clips-container').onclick = async e => {
+                    if (e.target.closest('.delete-audio-clip-btn')) {
+                        const clipWrapper = e.target.closest('.audio-player-wrapper');
+                        const clipId = clipWrapper.dataset.id;
+                        if (confirm('Are you sure you want to delete this audio clip?')) {
+                            await ApiController.apiCall(`/audio-clips/${clipId}`, 'DELETE');
+                            clipWrapper.remove();
+                        }
+                    }
+                };
                 document.getElementById('btn-bullet-list').onclick=()=>document.execCommand('insertUnorderedList',false,null); 
                 document.getElementById('btn-ordered-list').onclick=()=>document.execCommand('insertOrderedList',false,null); 
                 document.getElementById('note-editor-content').onpaste=e=>this.handlePaste(e); 
@@ -708,7 +731,44 @@
                 document.getElementById('btn-ai-subpoints').onclick = () => AI.generateSubpoints();
                 document.getElementById('btn-ai-highlight').onclick = () => AI.highlightText();
             }, 
-            open(noteId=null, documentId = null){ AppState.currentNoteId=noteId; document.getElementById('note-editor-id').value = noteId || ''; AppState.currentDocumentId = documentId; const title=document.getElementById('note-editor-title'); const content=document.getElementById('note-editor-content'); const cardList=document.getElementById('note-editor-cards-list'); if(noteId){const note=AppState.localData.notesByFolder[AppState.currentFolderId].find(n=>n.id===noteId); const cards=(AppState.localData.cardsByFolder[AppState.currentFolderId]||[]).filter(c=>c.noteId===noteId); title.value=note.title; content.innerHTML=note.content; cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');}else{title.value=''; content.innerHTML=''; cardList.innerHTML='';} if (documentId) { PDFViewer.loadDocument(`/api/documents/${documentId}`); this.setLayout('book-mode'); } else { this.setLayout('notes-only'); } UI.showView('noteEditor'); this.updateGenerateButtonState();}, 
+            async open(noteId=null, documentId = null){ 
+                if (!noteId && !documentId) { // If it's a brand new note
+                    await this.save(true); // Save it immediately to get an ID
+                } else {
+                    AppState.currentNoteId = noteId; 
+                    document.getElementById('note-editor-id').value = noteId || ''; 
+                }
+                
+                AppState.currentDocumentId = documentId; 
+                const title=document.getElementById('note-editor-title'); 
+                const content=document.getElementById('note-editor-content'); 
+                const cardList=document.getElementById('note-editor-cards-list'); 
+                const audioContainer = document.getElementById('audio-clips-container');
+                
+                // Clear previous content
+                title.value = '';
+                content.innerHTML = '';
+                cardList.innerHTML = '';
+                audioContainer.innerHTML = '';
+
+                if(AppState.currentNoteId){
+                    const note = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId); 
+                    if (note) {
+                        const cards=(AppState.localData.cardsByFolder[AppState.currentFolderId]||[]).filter(c=>c.noteId===AppState.currentNoteId); 
+                        const audioClips = AppState.localData.audioClipsByNote[AppState.currentNoteId] || [];
+                        title.value=note.title; 
+                        content.innerHTML=note.content; 
+                        cardList.innerHTML=cards.map(c=>this.createCardInputHTML(c,true)).join('');
+                        audioContainer.innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
+                    }
+                }
+
+                if (documentId) { PDFViewer.loadDocument(`/api/documents/${documentId}`); this.setLayout('book-mode'); } 
+                else { this.setLayout('notes-only'); } 
+                
+                UI.showView('noteEditor'); 
+                this.updateGenerateButtonState();
+            }, 
             cycleLayout(){const g=document.getElementById('note-editor-grid'); const m=g.dataset.layoutMode; if(m==='split-h'){this.setLayout('notes-only');}else if(m==='notes-only'){this.setLayout('split-v');}else{this.setLayout('split-h');}}, 
             toggleBookMode() { if (!AppState.currentDocumentId) { UI.showToast("No document open to toggle.", true); return; } const grid = document.getElementById('note-editor-grid'); const currentMode = grid.dataset.layoutMode; if (currentMode === 'book-mode') { this.setLayout('notes-only'); } else { this.setLayout('book-mode'); } }, 
             setLayout(mode){const g=document.getElementById('note-editor-grid'),b=document.getElementById('book-viewer-panel'),r1=document.getElementById('book-viewer-resizer'),n=document.getElementById('note-editor-panel'),r2=document.getElementById('note-editor-resizer'),h=document.getElementById('flashcard-hub-panel'),c=document.getElementById('btn-cycle-layout'); g.dataset.layoutMode=mode; g.className='flex-grow flex gap-2 min-h-0'; n.style.flexBasis='50%'; b.style.flexBasis='50%'; h.style.flexBasis='50%'; n.classList.remove('hidden'); h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.remove('hidden'); b.classList.add('hidden'); r1.classList.add('hidden'); if(mode==='split-h'){g.classList.add('flex-row');c.innerHTML='<i class="fas fa-expand"></i>';c.title='Notes Only';}else if(mode==='notes-only'){g.classList.add('flex-row');n.style.flexBasis='100%';h.classList.add('hidden');r2.classList.add('hidden');c.innerHTML='<i class="fas fa-layer-group"></i>';c.title='Vertical Split';}else if(mode==='split-v'){g.classList.add('flex-col');c.innerHTML='<i class="fas fa-columns"></i>';c.title='Horizontal Split';}else if(mode==='book-mode'){b.classList.remove('hidden');r1.classList.remove('hidden');g.classList.add('flex-row'); n.style.flexBasis = '50%'; h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.add('hidden');}}, 
@@ -716,7 +776,24 @@
             handlePaste(e){e.preventDefault(); const d=e.clipboardData||window.clipboardData; let p=d.getData('text/html')||d.getData('text/plain'); document.execCommand('insertHTML',false,this.sanitizeHtml(p));}, 
             sanitizeHtml(h){const a=['UL','OL','LI','P','BR','B','I','U','DIV','SPAN']; const p=new DOMParser(); const d=p.parseFromString(h,'text/html'); d.querySelectorAll('style,script,meta,link,title').forEach(e=>e.remove()); const w=d.createTreeWalker(d.body,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_COMMENT); const r=[],u=[]; while(w.nextNode()){const n=w.currentNode; if(n.nodeType===Node.COMMENT_NODE){r.push(n);continue;}if(a.includes(n.tagName)){n.removeAttribute('style'); n.removeAttribute('class');}else{u.push(n);}} u.forEach(n=>{const p=n.parentNode; while(n.firstChild)p.insertBefore(n.firstChild,n);});[...u,...r].forEach(n=>{if(n.parentNode)n.parentNode.removeChild(n);}); return d.body.innerHTML;}, 
             createCardInputHTML(card,isExisting){const q=isExisting?card.question:(card.question||''); const a=isExisting?card.answer:(card.answer||''); return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm">Question</label><textarea rows="2" class="mt-1 card-question w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm">Answer</label><textarea rows="2" class="mt-1 card-answer w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(a)}</textarea></div></div>`;}, 
-            async save(){const noteData={title:document.getElementById('note-editor-title').value.trim(),content:document.getElementById('note-editor-content').innerHTML.trim()}; const noteId = document.getElementById('note-editor-id').value; if(!noteData.title){UI.showToast("Note title required.",true);return;}const cardsRaw=Array.from(document.querySelectorAll('.card-editor-group')).map(g=>({question:g.querySelector('.card-question').value.trim(),answer:g.querySelector('.card-answer').value.trim()})).filter(c=>c.question&&c.answer); const cardsWithSrs=cardsRaw.map(c=>SRS.addSRSData({...c,source:'generated'})); await ApiController.apiCall('/notes','POST',{folderId:AppState.currentFolderId,noteId:noteId, ...noteData,cards:cardsWithSrs}); FolderActions.refreshData(); UI.showToast("Note and cards saved!"); UI.showView('folderContents');}, 
+            async save(isNewNote = false){
+                const noteData={title:document.getElementById('note-editor-title').value.trim() || 'Untitled Note',content:document.getElementById('note-editor-content').innerHTML.trim()}; 
+                const noteId = document.getElementById('note-editor-id').value; 
+                const cardsRaw=Array.from(document.querySelectorAll('.card-editor-group')).map(g=>({question:g.querySelector('.card-question').value.trim(),answer:g.querySelector('.card-answer').value.trim()})).filter(c=>c.question&&c.answer); 
+                const cardsWithSrs=cardsRaw.map(c=>SRS.addSRSData({...c,source:'generated'})); 
+                
+                const response = await ApiController.apiCall('/notes','POST',{folderId:AppState.currentFolderId,noteId:noteId, ...noteData,cards:cardsWithSrs}); 
+                
+                if (isNewNote) {
+                    AppState.currentNoteId = response.noteId;
+                    document.getElementById('note-editor-id').value = response.noteId;
+                    await FolderActions.refreshData(); // Refresh to get the new note in the state
+                } else {
+                    FolderActions.refreshData(); 
+                    UI.showToast("Note and cards saved!"); 
+                    UI.showView('folderContents');
+                }
+            }, 
             updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;}
         };
         const ProfileActions = { 
