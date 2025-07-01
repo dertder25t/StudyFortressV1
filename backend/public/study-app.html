@@ -452,9 +452,16 @@
             createNoteHTML(note) { return `<div class="bg-slate-800/50 border border-slate-700 rounded-lg shadow note-item" data-id="${note.id}"><div class="p-4 flex justify-between items-center cursor-pointer note-header"><div class="font-semibold">${Utils.escapeHtml(note.title)}</div><div class="flex items-center space-x-4"><span class="text-sm text-slate-400">${note.cardCount || 0} cards</span><button class="edit-note-btn text-slate-400 h-8 w-8 hover:text-white" data-id="${note.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-note-btn text-slate-400 h-8 w-8 hover:text-red-500" data-id="${note.id}"><i class="fas fa-trash"></i></button><i class="fas fa-chevron-down note-chevron"></i></div></div><div class="note-content px-4 pb-4 text-slate-300 border-t border-slate-700">${note.content}</div></div>`}, 
             createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
             createAudioPlayerHTML(clip) {
+                const hasOpenAIKey = !!AppState.localData.profile.openaiApiKey;
+                const transcribeBtnDisabled = hasOpenAIKey ? '' : 'disabled';
+                const transcribeBtnTitle = hasOpenAIKey ? 'Transcribe Audio' : 'OpenAI API key required for transcription';
+                const transcribeBtnClasses = hasOpenAIKey ? 'text-cyan-400 hover:text-cyan-300' : 'text-slate-600 cursor-not-allowed';
+
                 return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
                             <audio id="audio-player-${clip.id}" controls class="w-full"></audio>
-                            <button class="transcribe-audio-btn text-cyan-400 hover:text-cyan-300 flex-shrink-0 px-2" title="Transcribe Audio"><i class="fas fa-closed-captioning"></i></button>
+                            <button class="transcribe-audio-btn flex-shrink-0 px-2 ${transcribeBtnClasses}" title="${transcribeBtnTitle}" ${transcribeBtnDisabled}>
+                                <i class="fas fa-closed-captioning"></i>
+                            </button>
                             <button class="delete-audio-clip-btn text-slate-500 hover:text-red-400 flex-shrink-0">&times;</button>
                         </div>`;
             },
