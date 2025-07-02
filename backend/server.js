@@ -26,6 +26,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// --- MULTER SETUP ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => {
@@ -33,7 +34,31 @@ const storage = multer.diskStorage({
         cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
     }
 });
-const upload = multer({ storage: storage });
+
+// FIX: Create separate multer instances with file filters for validation
+const documentUploader = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only PDF files are allowed.'), false);
+        }
+    }
+}).single('document');
+
+const audioUploader = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        // MediaRecorder on some browsers might save as video/webm
+        if (file.mimetype === 'audio/webm' || file.mimetype === 'video/webm') {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only WEBM audio files are allowed.'), false);
+        }
+    }
+}).single('audio');
+
 
 // --- MIDDLEWARES ---
 app.use(cors());
@@ -51,7 +76,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, documentId TEXT, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE SET NULL);
       CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS audio_clips (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, noteId TEXT NOT NULL, serverPath TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
@@ -259,14 +284,14 @@ apiRouter.delete('/folders/:folderId/notes', authenticateToken, async (req, res)
 // NOTES & CARDS
 apiRouter.post('/notes', authenticateToken, async (req, res) => {
     try {
-        const { folderId, noteId, title, content, cards } = req.body;
+        const { folderId, noteId, title, content, cards, documentId } = req.body;
         const userId = req.user.id;
         const finalNoteId = noteId || `note_${crypto.randomUUID()}`;
         await db.run('BEGIN TRANSACTION');
         if(noteId) { 
-            await db.run('UPDATE notes SET title=?, content=?, cardCount=? WHERE id=? AND userId=?', [title, content, cards.length, noteId, userId]); 
+            await db.run('UPDATE notes SET title=?, content=?, cardCount=?, documentId=? WHERE id=? AND userId=?', [title, content, cards.length, documentId, noteId, userId]); 
         } else { 
-            await db.run('INSERT INTO notes (id, userId, folderId, title, content, cardCount, createdAt) VALUES (?,?,?,?,?,?,?)', [finalNoteId, userId, folderId, title, content, cards.length, new Date().toISOString()]); 
+            await db.run('INSERT INTO notes (id, userId, folderId, title, content, cardCount, createdAt, documentId) VALUES (?,?,?,?,?,?,?,?)', [finalNoteId, userId, folderId, title, content, cards.length, new Date().toISOString(), documentId]); 
         }
         await db.run('DELETE FROM cards WHERE noteId=? AND userId=?', [finalNoteId, userId]);
         if (cards && cards.length > 0) {
@@ -332,7 +357,15 @@ const fileSizeCheck = async (req, res, next) => {
     next();
 };
 
-apiRouter.post('/folders/:folderId/upload', authenticateToken, upload.single('document'), fileSizeCheck, async (req, res) => {
+// FIX: Use the specific document uploader middleware
+apiRouter.post('/folders/:folderId/upload', authenticateToken, (req, res, next) => {
+    documentUploader(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, fileSizeCheck, async (req, res) => {
     try {
         const { folderId } = req.params;
         const { file } = req;
@@ -344,6 +377,7 @@ apiRouter.post('/folders/:folderId/upload', authenticateToken, upload.single('do
         res.status(201).json(newDocument);
     } catch (err) { console.error("File Upload Error:", err); res.status(500).json({ error: "Failed to upload file." }); }
 });
+
 apiRouter.get('/documents/:documentId', authenticateToken, async (req, res) => {
     try {
         const { documentId } = req.params;
@@ -375,7 +409,15 @@ apiRouter.delete('/documents/:documentId', authenticateToken, async (req, res) =
 });
 
 // AI & AUDIO
-apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, upload.single('audio'), fileSizeCheck, async (req, res) => {
+// FIX: Use the specific audio uploader middleware
+apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, (req, res, next) => {
+    audioUploader(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, fileSizeCheck, async (req, res) => {
     try {
         const { noteId } = req.params;
         const { file } = req;
@@ -390,6 +432,7 @@ apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, upload.single('
         res.status(500).json({ error: 'Failed to save audio clip.' });
     }
 });
+
 apiRouter.get('/audio-clips/:clipId', authenticateToken, async (req, res) => {
     try {
         const { clipId } = req.params;
