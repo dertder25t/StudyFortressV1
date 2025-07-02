@@ -118,7 +118,6 @@
                     <button id="btn-add-card-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Card</button>
                     <button id="btn-add-note-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-file-alt mr-2"></i>Add Note</button>
                     <button id="btn-upload-book" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-book-open mr-2"></i>Upload File</button>
-                    <!-- FIX: Restrict file input to only accept PDF files -->
                     <input type="file" id="book-upload-input" class="hidden" accept="application/pdf">
                     <button id="btn-export-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-download mr-2"></i>Export</button>
                 </div>
@@ -385,15 +384,7 @@
                             const errorText = await response.text();
                             throw new Error(`Failed to fetch file. Server response: ${errorText}`);
                         }
-                        // FIX: Check the content type before treating the response as a PDF.
-                        // This prevents trying to parse an HTML error page as a PDF.
-                        const contentType = response.headers.get("Content-Type");
-                        if (!contentType || (!contentType.includes("application/pdf") && !contentType.includes("video/webm") && !contentType.includes("audio/webm"))) {
-                            console.error("File Load Error: Expected a specific file type but received:", contentType);
-                            const errorBody = await response.text(); // Read the body to see what was actually sent
-                            console.error("Received content:", errorBody);
-                            throw new Error(`Expected a file but received type: ${contentType}. The server may have returned an error page or login screen.`);
-                        }
+                        // FIX: Remove generic content-type check. The calling function will be responsible for validation.
                         return response.blob();
                     }
                     if (!response.ok) { 
@@ -541,8 +532,12 @@
                 try {
                     const { pdfjsLib } = globalThis;
                     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
-                    const pdfData = await ApiController.apiCall(url, 'GET', null, 'blob');
-                    this.pdfDoc = await pdfjsLib.getDocument({ data: await pdfData.arrayBuffer() }).promise;
+                    const pdfBlob = await ApiController.apiCall(url, 'GET', null, 'blob');
+                    // FIX: Add specific content-type validation here where the data is consumed.
+                    if (pdfBlob.type !== 'application/pdf') {
+                        throw new Error(`Expected a PDF file but received type: ${pdfBlob.type}`);
+                    }
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: await pdfBlob.arrayBuffer() }).promise;
                     document.getElementById('pdf-page-count').textContent = this.pdfDoc.numPages;
                     this.pageNum = 1;
                     this.renderPage(this.pageNum);
@@ -763,6 +758,10 @@
             async loadClip(clipId) {
                 try {
                     const audioBlob = await ApiController.apiCall(`/audio-clips/${clipId}`, 'GET', null, 'blob');
+                    // FIX: Add specific content-type validation here where the data is consumed.
+                    if (audioBlob.type !== 'audio/webm' && audioBlob.type !== 'video/webm') {
+                        throw new Error(`Expected an audio file but received type: ${audioBlob.type}`);
+                    }
                     const audioUrl = URL.createObjectURL(audioBlob);
                     const audioPlayer = document.getElementById(`audio-player-${clipId}`);
                     if (audioPlayer) {
@@ -878,7 +877,6 @@
             async refreshData() { try { const data = await ApiController.apiCall('/all-data'); if (data) { AppState.localData = { ...data }; } UI.renderFolders(); if(AppState.currentFolderId) UI.renderFolderContents(AppState.currentFolderId); } catch (error) { console.error("Failed to refresh data:", error); UI.showToast("Could not update data from server.", true); } }, 
             async uploadBook(file) {
                 if (!file || !AppState.currentFolderId) return;
-                // FIX: Add client-side validation for file type before uploading.
                 if (file.type !== "application/pdf") {
                     UI.showToast("Invalid file type. Please upload a PDF.", true);
                     document.getElementById('book-upload-input').value = ''; // Reset file input
@@ -978,7 +976,8 @@
                         this.setLayout('book-mode');
                         const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                         if (doc) {
-                            await PDFViewer.loadDocument(`/api/documents/${doc.id}`);
+                            // FIX: Remove the `/api` prefix. The apiCall function adds it.
+                            await PDFViewer.loadDocument(`/documents/${doc.id}`);
                         }
                     } else {
                         this.setLayout(localStorage.getItem('noteEditorLayout') || 'split-h');
@@ -1046,8 +1045,6 @@
                 });
 
                 if (isNewNote) {
-                    // FIX: The client was expecting `response.id` or `response.note.id`, but the server
-                    // sends back a JSON object with the key `noteId`. This change correctly reads the ID.
                     AppState.currentNoteId = response.noteId;
                     if (!AppState.currentNoteId) {
                         console.error("Failed to get new note ID from save response:", response);
