@@ -198,19 +198,6 @@
                                 <p>4. Copy the key (it starts with `sk-...`) and paste it here.</p>
                             </div>
                         </div>
-                        <div>
-                             <div class="flex justify-between items-center">
-                                <label for="huggingface-api-key-input" class="block text-sm font-medium text-slate-300">Hugging Face API Key</label>
-                                <button type="button" class="api-info-toggle text-cyan-400 hover:text-cyan-300 text-xs" data-target="huggingface-info"><i class="fas fa-info-circle mr-1"></i>How to get</button>
-                            </div>
-                            <input type="password" id="huggingface-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white" placeholder="Enter Hugging Face key...">
-                            <div id="huggingface-info" class="hidden mt-2 p-3 bg-slate-900 rounded-lg text-xs text-slate-300 space-y-1 border border-slate-700">
-                                <p>1. Go to your <a href="https://huggingface.co/settings/tokens" target="_blank" class="underline">Hugging Face Tokens</a> page.</p>
-                                <p>2. Click <strong>"New token"</strong>.</p>
-                                <p>3. Set the role to <strong>"read"</strong> and generate the token.</p>
-                                <p>4. Copy the key (it starts with `hf_...`) and paste it here.</p>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="border-t border-slate-600 pt-6">
@@ -384,7 +371,6 @@
                             const errorText = await response.text();
                             throw new Error(`Failed to fetch file. Server response: ${errorText}`);
                         }
-                        // FIX: Remove generic content-type check. The calling function will be responsible for validation.
                         return response.blob();
                     }
                     if (!response.ok) { 
@@ -491,7 +477,6 @@
                 document.getElementById('header-avatar').src = avatar; 
                 document.getElementById('google-api-key-input').value = profile.googleApiKey || ''; 
                 document.getElementById('openai-api-key-input').value = profile.openaiApiKey || ''; 
-                document.getElementById('huggingface-api-key-input').value = profile.huggingfaceApiKey || ''; 
                 document.getElementById('app-version-display').textContent = APP_VERSION; 
                 const adminPanel = document.getElementById('admin-panel'); 
                 if (profile.isAdmin) { 
@@ -533,7 +518,6 @@
                     const { pdfjsLib } = globalThis;
                     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
                     const pdfBlob = await ApiController.apiCall(url, 'GET', null, 'blob');
-                    // FIX: Add specific content-type validation here where the data is consumed.
                     if (pdfBlob.type !== 'application/pdf') {
                         throw new Error(`Expected a PDF file but received type: ${pdfBlob.type}`);
                     }
@@ -758,7 +742,6 @@
             async loadClip(clipId) {
                 try {
                     const audioBlob = await ApiController.apiCall(`/audio-clips/${clipId}`, 'GET', null, 'blob');
-                    // FIX: Add specific content-type validation here where the data is consumed.
                     if (audioBlob.type !== 'audio/webm' && audioBlob.type !== 'video/webm') {
                         throw new Error(`Expected an audio file but received type: ${audioBlob.type}`);
                     }
@@ -976,7 +959,6 @@
                         this.setLayout('book-mode');
                         const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                         if (doc) {
-                            // FIX: Remove the `/api` prefix. The apiCall function adds it.
                             await PDFViewer.loadDocument(`/documents/${doc.id}`);
                         }
                     } else {
@@ -1001,7 +983,7 @@
                         btn.classList.toggle('cursor-not-allowed', !enabled);
                     }
                 });
-                const hasKeys = AppState.localData.profile && (AppState.localData.profile.googleApiKey || AppState.localData.profile.openaiApiKey || AppState.localData.profile.huggingfaceApiKey);
+                const hasKeys = AppState.localData.profile && (AppState.localData.profile.googleApiKey || AppState.localData.profile.openaiApiKey);
                 document.getElementById('ai-provider-selector').disabled = !enabled || !hasKeys;
                 document.getElementById('ai-model-selector').disabled = !enabled || !document.getElementById('ai-provider-selector').value;
                 if (!hasKeys) {
@@ -1058,7 +1040,7 @@
                     UI.showView('folderContents');
                 }
             },
-            updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; if(p.huggingfaceApiKey) sel.innerHTML+='<option value="huggingface">Hugging Face</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey||p.huggingfaceApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;},
+            updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;},
             async updateModelSelector() {
                 const provider = document.getElementById('ai-provider-selector').value;
                 const modelSelector = document.getElementById('ai-model-selector');
@@ -1108,7 +1090,6 @@
                     avatarUrl:document.getElementById('avatar-preview').src,
                     googleApiKey:document.getElementById('google-api-key-input').value.trim(),
                     openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),
-                    huggingfaceApiKey:document.getElementById('huggingface-api-key-input').value.trim(),
                     audioQuality: document.getElementById('audio-quality-select').value
                 }; 
                 AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); 
