@@ -909,67 +909,50 @@
                 document.getElementById('ai-provider-selector').onchange = () => this.updateModelSelector();
             }, 
             async open(noteId = null, documentId = null) {
-                // 1. Reset the editor state and UI immediately
-                this.setEditorControlsEnabled(false); // Disable controls first
+                this.setEditorControlsEnabled(false);
                 UI.showView('noteEditor');
-                AppState.currentNoteId = null;
-                AppState.currentDocumentId = null;
-                document.getElementById('note-editor-id').value = '';
-                document.getElementById('note-editor-title').value = '';
-                document.getElementById('note-editor-content').innerHTML = '';
-                document.getElementById('note-editor-cards-list').innerHTML = '';
-                document.getElementById('audio-clips-container').innerHTML = '';
+                
+                // Reset UI state
+                ['note-editor-id', 'note-editor-title', 'pdf-page-num', 'pdf-page-count'].forEach(id => document.getElementById(id).value = '');
+                ['note-editor-content', 'note-editor-cards-list', 'audio-clips-container'].forEach(id => document.getElementById(id).innerHTML = '');
                 PDFViewer.pdfDoc = null;
-                document.getElementById('pdf-page-num').textContent = '';
-                document.getElementById('pdf-page-count').textContent = '';
                 PDFViewer.updateButtonState();
 
                 try {
                     let noteToLoadId = noteId;
+                    AppState.currentDocumentId = documentId;
 
-                    // If opening via a document, check if a note for it already exists.
                     if (documentId && !noteId) {
                         const existingNote = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.documentId === documentId);
                         if (existingNote) {
                             noteToLoadId = existingNote.id;
                         }
                     }
-                    
-                    AppState.currentDocumentId = documentId;
 
-                    // If we have a note ID, load it. Otherwise, create a new one.
                     if (noteToLoadId) {
                         AppState.currentNoteId = noteToLoadId;
-                        const note = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === noteToLoadId);
-                        if (note) {
-                            document.getElementById('note-editor-id').value = note.id;
-                            document.getElementById('note-editor-title').value = note.title || '';
-                            document.getElementById('note-editor-content').innerHTML = note.content || '';
-                            const cards = (AppState.localData.cardsByFolder[AppState.currentFolderId] || []).filter(c => c.noteId === note.id);
-                            document.getElementById('note-editor-cards-list').innerHTML = cards.map(c => this.createCardInputHTML(c, true)).join('');
-                            const audioClips = AppState.localData.audioClipsByNote[note.id] || [];
-                            document.getElementById('audio-clips-container').innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
-                            audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
-                        }
                     } else {
-                        // Create a brand new note, associating the documentId if it exists
                         const doc = documentId ? AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId) : null;
-                        await this.save(true, doc ? doc.originalName : 'Untitled Note');
-                        // After saving, the new note's data is in AppState, so we just need to populate the editor
-                        const newNote = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId);
-                        if(newNote) {
-                             document.getElementById('note-editor-id').value = newNote.id;
-                             document.getElementById('note-editor-title').value = newNote.title;
-                        }
+                        await this.save(true, doc ? doc.originalName : 'Untitled Note', documentId); 
                     }
                     
-                    // Handle layout and PDF loading
+                    const noteToLoad = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId);
+                    if (noteToLoad) {
+                        document.getElementById('note-editor-id').value = noteToLoad.id;
+                        document.getElementById('note-editor-title').value = noteToLoad.title || '';
+                        document.getElementById('note-editor-content').innerHTML = noteToLoad.content || '';
+                        const cards = (AppState.localData.cardsByFolder[AppState.currentFolderId] || []).filter(c => c.noteId === noteToLoad.id);
+                        document.getElementById('note-editor-cards-list').innerHTML = cards.map(c => this.createCardInputHTML(c, true)).join('');
+                        const audioClips = AppState.localData.audioClipsByNote[noteToLoad.id] || [];
+                        document.getElementById('audio-clips-container').innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
+                        audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
+                    }
+
                     if (documentId) {
                         this.setLayout('book-mode');
                         const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
                         if (doc) {
-                            const documentUrl = `/api/documents/${doc.id}`;
-                            await PDFViewer.loadDocument(documentUrl);
+                            await PDFViewer.loadDocument(`/api/documents/${doc.id}`);
                         }
                     } else {
                         this.setLayout(localStorage.getItem('noteEditorLayout') || 'split-h');
@@ -993,8 +976,12 @@
                         btn.classList.toggle('cursor-not-allowed', !enabled);
                     }
                 });
-                document.getElementById('ai-provider-selector').disabled = !enabled || !Object.keys(AppState.localData.profile).some(k => k.endsWith('ApiKey') && AppState.localData.profile[k]);
+                const hasKeys = AppState.localData.profile && (AppState.localData.profile.googleApiKey || AppState.localData.profile.openaiApiKey || AppState.localData.profile.huggingfaceApiKey);
+                document.getElementById('ai-provider-selector').disabled = !enabled || !hasKeys;
                 document.getElementById('ai-model-selector').disabled = !enabled || !document.getElementById('ai-provider-selector').value;
+                if (!hasKeys) {
+                    document.getElementById('ai-provider-selector').innerHTML = '<option value="">Add API Key in Settings</option>';
+                }
             },
             cycleLayout(){
                 const g=document.getElementById('note-editor-grid'); 
