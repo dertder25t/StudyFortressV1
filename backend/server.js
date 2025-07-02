@@ -109,7 +109,7 @@ async function initializeDatabase() {
     await db.exec('PRAGMA foreign_keys = ON;');
     // FIX: Split table creation into separate statements for better error isolation.
     await db.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);`);
-    await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, documentId TEXT, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE SET NULL);`);
@@ -268,8 +268,8 @@ apiRouter.get('/all-data', authenticateToken, async (req, res) => {
 });
 apiRouter.post('/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, audioQuality } = req.body;
-    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, huggingfaceApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, huggingfaceApiKey, audioQuality, req.user.id]);
+    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality } = req.body;
+    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality, req.user.id]);
     const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
     res.json(updatedProfile);
   } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
@@ -605,8 +605,7 @@ apiRouter.get('/version', (req, res) => {
 apiRouter.get('/ai-models', authenticateToken, (req, res) => {
     res.json({
         google: ['gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'],
-        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-        huggingface: [] // Placeholder for future expansion
+        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
     });
 });
 apiRouter.get('/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
@@ -667,8 +666,10 @@ async function startServer() {
         await initializeDatabase();
         console.log('Database initialized successfully.');
 
-        http.createServer(app).listen(PORT, () => {
+        // FIX: Bind the server to 0.0.0.0 to make it accessible on the local network.
+        http.createServer(app).listen(PORT, '0.0.0.0', () => {
             console.log(`✅ Server is up and running at http://localhost:${PORT}`);
+            console.log(`   Accessible on your local network.`);
         }).on('error', (err) => {
             console.error('❌ SERVER STARTUP FAILED:', err);
             process.exit(1);
@@ -679,3 +680,5 @@ async function startServer() {
         process.exit(1);
     }
 }
+
+startServer();
