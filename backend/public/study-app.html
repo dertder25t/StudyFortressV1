@@ -1046,9 +1046,9 @@
                 });
 
                 if (isNewNote) {
-                    // FIX: The API response for a new note might be the note object itself,
-                    // not nested under a 'note' property. This handles both cases and adds error checking.
-                    AppState.currentNoteId = response.id || response.note?.id;
+                    // FIX: The client was expecting `response.id` or `response.note.id`, but the server
+                    // sends back a JSON object with the key `noteId`. This change correctly reads the ID.
+                    AppState.currentNoteId = response.noteId;
                     if (!AppState.currentNoteId) {
                         console.error("Failed to get new note ID from save response:", response);
                         UI.showToast("Error: Could not create new note.", true);
