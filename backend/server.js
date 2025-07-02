@@ -7,16 +7,29 @@ const { open } = require('sqlite');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto =require('crypto');
+const crypto = require('crypto');
 const multer = require('multer');
 const { exec } = require('child_process');
-const { HfInference } = require('@huggingface/inference');
 const { OpenAI } = require('openai');
+// FIX: Import node-fetch for compatibility with Node.js versions < 18
+// You may need to run: npm install node-fetch@2
+const fetch = require('node-fetch');
+// FIX: Import express-rate-limit for security
+// You may need to run: npm install express-rate-limit
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
+
+// FIX: Add a security warning for the default JWT secret
+if (JWT_SECRET === 'your-super-secret-key-that-you-should-change') {
+    console.warn('****************************************************************');
+    console.warn('** WARNING: Using default JWT_SECRET. This is NOT secure!     **');
+    console.warn('** Please set a strong secret in your environment variables.  **');
+    console.warn('****************************************************************');
+}
 
 const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
 const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
@@ -35,7 +48,6 @@ const storage = multer.diskStorage({
     }
 });
 
-// FIX: Create separate multer instances with file filters for validation
 const documentUploader = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
@@ -50,7 +62,6 @@ const documentUploader = multer({
 const audioUploader = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        // MediaRecorder on some browsers might save as video/webm
         if (file.mimetype === 'audio/webm' || file.mimetype === 'video/webm') {
             cb(null, true);
         } else {
@@ -64,6 +75,17 @@ const audioUploader = multer({
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 
+// FIX: Apply rate limiting to all API routes to prevent brute-force attacks
+const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 requests per window
+	standardHeaders: true,
+	legacyHeaders: false, 
+    message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+app.use('/api', apiLimiter);
+
+
 // --- DATABASE SETUP & HELPERS ---
 let db;
 async function initializeDatabase() {
@@ -71,17 +93,17 @@ async function initializeDatabase() {
     db = await open({ filename: DB_PATH, driver: sqlite3.Database });
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);
-      CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, documentId TEXT, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE SET NULL);
-      CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS audio_clips (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, noteId TEXT NOT NULL, serverPath TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
-    `);
+    // FIX: Split table creation into separate statements for better error isolation.
+    await db.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, huggingfaceApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, documentId TEXT, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE SET NULL);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, noteId TEXT, question TEXT NOT NULL, answer TEXT NOT NULL, source TEXT NOT NULL, ease REAL NOT NULL, interval INTEGER NOT NULL, dueDate TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, originalName TEXT NOT NULL, serverPath TEXT NOT NULL, fileType TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS audio_clips (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, noteId TEXT NOT NULL, serverPath TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE);`);
+    await db.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);`);
+    
     await db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('maxUploadSize', '10')");
     await db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('enableAudioCompression', 'true')");
   } catch (error) {
@@ -92,9 +114,12 @@ async function initializeDatabase() {
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401);
+    if (token == null) return res.sendStatus(401); // No token, unauthorized
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) { console.error("JWT Verification Error:", err); return res.sendStatus(403); }
+        if (err) { 
+            console.error("JWT Verification Error:", err.message); 
+            return res.status(403).json({ error: "Forbidden: Invalid or expired token." }); // Invalid token
+        }
         req.user = user;
         next();
     });
@@ -189,7 +214,11 @@ apiRouter.post('/register', async (req, res) => {
         res.status(201).json({ message: 'User created successfully.' });
     } catch (err) {
         console.error("Registration Error:", err);
-        res.status(err.code === 'SQLITE_CONSTRAINT' ? 409 : 500).json({ error: "Email already exists or server error." });
+        // FIX: More specific error handling for registration
+        if (err.code === 'SQLITE_CONSTRAINT') {
+            return res.status(409).json({ error: "An account with this email already exists." });
+        }
+        res.status(500).json({ error: "An unexpected error occurred during registration." });
     }
 });
 apiRouter.post('/login', async (req, res) => {
@@ -286,6 +315,9 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
     try {
         const { folderId, noteId, title, content, cards, documentId } = req.body;
         const userId = req.user.id;
+        if (!folderId) {
+            return res.status(400).json({ error: "A folderId is required to save a note." });
+        }
         const finalNoteId = noteId || `note_${crypto.randomUUID()}`;
         await db.run('BEGIN TRANSACTION');
         if(noteId) { 
@@ -357,7 +389,6 @@ const fileSizeCheck = async (req, res, next) => {
     next();
 };
 
-// FIX: Use the specific document uploader middleware
 apiRouter.post('/folders/:folderId/upload', authenticateToken, (req, res, next) => {
     documentUploader(req, res, (err) => {
         if (err) {
@@ -399,17 +430,28 @@ apiRouter.delete('/documents/:documentId', authenticateToken, async (req, res) =
         const { documentId } = req.params;
         const doc = await db.get('SELECT * FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
         if (!doc) { return res.status(404).json({ error: "Document not found or you don't have permission." }); }
+        
         const filePath = path.join(UPLOAD_DIR, doc.serverPath);
+        
+        await db.run('BEGIN TRANSACTION');
+        await db.run('UPDATE notes SET documentId = NULL WHERE documentId = ? AND userId = ?', [documentId, req.user.id]);
+        await db.run('DELETE FROM documents WHERE id = ? AND userId = ?', [documentId, req.user.id]);
+        await db.run('COMMIT');
+        
         if (fs.existsSync(filePath)) {
             fs.unlink(filePath, (err) => { if (err) console.error("Error deleting file from disk:", err); });
         }
-        await db.run('DELETE FROM documents WHERE id = ?', documentId);
+        
         res.sendStatus(204);
-    } catch (err) { console.error("Error deleting document:", err); res.status(500).json({ error: "Failed to delete document." }); }
+    } catch (err) {
+        await db.run('ROLLBACK');
+        console.error("Error deleting document:", err);
+        res.status(500).json({ error: "Failed to delete document." });
+    }
 });
 
+
 // AI & AUDIO
-// FIX: Use the specific audio uploader middleware
 apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, (req, res, next) => {
     audioUploader(req, res, (err) => {
         if (err) {
@@ -609,6 +651,7 @@ const sslOptions = {
     cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
 };
 
+// FIX: Ensure the database is initialized before the server starts listening.
 async function startServer() {
     await initializeDatabase();
     https.createServer(sslOptions, app).listen(PORT, () => {
