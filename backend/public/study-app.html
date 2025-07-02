@@ -388,11 +388,11 @@
                         // FIX: Check the content type before treating the response as a PDF.
                         // This prevents trying to parse an HTML error page as a PDF.
                         const contentType = response.headers.get("Content-Type");
-                        if (!contentType || !contentType.includes("application/pdf")) {
-                            console.error("PDF Load Error: Expected a PDF file but received content type:", contentType);
+                        if (!contentType || (!contentType.includes("application/pdf") && !contentType.includes("video/webm") && !contentType.includes("audio/webm"))) {
+                            console.error("File Load Error: Expected a specific file type but received:", contentType);
                             const errorBody = await response.text(); // Read the body to see what was actually sent
                             console.error("Received content:", errorBody);
-                            throw new Error(`Expected a PDF file but received type: ${contentType}. The server may have returned an error page or login screen.`);
+                            throw new Error(`Expected a file but received type: ${contentType}. The server may have returned an error page or login screen.`);
                         }
                         return response.blob();
                     }
