@@ -1,5 +1,6 @@
 const express = require('express');
-const https = require('https');
+// FIX: Import http instead of https for simpler local development
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
@@ -12,10 +13,8 @@ const multer = require('multer');
 const { exec } = require('child_process');
 const { OpenAI } = require('openai');
 // FIX: Import node-fetch for compatibility with Node.js versions < 18
-// You may need to run: npm install node-fetch@2
 const fetch = require('node-fetch');
 // FIX: Import express-rate-limit for security
-// You may need to run: npm install express-rate-limit
 const rateLimit = require('express-rate-limit');
 
 const app = express();
@@ -646,16 +645,12 @@ app.get('*', (req, res) => {
 });
 
 // --- SERVER STARTUP ---
-const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, 'key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
-};
-
-// FIX: Ensure the database is initialized before the server starts listening.
+// FIX: Switch to a standard http server to avoid SSL certificate issues in local development.
+// The https setup can be re-enabled for production with valid certificates.
 async function startServer() {
     await initializeDatabase();
-    https.createServer(sslOptions, app).listen(PORT, () => {
-        console.log(`Server running securely at https://localhost:${PORT}`);
+    http.createServer(app).listen(PORT, () => {
+        console.log(`Server running at http://localhost:${PORT}`);
     });
 }
 
