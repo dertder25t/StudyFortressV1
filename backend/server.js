@@ -1,5 +1,4 @@
 const express = require('express');
-// FIX: Corrected to require 'https' for a secure server.
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
@@ -99,8 +98,8 @@ async function initializeDatabase() {
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
     await db.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);`);
-    // FIX: Removed huggingfaceApiKey from the profile table schema.
-    await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
+    // FIX: Added groqApiKey to the profile table schema.
+    await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, groqApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, folderId TEXT NOT NULL, documentId TEXT, title TEXT NOT NULL, content TEXT, cardCount INTEGER DEFAULT 0, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE CASCADE, FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE SET NULL);`);
@@ -174,6 +173,21 @@ async function generateWithOpenAI(text, apiKey, model, promptFunction) {
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({ model: model, response_format: { type: "json_object" }, messages: [{ role: 'user', content: promptFunction(text) }] });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
+    return JSON.parse(cleanJsonString(response.choices[0].message.content));
+}
+// FIX: Added a new function to handle Groq API calls.
+async function generateWithGroq(text, apiKey, model, promptFunction) {
+    const groq = new OpenAI({
+        baseURL: 'https://api.groq.com/openai/v1',
+        apiKey: apiKey
+    });
+    const response = await groq.chat.completions.create({
+        model: model,
+        messages: [{ role: 'user', content: promptFunction(text) }],
+        // Groq API requires a JSON response format to be specified this way
+        response_format: { type: "json_object" },
+    });
+    if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from Groq");
     return JSON.parse(cleanJsonString(response.choices[0].message.content));
 }
 async function transcribeWithOpenAI(filePath, apiKey) {
@@ -258,9 +272,8 @@ apiRouter.get('/all-data', authenticateToken, async (req, res) => {
 });
 apiRouter.post('/profile', authenticateToken, async (req, res) => {
   try {
-    // FIX: Removed huggingfaceApiKey from destructuring and query.
-    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality } = req.body;
-    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality, req.user.id]);
+    const { username, bio, avatarUrl, googleApiKey, openaiApiKey, groqApiKey, audioQuality } = req.body;
+    await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, groqApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, groqApiKey, audioQuality, req.user.id]);
     const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
     res.json(updatedProfile);
   } catch (err) { console.error("Error updating profile:", err); res.status(500).json({ error: "Failed to update profile." }); }
@@ -539,13 +552,16 @@ apiRouter.post('/audio-clips/:clipId/transcribe', authenticateToken, async (req,
 apiRouter.post('/generate-ai-cards', authenticateToken, async (req, res) => {
     try {
         const { text, provider, model } = req.body;
-        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey, groqApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = { google: profile.googleApiKey, openai: profile.openaiApiKey, groq: profile.groqApiKey }[provider];
         if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
         
-        const result = provider === 'google' 
-            ? await generateWithGoogle(text, apiKey, model, flashcardPrompt)
-            : await generateWithOpenAI(text, apiKey, model, flashcardPrompt);
+        let result;
+        if (provider === 'google') result = await generateWithGoogle(text, apiKey, model, flashcardPrompt);
+        else if (provider === 'openai') result = await generateWithOpenAI(text, apiKey, model, flashcardPrompt);
+        else if (provider === 'groq') result = await generateWithGroq(text, apiKey, model, flashcardPrompt);
+        else return res.status(400).json({ error: 'Invalid AI provider specified.' });
+
         res.json(result);
     } catch (err) {
         console.error("Flashcard Generation Error:", err);
@@ -555,13 +571,16 @@ apiRouter.post('/generate-ai-cards', authenticateToken, async (req, res) => {
 apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
     try {
         const { text, provider, model } = req.body;
-        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey, groqApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = { google: profile.googleApiKey, openai: profile.openaiApiKey, groq: profile.groqApiKey }[provider];
         if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
         
-        const result = provider === 'google' 
-            ? await generateWithGoogle(text, apiKey, model, subpointsPrompt)
-            : await generateWithOpenAI(text, apiKey, model, subpointsPrompt);
+        let result;
+        if (provider === 'google') result = await generateWithGoogle(text, apiKey, model, subpointsPrompt);
+        else if (provider === 'openai') result = await generateWithOpenAI(text, apiKey, model, subpointsPrompt);
+        else if (provider === 'groq') result = await generateWithGroq(text, apiKey, model, subpointsPrompt);
+        else return res.status(400).json({ error: 'Invalid AI provider specified.' });
+
         res.json(result);
     } catch (err) {
         console.error("Subpoint Generation Error:", err);
@@ -571,13 +590,16 @@ apiRouter.post('/generate-subpoints', authenticateToken, async (req, res) => {
 apiRouter.post('/highlight-text', authenticateToken, async (req, res) => {
     try {
         const { text, provider, model } = req.body;
-        const profile = await db.get('SELECT googleApiKey, openaiApiKey FROM profile WHERE userId = ?', req.user.id);
-        const apiKey = provider === 'google' ? profile.googleApiKey : profile.openaiApiKey;
+        const profile = await db.get('SELECT googleApiKey, openaiApiKey, groqApiKey FROM profile WHERE userId = ?', req.user.id);
+        const apiKey = { google: profile.googleApiKey, openai: profile.openaiApiKey, groq: profile.groqApiKey }[provider];
         if (!apiKey) return res.status(400).json({ error: `${provider} API key is required.` });
         
-        const result = provider === 'google'
-            ? await generateWithGoogle(text, apiKey, model, highlightPrompt)
-            : await generateWithOpenAI(text, apiKey, model, highlightPrompt);
+        let result;
+        if (provider === 'google') result = await generateWithGoogle(text, apiKey, model, highlightPrompt);
+        else if (provider === 'openai') result = await generateWithOpenAI(text, apiKey, model, highlightPrompt);
+        else if (provider === 'groq') result = await generateWithGroq(text, apiKey, model, highlightPrompt);
+        else return res.status(400).json({ error: 'Invalid AI provider specified.' });
+
         res.json(result);
     } catch (err) {
         console.error("Highlighting Error:", err);
@@ -596,7 +618,9 @@ apiRouter.get('/version', (req, res) => {
 apiRouter.get('/ai-models', authenticateToken, (req, res) => {
     res.json({
         google: ['gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'],
-        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
+        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+        // FIX: Added supported Groq models.
+        groq: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
     });
 });
 apiRouter.get('/admin/settings', authenticateToken, checkAdmin, async (req, res) => {
