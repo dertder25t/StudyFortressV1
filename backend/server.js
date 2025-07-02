@@ -12,16 +12,38 @@ const crypto = require('crypto');
 const multer = require('multer');
 const { exec } = require('child_process');
 const { OpenAI } = require('openai');
-// FIX: Import node-fetch for compatibility with Node.js versions < 18
+// FIX: Import node-fetch for compatibility with Node.js versions < 18.
+// Ensure you have run: npm install node-fetch@2
 const fetch = require('node-fetch');
-// FIX: Import express-rate-limit for security
+// FIX: Import express-rate-limit for security.
+// Ensure you have run: npm install express-rate-limit
 const rateLimit = require('express-rate-limit');
+
+// FIX: Add a fallback for crypto.randomUUID() for older Node.js versions.
+const uuid = () => {
+    if (crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // A simple, non-cryptographically secure UUID fallback.
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
 
+// FIX: Add a security warning for the default JWT secret
+if (JWT_SECRET === 'your-super-secret-key-that-you-should-change') {
+    console.warn('****************************************************************');
+    console.warn('** WARNING: Using default JWT_SECRET. This is NOT secure!     **');
+    console.warn('** Please set a strong secret in your environment variables.  **');
+    console.warn('****************************************************************');
+}
 
 const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
 const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
@@ -35,7 +57,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => {
-        const uniqueSuffix = crypto.randomUUID();
+        const uniqueSuffix = uuid();
         cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
     }
 });
@@ -269,7 +291,7 @@ apiRouter.post('/folders', authenticateToken, async (req, res) => {
             await db.run('UPDATE folders SET name=?, description=?, color=? WHERE id=? AND userId=?', [name, description, color, id, req.user.id]);
             res.json({ id, name, description, color });
         } else {
-            const newId = `folder_${crypto.randomUUID()}`;
+            const newId = `folder_${uuid()}`;
             await db.run('INSERT INTO folders (id, userId, name, description, color, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [newId, req.user.id, name, description, color, new Date().toISOString()]);
             res.status(201).json({ id: newId, name, description, color });
         }
@@ -310,7 +332,7 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
         if (!folderId) {
             return res.status(400).json({ error: "A folderId is required to save a note." });
         }
-        const finalNoteId = noteId || `note_${crypto.randomUUID()}`;
+        const finalNoteId = noteId || `note_${uuid()}`;
         await db.run('BEGIN TRANSACTION');
         if(noteId) { 
             await db.run('UPDATE notes SET title=?, content=?, cardCount=?, documentId=? WHERE id=? AND userId=?', [title, content, cards.length, documentId, noteId, userId]); 
@@ -321,7 +343,7 @@ apiRouter.post('/notes', authenticateToken, async (req, res) => {
         if (cards && cards.length > 0) {
             const stmt = await db.prepare('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
             for (const card of cards) {
-                await stmt.run([`card_${crypto.randomUUID()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.ease, card.interval, card.dueDate, card.createdAt]);
+                await stmt.run([`card_${uuid()}`, userId, folderId, finalNoteId, card.question, card.answer, card.source, card.ease, card.interval, card.dueDate, card.createdAt]);
             }
             await stmt.finalize();
         }
@@ -347,7 +369,7 @@ apiRouter.post('/manual-cards', authenticateToken, async (req, res) => {
         await db.run('BEGIN TRANSACTION');
         const stmt = await db.prepare('INSERT INTO cards (id,userId,folderId,noteId,question,answer,source,ease,interval,dueDate,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         for (const card of cards) {
-            await stmt.run([`card_${crypto.randomUUID()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.ease, card.interval, card.dueDate, card.createdAt]);
+            await stmt.run([`card_${uuid()}`, req.user.id, folderId, null, card.question, card.answer, 'manual', card.ease, card.interval, card.dueDate, card.createdAt]);
         }
         await stmt.finalize();
         await db.run('COMMIT');
@@ -394,7 +416,7 @@ apiRouter.post('/folders/:folderId/upload', authenticateToken, (req, res, next) 
         const { file } = req;
         const userId = req.user.id;
         if (!file) { return res.status(400).json({ error: 'No file uploaded.' }); }
-        const docId = `doc_${crypto.randomUUID()}`;
+        const docId = `doc_${uuid()}`;
         await db.run('INSERT INTO documents (id, userId, folderId, originalName, serverPath, fileType, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [docId, userId, folderId, file.originalname, file.filename, file.mimetype, new Date().toISOString()]);
         const newDocument = await db.get('SELECT * FROM documents WHERE id = ?', docId)
         res.status(201).json(newDocument);
@@ -456,7 +478,7 @@ apiRouter.post('/notes/:noteId/upload-audio', authenticateToken, (req, res, next
         const { noteId } = req.params;
         const { file } = req;
         if (!file) return res.status(400).json({ error: 'No audio file uploaded.' });
-        const clipId = `audio_${crypto.randomUUID()}`;
+        const clipId = `audio_${uuid()}`;
         await db.run('INSERT INTO audio_clips (id, userId, noteId, serverPath, createdAt) VALUES (?, ?, ?, ?, ?)', 
             [clipId, req.user.id, noteId, file.filename, new Date().toISOString()]);
         const newClip = await db.get('SELECT * FROM audio_clips WHERE id = ?', clipId);
@@ -638,13 +660,22 @@ app.get('*', (req, res) => {
 });
 
 // --- SERVER STARTUP ---
-// FIX: Switch to a standard http server to avoid SSL certificate issues in local development.
-// The https setup can be re-enabled for production with valid certificates.
+// FIX: Add a robust startup sequence with clear logging and error handling.
 async function startServer() {
-    await initializeDatabase();
-    http.createServer(app).listen(PORT, () => {
-        console.log(`Server running at http://localhost:${PORT}`);
-    });
-}
+    console.log('Attempting to start the server...');
+    try {
+        await initializeDatabase();
+        console.log('Database initialized successfully.');
 
-startServer();
+        http.createServer(app).listen(PORT, () => {
+            console.log(`✅ Server is up and running at http://localhost:${PORT}`);
+        }).on('error', (err) => {
+            console.error('❌ SERVER STARTUP FAILED:', err);
+            process.exit(1);
+        });
+
+    } catch (error) {
+        console.error('❌ An error occurred during server startup:', error);
+        process.exit(1);
+    }
+}
