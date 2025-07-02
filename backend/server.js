@@ -1,6 +1,6 @@
 const express = require('express');
-// FIX: Revert to https, as it's required for microphone access in the browser.
-const https = require('http');
+// FIX: Corrected to require 'https' for a secure server.
+const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
@@ -12,32 +12,24 @@ const crypto = require('crypto');
 const multer = require('multer');
 const { exec } = require('child_process');
 const { OpenAI } = require('openai');
-// FIX: Import node-fetch for compatibility with Node.js versions < 18.
-// Ensure you have run: npm install node-fetch@2
 const fetch = require('node-fetch');
-// FIX: Import express-rate-limit for security.
-// Ensure you have run: npm install express-rate-limit
 const rateLimit = require('express-rate-limit');
 
-// FIX: Add a fallback for crypto.randomUUID() for older Node.js versions.
 const uuid = () => {
     if (crypto.randomUUID) {
         return crypto.randomUUID();
     }
-    // A simple, non-cryptographically secure UUID fallback.
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
 };
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
 
-// FIX: Add a security warning for the default JWT secret
 if (JWT_SECRET === 'your-super-secret-key-that-you-should-change') {
     console.warn('****************************************************************');
     console.warn('** WARNING: Using default JWT_SECRET. This is NOT secure!     **');
@@ -89,7 +81,6 @@ const audioUploader = multer({
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 
-// FIX: Apply rate limiting to all API routes to prevent brute-force attacks
 const apiLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	max: 100, // Limit each IP to 100 requests per window
@@ -107,8 +98,8 @@ async function initializeDatabase() {
     db = await open({ filename: DB_PATH, driver: sqlite3.Database });
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
-    // FIX: Split table creation into separate statements for better error isolation.
     await db.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);`);
+    // FIX: Removed huggingfaceApiKey from the profile table schema.
     await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
@@ -128,11 +119,11 @@ async function initializeDatabase() {
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401); // No token, unauthorized
+    if (token == null) return res.sendStatus(401);
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) { 
             console.error("JWT Verification Error:", err.message); 
-            return res.status(403).json({ error: "Forbidden: Invalid or expired token." }); // Invalid token
+            return res.status(403).json({ error: "Forbidden: Invalid or expired token." });
         }
         req.user = user;
         next();
@@ -228,7 +219,6 @@ apiRouter.post('/register', async (req, res) => {
         res.status(201).json({ message: 'User created successfully.' });
     } catch (err) {
         console.error("Registration Error:", err);
-        // FIX: More specific error handling for registration
         if (err.code === 'SQLITE_CONSTRAINT') {
             return res.status(409).json({ error: "An account with this email already exists." });
         }
@@ -268,6 +258,7 @@ apiRouter.get('/all-data', authenticateToken, async (req, res) => {
 });
 apiRouter.post('/profile', authenticateToken, async (req, res) => {
   try {
+    // FIX: Removed huggingfaceApiKey from destructuring and query.
     const { username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality } = req.body;
     await db.run('UPDATE profile SET username=?, bio=?, avatarUrl=?, googleApiKey=?, openaiApiKey=?, audioQuality=? WHERE userId=?', [username, bio, avatarUrl, googleApiKey, openaiApiKey, audioQuality, req.user.id]);
     const updatedProfile = await db.get('SELECT * FROM profile WHERE userId = ?', req.user.id);
@@ -659,14 +650,12 @@ app.get('*', (req, res) => {
 });
 
 // --- SERVER STARTUP ---
-// FIX: Add a robust startup sequence with clear logging and error handling.
 async function startServer() {
     console.log('Attempting to start the server...');
     try {
         await initializeDatabase();
         console.log('Database initialized successfully.');
 
-        // FIX: Re-enable HTTPS and load the certificate files.
         const sslOptions = {
             key: fs.readFileSync(path.join(__dirname, 'key.pem')),
             cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
@@ -674,7 +663,7 @@ async function startServer() {
 
         https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
             console.log(`✅ Server is up and running at https://localhost:${PORT}`);
-            console.log(`   Accessible on your local network.`);
+            console.log(`   Accessible on your local network at https://<your-ip-address>:${PORT}`);
         }).on('error', (err) => {
             console.error('❌ SERVER STARTUP FAILED:', err);
             if (err.code === 'ENOENT') {
