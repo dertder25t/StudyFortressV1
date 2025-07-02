@@ -1020,7 +1020,7 @@
                 });
 
                 if (isNewNote) {
-                    AppState.currentNoteId = response.noteId;
+                    AppState.currentNoteId = response.note.id;
                     await FolderActions.refreshData();
                 } else {
                     await FolderActions.refreshData();
