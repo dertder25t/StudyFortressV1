@@ -198,6 +198,20 @@
                                 <p>4. Copy the key (it starts with `sk-...`) and paste it here.</p>
                             </div>
                         </div>
+                        <!-- FIX: Add input field and instructions for Groq API key -->
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label for="groq-api-key-input" class="block text-sm font-medium text-slate-300">Groq API Key</label>
+                                <button type="button" class="api-info-toggle text-cyan-400 hover:text-cyan-300 text-xs" data-target="groq-info"><i class="fas fa-info-circle mr-1"></i>How to get</button>
+                            </div>
+                            <input type="password" id="groq-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg shadow-sm sm:text-sm text-white p-2" placeholder="Enter Groq key...">
+                            <div id="groq-info" class="hidden mt-2 p-3 bg-slate-900 rounded-lg text-xs text-slate-300 space-y-1 border border-slate-700">
+                                <p>1. Go to <a href="https://console.groq.com/keys" target="_blank" class="underline">GroqCloud Keys</a>.</p>
+                                <p>2. Sign up or log in.</p>
+                                <p>3. Click <strong>"Create API Key"</strong>.</p>
+                                <p>4. Copy the key and paste it here.</p>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="border-t border-slate-600 pt-6">
@@ -477,6 +491,7 @@
                 document.getElementById('header-avatar').src = avatar; 
                 document.getElementById('google-api-key-input').value = profile.googleApiKey || ''; 
                 document.getElementById('openai-api-key-input').value = profile.openaiApiKey || ''; 
+                document.getElementById('groq-api-key-input').value = profile.groqApiKey || '';
                 document.getElementById('app-version-display').textContent = APP_VERSION; 
                 const adminPanel = document.getElementById('admin-panel'); 
                 if (profile.isAdmin) { 
@@ -916,10 +931,10 @@
                 document.getElementById('ai-provider-selector').onchange = () => this.updateModelSelector();
             }, 
             async open(noteId = null, documentId = null) {
+                this.refreshAiControls(); // FIX: Refresh AI controls every time the editor is opened.
                 this.setEditorControlsEnabled(false);
                 UI.showView('noteEditor');
                 
-                // Reset UI state
                 ['note-editor-id', 'note-editor-title', 'pdf-page-num', 'pdf-page-count'].forEach(id => document.getElementById(id).value = '');
                 ['note-editor-content', 'note-editor-cards-list', 'audio-clips-container'].forEach(id => document.getElementById(id).innerHTML = '');
                 PDFViewer.pdfDoc = null;
@@ -983,12 +998,7 @@
                         btn.classList.toggle('cursor-not-allowed', !enabled);
                     }
                 });
-                const hasKeys = AppState.localData.profile && (AppState.localData.profile.googleApiKey || AppState.localData.profile.openaiApiKey);
-                document.getElementById('ai-provider-selector').disabled = !enabled || !hasKeys;
-                document.getElementById('ai-model-selector').disabled = !enabled || !document.getElementById('ai-provider-selector').value;
-                if (!hasKeys) {
-                    document.getElementById('ai-provider-selector').innerHTML = '<option value="">Add API Key in Settings</option>';
-                }
+                this.refreshAiControls();
             },
             cycleLayout(){
                 const g=document.getElementById('note-editor-grid'); 
@@ -1040,7 +1050,34 @@
                     UI.showView('folderContents');
                 }
             },
-            updateGenerateButtonState(){const p=AppState.localData.profile; const sel=document.getElementById('ai-provider-selector'); const btn=document.getElementById('btn-generate-from-note'); sel.innerHTML='<option value="">Select Provider</option>'; if(p.googleApiKey) sel.innerHTML+='<option value="google">Google AI</option>'; if(p.openaiApiKey) sel.innerHTML+='<option value="openai">OpenAI</option>'; const hasKeys=p.googleApiKey||p.openaiApiKey; sel.disabled=!hasKeys; btn.disabled=!hasKeys; document.getElementById('btn-ai-subpoints').disabled = !hasKeys; document.getElementById('btn-ai-highlight').disabled = !hasKeys;},
+            // FIX: Refactored AI control logic into a single, robust function.
+            refreshAiControls() {
+                const profile = AppState.localData.profile || {};
+                const providerSelector = document.getElementById('ai-provider-selector');
+                const modelSelector = document.getElementById('ai-model-selector');
+                const generateBtn = document.getElementById('btn-generate-from-note');
+                const aiActionBtns = ['btn-ai-subpoints', 'btn-ai-highlight', 'btn-record-audio'];
+
+                providerSelector.innerHTML = '<option value="">Select Provider</option>';
+                if (profile.googleApiKey) providerSelector.innerHTML += '<option value="google">Google AI</option>';
+                if (profile.openaiApiKey) providerSelector.innerHTML += '<option value="openai">OpenAI</option>';
+                if (profile.groqApiKey) providerSelector.innerHTML += '<option value="groq">Groq</option>';
+
+                const hasAnyKey = profile.googleApiKey || profile.openaiApiKey || profile.groqApiKey;
+
+                providerSelector.disabled = !hasAnyKey;
+                generateBtn.disabled = !hasAnyKey;
+                aiActionBtns.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if(btn) btn.disabled = !hasAnyKey;
+                });
+
+                if (!hasAnyKey) {
+                    providerSelector.innerHTML = '<option value="">Add API Key in Settings</option>';
+                }
+                
+                this.updateModelSelector();
+            },
             async updateModelSelector() {
                 const provider = document.getElementById('ai-provider-selector').value;
                 const modelSelector = document.getElementById('ai-model-selector');
@@ -1090,6 +1127,7 @@
                     avatarUrl:document.getElementById('avatar-preview').src,
                     googleApiKey:document.getElementById('google-api-key-input').value.trim(),
                     openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),
+                    groqApiKey:document.getElementById('groq-api-key-input').value.trim(),
                     audioQuality: document.getElementById('audio-quality-select').value
                 }; 
                 AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); 
