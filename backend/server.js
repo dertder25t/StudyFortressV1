@@ -22,13 +22,6 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-you-should-change';
 const SALT_ROUNDS = 10;
 
-// FIX: Add a security warning for the default JWT secret
-if (JWT_SECRET === 'your-super-secret-key-that-you-should-change') {
-    console.warn('****************************************************************');
-    console.warn('** WARNING: Using default JWT_SECRET. This is NOT secure!     **');
-    console.warn('** Please set a strong secret in your environment variables.  **');
-    console.warn('****************************************************************');
-}
 
 const APP_DIR = process.env.APP_DIR || path.resolve(__dirname);
 const UPLOAD_DIR = path.join(APP_DIR, 'uploads');
