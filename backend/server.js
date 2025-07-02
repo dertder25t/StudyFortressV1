@@ -1,6 +1,6 @@
 const express = require('express');
-// FIX: Import http instead of https for simpler local development
-const http = require('http');
+// FIX: Revert to https, as it's required for microphone access in the browser.
+const https = require('http');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
@@ -666,12 +666,20 @@ async function startServer() {
         await initializeDatabase();
         console.log('Database initialized successfully.');
 
-        // FIX: Bind the server to 0.0.0.0 to make it accessible on the local network.
-        http.createServer(app).listen(PORT, '0.0.0.0', () => {
-            console.log(`✅ Server is up and running at http://localhost:${PORT}`);
+        // FIX: Re-enable HTTPS and load the certificate files.
+        const sslOptions = {
+            key: fs.readFileSync(path.join(__dirname, 'key.pem')),
+            cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
+        };
+
+        https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+            console.log(`✅ Server is up and running at https://localhost:${PORT}`);
             console.log(`   Accessible on your local network.`);
         }).on('error', (err) => {
             console.error('❌ SERVER STARTUP FAILED:', err);
+            if (err.code === 'ENOENT') {
+                console.error('   Could not find key.pem or cert.pem. Please generate them using the OpenSSL command.');
+            }
             process.exit(1);
         });
 
