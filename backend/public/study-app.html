@@ -118,7 +118,8 @@
                     <button id="btn-add-card-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Card</button>
                     <button id="btn-add-note-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-file-alt mr-2"></i>Add Note</button>
                     <button id="btn-upload-book" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-book-open mr-2"></i>Upload File</button>
-                    <input type="file" id="book-upload-input" class="hidden" accept="*/*">
+                    <!-- FIX: Restrict file input to only accept PDF files -->
+                    <input type="file" id="book-upload-input" class="hidden" accept="application/pdf">
                     <button id="btn-export-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-download mr-2"></i>Export</button>
                 </div>
             </div>
@@ -267,13 +268,13 @@
                  <h2 id="notes-lab-title" class="text-xl font-bold text-cyan-400">Notes Lab</h2>
                  <div class="flex items-center gap-2">
                       <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
-                           <option value="">Select Provider</option>
+                            <option value="">Select Provider</option>
                       </select>
                       <select id="ai-model-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
-                           <option value="">Select Model</option>
+                            <option value="">Select Model</option>
                       </select>
                       <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700" disabled>
-                           <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
+                            <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
                       </button>
                       <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>Save</button>
                  </div>
@@ -380,9 +381,18 @@
                     const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
                     if (response.status === 401 || response.status === 403) { AuthController.signOut(); throw new Error("Authentication failed. Please sign in again."); }
                     if (responseType === 'blob') {
-                        if (!response.ok) {
-                             const errorText = await response.text();
-                             throw new Error(`Failed to fetch file. Server response: ${errorText}`);
+                        if (!response.ok) { 
+                            const errorText = await response.text();
+                            throw new Error(`Failed to fetch file. Server response: ${errorText}`);
+                        }
+                        // FIX: Check the content type before treating the response as a PDF.
+                        // This prevents trying to parse an HTML error page as a PDF.
+                        const contentType = response.headers.get("Content-Type");
+                        if (!contentType || !contentType.includes("application/pdf")) {
+                            console.error("PDF Load Error: Expected a PDF file but received content type:", contentType);
+                            const errorBody = await response.text(); // Read the body to see what was actually sent
+                            console.error("Received content:", errorBody);
+                            throw new Error(`Expected a PDF file but received type: ${contentType}. The server may have returned an error page or login screen.`);
                         }
                         return response.blob();
                     }
@@ -866,7 +876,23 @@
                 document.getElementById('book-upload-input').onchange = e => this.uploadBook(e.target.files[0]); 
             }, 
             async refreshData() { try { const data = await ApiController.apiCall('/all-data'); if (data) { AppState.localData = { ...data }; } UI.renderFolders(); if(AppState.currentFolderId) UI.renderFolderContents(AppState.currentFolderId); } catch (error) { console.error("Failed to refresh data:", error); UI.showToast("Could not update data from server.", true); } }, 
-            async uploadBook(file) { if (!file || !AppState.currentFolderId) return; UI.showToast('Uploading file...'); const formData = new FormData(); formData.append('document', file); try { await ApiController.apiCall(`/folders/${AppState.currentFolderId}/upload`, 'POST', formData); UI.showToast('Upload successful!', false); this.refreshData(); } catch(err) { /* Error handled by apiCall */ } }, 
+            async uploadBook(file) {
+                if (!file || !AppState.currentFolderId) return;
+                // FIX: Add client-side validation for file type before uploading.
+                if (file.type !== "application/pdf") {
+                    UI.showToast("Invalid file type. Please upload a PDF.", true);
+                    document.getElementById('book-upload-input').value = ''; // Reset file input
+                    return;
+                }
+                UI.showToast('Uploading file...');
+                const formData = new FormData();
+                formData.append('document', file);
+                try {
+                    await ApiController.apiCall(`/folders/${AppState.currentFolderId}/upload`, 'POST', formData);
+                    UI.showToast('Upload successful!', false);
+                    this.refreshData();
+                } catch(err) { /* Error handled by apiCall */ }
+            }, 
             openCreateFolderModal(folderId = null) { const modal = document.getElementById('modal-create-folder'); document.getElementById('folder-id-input').value = folderId || ''; if (folderId) { modal.querySelector('h2').textContent = 'Edit Folder'; const data = AppState.localData.folders.find(f => f.id === folderId); document.getElementById('folder-name-input').value = data.name; document.getElementById('folder-description-input').value = data.description; document.getElementById('folder-color-input').value = data.color; } else { modal.querySelector('h2').textContent = 'Create Folder'; document.getElementById('folder-name-input').value = ''; document.getElementById('folder-description-input').value = ''; document.getElementById('folder-color-input').value = '#06b6d4'; } UI.toggleModal('createFolder', true); }, 
             async saveFolder() { const folderData = { id: document.getElementById('folder-id-input').value, name: document.getElementById('folder-name-input').value.trim(), description: document.getElementById('folder-description-input').value.trim(), color: document.getElementById('folder-color-input').value }; if (!folderData.name) { UI.showToast('Folder name is required.', true); return; } await ApiController.apiCall('/folders', 'POST', folderData); this.refreshData(); UI.toggleModal('createFolder', false); }, 
             filterFolders(searchTerm) { document.querySelectorAll('#folder-list > div').forEach(div => { const name = div.querySelector('h3').textContent.toLowerCase(); const desc = div.querySelector('p').textContent.toLowerCase(); div.style.display = (name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase())) ? '' : 'none'; }); }, 
