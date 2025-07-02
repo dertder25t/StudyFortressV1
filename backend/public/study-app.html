@@ -1046,7 +1046,14 @@
                 });
 
                 if (isNewNote) {
-                    AppState.currentNoteId = response.note.id;
+                    // FIX: The API response for a new note might be the note object itself,
+                    // not nested under a 'note' property. This handles both cases and adds error checking.
+                    AppState.currentNoteId = response.id || response.note?.id;
+                    if (!AppState.currentNoteId) {
+                        console.error("Failed to get new note ID from save response:", response);
+                        UI.showToast("Error: Could not create new note.", true);
+                        return;
+                    }
                     await FolderActions.refreshData();
                 } else {
                     await FolderActions.refreshData();
