@@ -1070,6 +1070,7 @@
             getAllData: () => api.request('/all-data'),
             saveProfile: (profileData) => api.request('/profile', { method: 'POST', body: JSON.stringify(profileData) }),
             saveFolder: (folderData) => api.request('/folders', { method: 'POST', body: JSON.stringify(folderData) }),
+            saveNote: (noteData) => api.request('/notes', { method: 'POST', body: JSON.stringify(noteData) }),
         };
 
         // --- DOM Element Selection ---
@@ -1107,7 +1108,6 @@
         
         let themeColors = { unlitParticle: '', unlitLine: '' };
 
-        // FIX: Moved poissonDiscSample function definition before it is called.
         function poissonDiscSample(width, height, radius, k = 30) {
             const cellSize = radius / Math.SQRT2;
             const gridWidth = Math.ceil(width / cellSize);
@@ -1483,7 +1483,6 @@
             showView(profileView); 
         }
 
-        // FIX: Moved setupCalendar function definition before it is called.
         function setupCalendar(rewards = {}) {
             const now = new Date();
             const year = now.getFullYear();
@@ -1527,8 +1526,136 @@
             nextStudyDayEl.textContent = `Streak: ${rewards.streak || 0} days`;
         }
 
-        // --- Notes Lab (Placeholder) ---
-        function setupNotesLab() { /* ... existing setupNotesLab code ... */ }
+        // --- Notes Lab ---
+        function setupNotesLab() {
+            const grid = document.getElementById('notes-lab-grid');
+            if (!grid) return;
+            grid.innerHTML = ''; // Clear previous setup
+
+            const createPane = (tabs) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'notes-lab-pane-wrapper';
+
+                const pane = document.createElement('div');
+                pane.className = 'notes-lab-pane';
+                
+                const tabBarWrapper = document.createElement('div');
+                tabBarWrapper.className = 'tab-bar-wrapper';
+
+                const tabBar = document.createElement('div');
+                tabBar.className = 'tab-bar';
+
+                const contentContainer = document.createElement('div');
+                contentContainer.className = 'tab-content-container';
+
+                tabs.forEach((tabInfo, index) => {
+                    const { tab, content } = createTab(tabInfo);
+                    if (index === 0) {
+                        tab.classList.add('active');
+                        content.classList.add('active');
+                    }
+                    tabBar.appendChild(tab);
+                    contentContainer.appendChild(content);
+                });
+                
+                const { menuBar, settingsPanel } = createAddMenuBar();
+                
+                pane.append(tabBarWrapper, contentContainer);
+                tabBarWrapper.appendChild(tabBar);
+                wrapper.append(pane, menuBar, settingsPanel);
+                
+                initPaneLogic(wrapper, { pane, tabBar, contentContainer, menuBar, settingsPanel });
+                return wrapper;
+            };
+
+            const createTab = (tabInfo) => {
+                const tabId = `tab-${Math.random().toString(36).substr(2, 9)}`;
+                
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.dataset.tabTarget = `#${tabId}`;
+                tab.dataset.tabType = tabInfo.type;
+                tab.dataset.description = tabInfo.placeholder;
+                tab.dataset.tags = tabInfo.tags.join(', ');
+                tab.style.borderLeftColor = tabInfo.color;
+                tab.innerHTML = `
+                    <i class="${tabInfo.icon}"></i> 
+                    <span>${tabInfo.title}</span>
+                    <button class="close-tab-btn"><i class="fas fa-times text-xs"></i></button>
+                `;
+                
+                const content = document.createElement('div');
+                content.id = tabId;
+                content.className = 'tab-content';
+                
+                if (tabInfo.type === 'notes') {
+                    content.classList.add('custom-scrollbar', 'overflow-y-auto');
+                    const editorId = `editor-${Math.random().toString(36).substr(2, 9)}`;
+                    content.innerHTML = `<div id="${editorId}" style="height: 100%;"></div>`;
+                    setTimeout(() => {
+                        if (document.getElementById(editorId)) {
+                            const quill = new Quill(`#${editorId}`, {
+                                theme: 'snow',
+                                modules: {
+                                    toolbar: [
+                                        [{ 'header': [1, 2, 3, false] }],
+                                        ['bold', 'italic', 'underline', 'strike'],
+                                        [{'list': 'ordered'}, {'list': 'bullet'}],
+                                        ['link', 'image'],
+                                        ['clean']
+                                    ]
+                                }
+                            });
+                            content.quill = quill; 
+                        }
+                    }, 0);
+                } else {
+                    content.innerHTML = `<p class="text-sm text-[var(--text-muted-color)]">${tabInfo.content || tabInfo.placeholder}</p>`;
+                }
+                return { tab, content };
+            };
+
+            const createAddMenuBar = () => {
+                const menuBar = document.createElement('div');
+                menuBar.className = 'add-tab-bar';
+                menuBar.innerHTML = `
+                    <button class="add-tab-btn">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                    <div class="quick-add-bar">
+                        <button class="quick-add-btn" data-type="document" title="Add Document"><i class="fas fa-file-alt text-sm"></i></button>
+                        <button class="quick-add-btn" data-type="notes" title="Add Notes"><i class="fas fa-sticky-note text-sm"></i></button>
+                    </div>
+                    <div class="add-tab-title">Add Tab</div>
+                    <div class="add-tab-menu-items">
+                        <a href="#" data-type="document"><i class="fas fa-file-alt w-5 text-center"></i><span>Document</span></a>
+                        <a href="#" data-type="notes"><i class="fas fa-sticky-note w-5 text-center"></i><span>Notes</span></a>
+                    </div>
+                    <div class="settings-btn-container">
+                        <button class="quick-add-btn settings-btn" title="Settings"><i class="fas fa-cog text-sm"></i></button>
+                    </div>
+                `;
+                return { menuBar, settingsPanel: document.createElement('div') }; // Dummy settings panel for now
+            };
+            
+            const initPaneLogic = (wrapper, elements) => { /* ... existing initPaneLogic code ... */ };
+            const initResizer = (resizerEl) => { /* ... existing initResizer code ... */ };
+
+            const pane1Wrapper = createPane([
+                { type: 'document', title: 'Source Document', icon: 'fas fa-file-alt', color: '#4AC0FC', tags: ['#source'], placeholder: 'Upload or paste your document here.' }
+            ]);
+            const pane2Wrapper = createPane([
+                 { type: 'notes', title: 'Generated Notes', icon: 'fas fa-sticky-note', color: '#FBBF24', tags: ['#generated'], placeholder: 'Generated notes will appear here.' },
+                 { type: 'cards', title: 'Flashcards', icon: 'fas fa-clone', color: '#34D399', tags: ['#generated'], placeholder: 'Generated flashcards will appear here.' },
+            ]);
+            
+            const resizer = document.createElement('div');
+            resizer.className = 'notes-lab-resizer';
+            
+            grid.append(pane1Wrapper, resizer, pane2Wrapper);
+            initResizer(resizer);
+        }
+
         function initVoiceTab(tabContent) { /* ... existing initVoiceTab code ... */ }
         function createVoiceWidget(type, details) { /* ... existing createVoiceWidget code ... */ }
         function initDraggable(widget) { /* ... existing initDraggable code ... */ }
@@ -1628,10 +1755,45 @@
                 }
             });
 
+            document.querySelector('#view-folder-content .fa-sticky-note').parentElement.addEventListener('click', async () => {
+                const title = prompt("Enter a title for your new note:");
+                if (!title || !appState.currentFolderId) return;
+
+                try {
+                    const newNoteData = {
+                        folderId: appState.currentFolderId,
+                        title: title,
+                        content: '',
+                        cards: []
+                    };
+                    const savedNote = await api.saveNote(newNoteData);
+
+                    const newNoteObject = {
+                        id: savedNote.noteId,
+                        userId: appState.profile.userId,
+                        folderId: appState.currentFolderId,
+                        title: title,
+                        content: '',
+                        cardCount: 0,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    if (!appState.notesByFolder[appState.currentFolderId]) {
+                        appState.notesByFolder[appState.currentFolderId] = [];
+                    }
+                    appState.notesByFolder[appState.currentFolderId].push(newNoteObject);
+                    
+                    showNotesLabView();
+                    // In a real scenario, you'd add a tab for the new note here
+                } catch (error) {
+                    console.error("Failed to create new note:", error);
+                    alert("Error: Could not create the new note.");
+                }
+            });
+
             // Placeholder listeners for unimplemented features
             document.querySelector('#view-folder-content .fa-book-reader').parentElement.addEventListener('click', () => alert('Study Folder feature coming soon!'));
             document.querySelector('#view-folder-content .fa-plus').parentElement.addEventListener('click', () => alert('Add Card feature coming soon!'));
-            document.querySelector('#view-folder-content .fa-sticky-note').parentElement.addEventListener('click', () => showNotesLabView());
         }
 
         async function initializeApp() {
@@ -1640,7 +1802,7 @@
             applyTheme(savedTheme || (systemPrefersDark ? 'dark' : 'light'));
 
             setupEventListeners();
-            setupNotesLab(); // FIX: Uncommented to initialize the notes lab
+            setupNotesLab();
             handleResize();
             applySettings();
 
