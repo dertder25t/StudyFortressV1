@@ -827,7 +827,7 @@
             <div id="activity-module" class="interactive-lift glass-pane rounded-2xl p-4 flex-shrink-0">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="font-bold text-lg text-[var(--text-color)]">Activity</h2>
-                    <span id="next-study-day" class="text-xs text-[var(--text-muted-color)]">Next: Tomorrow</span>
+                    <span id="next-study-day" class="text-xs text-[var(--text-muted-color)]"></span>
                 </div>
                 <div class="flex gap-4">
                     <div class="w-2/3">
@@ -838,9 +838,9 @@
                         </div>
                     </div>
                     <div class="w-1/3 flex flex-col items-center justify-center text-center">
-                         <div class="text-3xl font-bold text-cyan-500">45</div>
-                         <div class="text-xs text-[var(--text-muted-color)] -mt-1">minutes</div>
-                         <div class="text-xs text-[var(--text-muted-color)] mt-2">Study Session</div>
+                         <div id="activity-value" class="text-3xl font-bold text-cyan-500"></div>
+                         <div id="activity-unit" class="text-xs text-[var(--text-muted-color)] -mt-1"></div>
+                         <div id="activity-label" class="text-xs text-[var(--text-muted-color)] mt-2"></div>
                     </div>
                 </div>
             </div>
@@ -1484,7 +1484,7 @@
         }
 
         // FIX: Moved setupCalendar function definition before it is called.
-        function setupCalendar() {
+        function setupCalendar(rewards = {}) {
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth();
@@ -1493,8 +1493,10 @@
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            const nextStudyDate = new Date();
-            nextStudyDate.setDate(today + 3);
+            let lastStudiedDate = null;
+            if (rewards && rewards.lastStudied) {
+                lastStudiedDate = new Date(rewards.lastStudied);
+            }
 
             calendarGrid.innerHTML = '';
 
@@ -1506,23 +1508,23 @@
                 const dayEl = document.createElement('div');
                 dayEl.textContent = day;
                 dayEl.classList.add('calendar-day');
-                if (day === today) {
+                if (day === today && month === now.getMonth() && year === now.getFullYear()) {
                     dayEl.classList.add('today');
                 }
-                if (month === nextStudyDate.getMonth() && day === nextStudyDate.getDate()) {
+                if (lastStudiedDate && day === lastStudiedDate.getDate() && month === lastStudiedDate.getMonth() && year === lastStudiedDate.getFullYear()) {
                     dayEl.classList.add('study-day');
                 }
                 calendarGrid.appendChild(dayEl);
             }
 
-            const diffDays = Math.ceil((nextStudyDate - now) / (1000 * 60 * 60 * 24));
-            if (diffDays === 0) {
-                 nextStudyDayEl.textContent = 'Next: Today';
-            } else if (diffDays === 1) {
-                 nextStudyDayEl.textContent = 'Next: Tomorrow';
-            } else {
-                 nextStudyDayEl.textContent = `Next: In ${diffDays} days`;
-            }
+            const activityValueEl = document.getElementById('activity-value');
+            const activityUnitEl = document.getElementById('activity-unit');
+            const activityLabelEl = document.getElementById('activity-label');
+
+            activityValueEl.textContent = rewards.points || 0;
+            activityUnitEl.textContent = 'points';
+            activityLabelEl.textContent = 'Total Score';
+            nextStudyDayEl.textContent = `Streak: ${rewards.streak || 0} days`;
         }
 
         // --- Notes Lab (Placeholder) ---
@@ -1577,6 +1579,7 @@
                         const allData = await api.getAllData();
                         Object.assign(appState, allData);
                         
+                        setupCalendar(appState.rewards);
                         animationOverlay.classList.add('animate-pop');
                         loginView.classList.add('hidden');
                         showDashboard();
@@ -1637,8 +1640,7 @@
             applyTheme(savedTheme || (systemPrefersDark ? 'dark' : 'light'));
 
             setupEventListeners();
-            setupCalendar();
-            // setupNotesLab(); // This can be deferred until needed
+            setupNotesLab(); // FIX: Uncommented to initialize the notes lab
             handleResize();
             applySettings();
 
@@ -1648,15 +1650,14 @@
                 try {
                     const allData = await api.getAllData();
                     Object.assign(appState, allData);
-                    // We need to get the email from somewhere. Since it's not in allData,
-                    // we can't display it here. It will only show after a fresh login.
-                    // This is a limitation of the current backend API.
+                    setupCalendar(appState.rewards);
                     showDashboard();
                 } catch (error) {
                     console.error("Session expired or invalid:", error.message);
                     showLoginView();
                 }
             } else {
+                setupCalendar(); // Setup calendar with default (empty) data
                 showLoginView();
             }
         }
