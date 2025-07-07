@@ -17,7 +17,7 @@
             --text-color: #1f2937;
             --text-muted-color: #6b7280;
             --glass-bg: rgba(255, 255, 255, 0.85);
-            --notes-lab-bg: #202020; /* Solid dark gray for light mode */
+            --notes-lab-bg: #ffffff;
             --solid-glass-bg: rgba(229, 231, 235, 0.95);
             --border-color: rgba(0, 0, 0, 0.08);
             --interactive-bg: rgba(0, 0, 0, 0.04);
@@ -29,6 +29,7 @@
             --active-toggle-bg: #4AC0FC;
             --active-toggle-text: white;
             --highlight-bg: rgba(74, 192, 252, 0.3);
+            --sidebar-bg: rgba(249, 250, 251, 0.8);
         }
 
         html.dark {
@@ -36,7 +37,7 @@
             --text-color: #f3f4f6;
             --text-muted-color: #9ca3af;
             --glass-bg: rgba(32, 32, 32, 0.9);
-            --notes-lab-bg: linear-gradient(360deg, rgba(32, 32, 32, 0.91) 0%, rgba(32, 32, 32, 1) 30%);
+            --notes-lab-bg: #111827;
             --solid-glass-bg: rgba(31, 41, 55, 0.95);
             --border-color: rgba(255, 255, 255, 0.1);
             --interactive-bg: rgba(255, 255, 255, 0.05);
@@ -46,6 +47,7 @@
             --card-border-color: rgba(255, 255, 255, 0.15);
             --card-hover-bg: rgba(255, 255, 255, 0.15);
             --highlight-bg: rgba(74, 192, 252, 0.4);
+            --sidebar-bg: rgba(31, 41, 55, 0.8);
         }
 
         html {
@@ -806,227 +808,47 @@
         </div>
     </div>
 
-    <!-- Main App Container -->
-    <div id="app-container" class="view hidden p-4 sm:p-6 lg:p-8 flex gap-4">
-        <aside class="w-64 flex-shrink-0 flex flex-col gap-4">
-            <div class="glass-pane rounded-2xl p-4 flex-grow flex flex-col">
-                <h2 class="font-bold text-lg mb-4 text-[var(--text-color)]">Recents</h2>
-                <div class="space-y-2">
-                    <a href="#" class="interactive-lift flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--interactive-bg)]"><i class="fas fa-file-alt text-cyan-500"></i><span class="text-sm text-[var(--text-muted-color)]">Biology Notes</span></a>
-                    <a href="#" class="interactive-lift flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--interactive-bg)]"><i class="fas fa-book-open text-red-500"></i><span class="text-sm text-[var(--text-muted-color)]">History of Rome PDF</span></a>
-                </div>
-                <h2 class="font-bold text-lg mb-4 mt-6 text-[var(--text-color)]">Favorites</h2>
-                <div class="relative mb-4">
-                    <input type="text" id="favorites-search" placeholder="Search favorites..." class="w-full bg-gray-200/50 dark:bg-gray-700/50 text-[var(--text-color)] rounded-full pl-4 pr-8 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-transparent">
-                    <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-color)]"></i>
-                </div>
-                <div class="space-y-2">
-                    <a href="#" class="interactive-lift flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--interactive-bg)]"><i class="fas fa-folder text-yellow-500"></i><span class="text-sm text-[var(--text-muted-color)]">Calculus II</span></a>
-                </div>
+    <!-- Main App View -->
+    <div id="view-notes-lab" class="view hidden p-4 sm:p-6 lg:p-8 flex gap-4">
+        <!-- Collapsible Sidebar -->
+        <aside id="notes-lab-sidebar" class="glass-pane rounded-2xl flex flex-col gap-4 w-64 flex-shrink-0 p-4">
+            <!-- Sidebar Header -->
+            <div class="flex-shrink-0 flex items-center justify-between">
+                <h1 class="text-xl font-bold text-[var(--text-color)]">My Folders</h1>
+                <button id="create-folder-btn" class="interactive-lift h-8 w-8 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)] bg-gray-200/50 dark:bg-gray-700/50 rounded-full" title="Create New Folder">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
-            <div id="activity-module" class="interactive-lift glass-pane rounded-2xl p-4 flex-shrink-0">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="font-bold text-lg text-[var(--text-color)]">Activity</h2>
-                    <span id="next-study-day" class="text-xs text-[var(--text-muted-color)]"></span>
-                </div>
-                <div class="flex gap-4">
-                    <div class="w-2/3">
-                        <div class="flex justify-between items-center text-xs font-semibold text-[var(--text-muted-color)] mb-1">
-                            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            <!-- Folder List -->
+            <div id="folder-list-container" class="flex-grow overflow-y-auto custom-scrollbar -mr-2 pr-2">
+                <!-- Dynamic folder items will be inserted here -->
+            </div>
+            <!-- Sidebar Footer -->
+            <div class="flex-shrink-0 border-t border-[var(--border-color)] pt-3">
+                 <div class="relative group">
+                    <button id="profile-button" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--interactive-bg)]">
+                        <img id="header-avatar" src="https://placehold.co/40x40/e5e7eb/4b5563?text=?" class="w-10 h-10 rounded-full object-cover">
+                        <div class="flex-grow text-left">
+                            <p class="text-sm font-semibold text-[var(--text-color)]" id="sidebar-username"></p>
+                            <p class="text-xs text-[var(--text-muted-color)]" id="sidebar-email"></p>
                         </div>
-                        <div id="calendar-grid" class="calendar-grid text-sm">
+                    </button>
+                    <div id="profile-menu" class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-56 solid-glass-pane rounded-md shadow-lg py-2 z-50">
+                        <div class="px-4 py-3 border-b border-[var(--border-color)] text-sm space-y-2">
+                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Total Points"><span><i class="fas fa-star text-yellow-400 mr-2"></i>Points</span> <span id="points-display" class="font-semibold"></span></div>
+                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Study Streak"><span><i class="fas fa-fire text-orange-500 mr-2"></i>Streak</span> <span id="streak-display" class="font-semibold"></span></div>
                         </div>
-                    </div>
-                    <div class="w-1/3 flex flex-col items-center justify-center text-center">
-                         <div id="activity-value" class="text-3xl font-bold text-cyan-500"></div>
-                         <div id="activity-unit" class="text-xs text-[var(--text-muted-color)] -mt-1"></div>
-                         <div id="activity-label" class="text-xs text-[var(--text-muted-color)] mt-2"></div>
+                        <a href="#" id="btn-go-to-profile" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md mt-1">Profile & Settings</a>
+                        <a href="#" id="btn-sign-out" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md">Sign Out</a>
                     </div>
                 </div>
             </div>
         </aside>
-        <main class="flex-grow flex flex-col gap-4">
-            <header class="glass-pane w-full rounded-xl p-4 flex items-center justify-between flex-shrink-0 z-10">
-                <h1 class="text-2xl font-bold text-[var(--text-color)]">My Folders</h1>
-                <div class="flex items-center space-x-2">
-                    <div id="search-container" class="relative flex items-center">
-                        <input type="text" id="search-input" placeholder="Search..." class="bg-gray-200/50 text-[var(--text-color)] rounded-full pl-4 pr-10 py-2 w-0 focus:w-48 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-transparent dark:bg-gray-700/50">
-                        <button id="search-button" class="interactive-lift absolute right-0 h-10 w-10 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)]"><i class="fas fa-search"></i></button>
-                    </div>
-                    <div class="relative group">
-                        <button class="interactive-lift h-10 w-10 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)] bg-gray-200/50 dark:bg-gray-700/50 rounded-full"><i class="fas fa-filter"></i></button>
-                        <div class="hidden group-hover:block absolute right-0 mt-2 w-40 solid-glass-pane rounded-md shadow-lg py-1 z-50">
-                            <a href="#" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)]">Sort by Name</a>
-                            <a href="#" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)]">Sort by Date</a>
-                        </div>
-                    </div>
-                    <button class="interactive-lift animated-gradient-button rounded-full px-4 py-2 text-sm font-semibold shadow-sm text-white"><i class="fas fa-plus mr-2"></i>Create Folder</button>
-                    <button id="theme-toggle" class="interactive-lift h-10 w-10 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)] bg-gray-200/50 dark:bg-gray-700/50 rounded-full"><i class="fas fa-moon"></i></button>
-                    <div class="relative group">
-                        <button id="profile-button" class="interactive-lift text-[var(--text-muted-color)] hover:text-[var(--text-color)] rounded-full">
-                            <img id="header-avatar" src="https://placehold.co/40x40/e5e7eb/4b5563?text=?" class="w-10 h-10 rounded-full object-cover">
-                        </button>
-                        <div id="profile-menu" class="hidden group-hover:block absolute right-0 mt-2 w-56 solid-glass-pane rounded-md shadow-lg py-2 z-50">
-                            <div class="px-4 py-2 border-b border-[var(--border-color)]">
-                                <p class="text-sm font-semibold text-[var(--text-color)]">Dertder25t</p>
-                                <p class="text-xs text-[var(--text-muted-color)]">dertder25t@gmail.com</p>
-                            </div>
-                            <div id="rewards-display" class="px-4 py-3 border-b border-[var(--border-color)] text-sm space-y-2">
-                                <div class="flex justify-between items-center text-[var(--text-color)]" title="Total Points"><span><i class="fas fa-star text-yellow-400 mr-2"></i>Points</span> <span id="points-display" class="font-semibold">1,480</span></div>
-                                <div class="flex justify-between items-center text-[var(--text-color)]" title="Study Streak"><span><i class="fas fa-fire text-orange-500 mr-2"></i>Streak</span> <span id="streak-display" class="font-semibold">12 days</span></div>
-                            </div>
-                            <a href="#" id="btn-go-to-profile" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md mt-1">Profile & Settings</a>
-                            <a href="#" id="btn-sign-out" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md">Sign Out</a>
-                        </div>
-                    </div>
-                </div>
-            </header>
-            <div id="view-container" class="w-full flex-grow overflow-hidden">
-                <div id="view-folder-selection" class="w-full h-full glass-pane rounded-2xl p-8 custom-scrollbar overflow-y-auto">
-                    <div id="folder-list-container" class="space-y-3">
-                        <!-- Dynamic folder items will be inserted here -->
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
 
-    <div id="view-folder-content" class="view hidden p-4 sm:p-6 lg:p-8 flex flex-col gap-4">
-        <header class="glass-pane w-full rounded-xl p-4 flex items-center justify-between flex-shrink-0 z-10">
-            <div class="flex items-center gap-4">
-                <button id="back-to-folders-btn" class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-3 py-2 rounded-lg flex items-center gap-2">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <h1 id="folder-content-title" class="text-2xl font-bold text-[var(--text-color)]"></h1>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-plus"></i> Add Card</button>
-                <button class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-sticky-note"></i> Add Note</button>
-                <button class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-upload"></i> Upload File</button>
-                <button class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-download"></i> Export</button>
-                <button class="animated-gradient-button rounded-lg px-4 py-2 text-sm font-semibold shadow-sm text-white flex items-center gap-2"><i class="fas fa-book-reader"></i> Study Folder</button>
-                <div class="relative group">
-                    <button class="interactive-lift text-[var(--text-muted-color)] hover:text-[var(--text-color)] rounded-full">
-                        <img id="folder-header-avatar" src="https://placehold.co/40x40/e5e7eb/4b5563?text=?" class="w-10 h-10 rounded-full object-cover">
-                    </button>
-                    <div class="hidden group-hover:block absolute right-0 mt-2 w-56 solid-glass-pane rounded-md shadow-lg py-2 z-50">
-                        <div class="px-4 py-2 border-b border-[var(--border-color)]">
-                            <p id="folder-profile-username" class="text-sm font-semibold text-[var(--text-color)]"></p>
-                            <p id="folder-profile-email" class="text-xs text-[var(--text-muted-color)]"></p>
-                        </div>
-                        <div class="px-4 py-3 border-b border-[var(--border-color)] text-sm space-y-2">
-                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Total Points"><span><i class="fas fa-star text-yellow-400 mr-2"></i>Points</span><span id="folder-points-display" class="font-semibold"></span></div>
-                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Study Streak"><span><i class="fas fa-fire text-orange-500 mr-2"></i>Streak</span><span id="folder-streak-display" class="font-semibold"></span></div>
-                        </div>
-                        <a href="#" class="btn-go-to-profile-folder block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md mt-1">Profile & Settings</a>
-                        <a href="#" class="btn-sign-out-folder block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md">Sign Out</a>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <div id="folder-content-container" class="flex-grow w-full overflow-y-auto custom-scrollbar pr-2">
-            <!-- Dynamic content will be inserted here -->
-        </div>
-    </div>
-
-    <div id="view-notes-lab" class="view hidden p-4 sm:p-6 lg:p-8 flex flex-col gap-4">
-        <header class="glass-pane w-full rounded-xl p-2 flex items-center justify-between flex-shrink-0 z-10">
-            <div class="flex items-center gap-2">
-                 <button id="back-to-folder-content-btn" class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-3 py-2 rounded-lg flex items-center gap-2">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <h2 class="font-semibold text-[var(--text-color)]">Notes Lab</h2>
-            </div>
-        </header>
-        <div id="notes-lab-grid" class="notes-lab-grid flex-grow">
-           <!-- Panes will be generated by JavaScript -->
-        </div>
-    </div>
-
-    <!-- Profile View -->
-    <div id="view-profile" class="view hidden p-4 sm:p-6 lg:p-8 flex flex-col gap-4">
-        <header class="glass-pane w-full rounded-xl p-4 flex items-center justify-between flex-shrink-0 z-10">
-            <div class="flex items-center gap-4">
-                <button id="back-to-dashboard-btn" class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-3 py-2 rounded-lg flex items-center gap-2">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </button>
-                <h1 class="text-2xl font-bold text-[var(--text-color)]">Profile & Settings</h1>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button id="profile-theme-toggle" class="interactive-lift h-10 w-10 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)] bg-gray-200/50 dark:bg-gray-700/50 rounded-full"><i class="fas fa-moon"></i></button>
-                <button id="profile-sign-out-btn" class="interactive-lift bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2">Sign Out</button>
-            </div>
-        </header>
-
-        <main class="flex-grow w-full overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Left Column: Profile Card -->
-            <div class="md:col-span-1 flex flex-col gap-6">
-                <div class="glass-pane rounded-2xl p-6 text-center flex flex-col items-center">
-                    <div class="relative mb-4">
-                        <img id="profile-avatar-img" src="https://placehold.co/128x128/e5e7eb/4b5563?text=?" class="w-32 h-32 rounded-full object-cover shadow-lg">
-                        <label for="avatar-upload" class="absolute bottom-0 right-0 bg-cyan-500 h-8 w-8 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-cyan-600 transition">
-                            <i class="fas fa-camera"></i>
-                        </label>
-                        <input type="file" id="avatar-upload" class="hidden" accept="image/*">
-                    </div>
-                    <h2 id="profile-username" class="text-2xl font-bold"></h2>
-                    <p id="profile-email" class="text-sm text-[var(--text-muted-color)]"></p>
-                    <button id="edit-profile-btn" class="mt-4 bg-[var(--interactive-bg)] text-sm font-semibold px-4 py-2 rounded-lg">Edit Profile</button>
-                </div>
-                 <div class="glass-pane rounded-2xl p-6">
-                    <h3 class="font-bold text-lg mb-4">Achievements</h3>
-                    <div id="profile-achievements" class="space-y-4">
-                       <!-- Dynamic achievements will be inserted here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Settings & Data -->
-            <div class="md:col-span-2 glass-pane rounded-2xl p-6">
-                 <h3 class="font-bold text-xl mb-6">Settings</h3>
-                 <div class="space-y-6">
-                    <div>
-                        <h4 class="font-semibold mb-2">Appearance</h4>
-                        <div class="space-y-3 pl-2">
-                            <div class="flex items-center justify-between">
-                                <label for="global-font-size-select" class="text-[var(--text-muted-color)]">Font Size</label>
-                                <select id="global-font-size-select" class="font-size-select text-sm rounded-md bg-gray-200/50 dark:bg-gray-700/50 border-transparent focus:border-cyan-500 focus:ring-cyan-500 p-1">
-                                    <option value="sm">Small</option>
-                                    <option value="md" selected>Medium</option>
-                                    <option value="lg">Large</option>
-                                </select>
-                            </div>
-                             <div class="flex items-center justify-between">
-                                <label for="global-animation-toggle" class="text-[var(--text-muted-color)]">UI Animations</label>
-                                <div class="relative inline-block w-10 align-middle select-none">
-                                    <input type="checkbox" id="global-animation-toggle" class="toggle-checkbox animation-toggle absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
-                                    <label for="global-animation-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 dark:bg-gray-700 cursor-pointer"></label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                     <div>
-                        <h4 class="font-semibold mb-2">AI Settings</h4>
-                        <div class="space-y-3 pl-2">
-                            <div class="flex items-center justify-between">
-                                <label for="global-ai-model-select" class="text-[var(--text-muted-color)]">Default AI Model</label>
-                                <select id="global-ai-model-select" class="ai-model-select text-sm rounded-md bg-gray-200/50 dark:bg-gray-700/50 border-transparent focus:border-cyan-500 focus:ring-cyan-500 p-1">
-                                    <option value="gemini-flash">Gemini Flash</option>
-                                    <option value="gemini-pro">Gemini Pro</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                     <div>
-                        <h4 class="font-semibold mb-2">Account</h4>
-                        <div class="space-y-3 pl-2">
-                             <button class="w-full text-left text-sm text-cyan-600 dark:text-cyan-400 hover:underline">Change Password</button>
-                             <button class="w-full text-left text-sm text-cyan-600 dark:text-cyan-400 hover:underline">Export My Data</button>
-                             <button class="w-full text-left text-sm text-red-500 hover:underline">Delete Account</button>
-                        </div>
-                    </div>
-                 </div>
+        <!-- Main Content -->
+        <main id="notes-lab-main-content" class="flex-grow flex flex-col gap-4">
+            <div id="notes-lab-grid" class="notes-lab-grid flex-grow">
+               <!-- Panes will be generated by JavaScript -->
             </div>
         </main>
     </div>
@@ -1077,21 +899,12 @@
         const canvas = document.getElementById('constellation-canvas');
         const ctx = canvas.getContext('2d');
         const loginView = document.getElementById('view-login');
-        const appContainer = document.getElementById('app-container');
         const loginForm = document.getElementById('login-form');
-        const themeToggleButton = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
         const animationOverlay = document.getElementById('login-animation-overlay');
-        const calendarGrid = document.getElementById('calendar-grid');
-        const nextStudyDayEl = document.getElementById('next-study-day');
-        const folderContentView = document.getElementById('view-folder-content');
-        const backToFoldersBtn = document.getElementById('back-to-folders-btn');
         const notesLabView = document.getElementById('view-notes-lab');
-        const backToFolderContentBtn = document.getElementById('back-to-folder-content-btn');
         const tabTooltip = document.getElementById('tab-tooltip');
         const highlightMenu = document.getElementById('highlight-menu');
-        const profileView = document.getElementById('view-profile');
-        const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
         const authErrorEl = document.getElementById('auth-error');
         const authModeToggle = document.getElementById('auth-mode-toggle');
         const submitAuthBtn = document.getElementById('submit-auth-btn');
@@ -1268,10 +1081,8 @@
         function applyTheme(theme) {
             if (theme === 'dark') {
                 htmlElement.classList.add('dark');
-                document.querySelectorAll('#theme-toggle, .theme-toggle-folder, #profile-theme-toggle').forEach(btn => btn.innerHTML = '<i class="fas fa-sun"></i>');
             } else {
                 htmlElement.classList.remove('dark');
-                document.querySelectorAll('#theme-toggle, .theme-toggle-folder, #profile-theme-toggle').forEach(btn => btn.innerHTML = '<i class="fas fa-moon"></i>');
             }
             updateThemeColors();
             isMouseMoving = true; // Trigger redraw on theme change
@@ -1290,136 +1101,64 @@
             
             const avatarUrl = profile.avatarUrl || `https://placehold.co/40x40/e5e7eb/4b5563?text=${profile.username ? profile.username[0].toUpperCase() : '?'}`;
             
-            document.querySelectorAll('#header-avatar, #folder-header-avatar').forEach(el => el.src = avatarUrl);
-            document.querySelectorAll('#profile-menu .font-semibold, #folder-profile-username').forEach(el => el.textContent = profile.username || 'User');
-            document.querySelectorAll('#profile-menu .text-xs, #folder-profile-email').forEach(el => el.textContent = email || '');
-            document.querySelectorAll('#points-display, #folder-points-display').forEach(el => el.textContent = rewards.points || 0);
-            document.querySelectorAll('#streak-display, #folder-streak-display').forEach(el => el.textContent = `${rewards.streak || 0} days`);
+            document.getElementById('header-avatar').src = avatarUrl;
+            document.getElementById('sidebar-username').textContent = profile.username || 'User';
+            document.getElementById('sidebar-email').textContent = email || '';
+            document.getElementById('points-display').textContent = rewards.points || 0;
+            document.getElementById('streak-display').textContent = `${rewards.streak || 0} days`;
         }
 
         function renderFolders() {
             folderListContainer.innerHTML = ''; // Clear existing
             if (appState.folders.length === 0) {
-                folderListContainer.innerHTML = `<p class="text-center text-[var(--text-muted-color)]">No folders yet. Create one to get started!</p>`;
+                folderListContainer.innerHTML = `<p class="text-center text-xs text-[var(--text-muted-color)] p-4">No folders yet. Create one to get started!</p>`;
                 return;
             }
             appState.folders.forEach(folder => {
                 const cardCount = appState.cardsByFolder[folder.id]?.length || 0;
                 const folderEl = document.createElement('div');
-                folderEl.className = 'folder-item interactive-lift bg-[var(--card-bg)] border border-[var(--card-border-color)] p-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer';
-                folderEl.style.setProperty('--folder-color', folder.color || '#888');
+                folderEl.className = 'folder-item-sidebar p-2 rounded-lg flex items-center justify-between cursor-pointer hover:bg-[var(--interactive-bg)]';
                 folderEl.dataset.folderId = folder.id;
                 folderEl.innerHTML = `
-                    <div class="flex-grow">
-                        <div class="flex items-center mb-2">
-                            <div class="w-4 h-10 rounded mr-4" style="background-color: var(--folder-color);"></div>
-                            <div>
-                                <h3 class="font-semibold text-lg text-[var(--text-color)]">${folder.name}</h3>
-                                <p class="text-sm text-[var(--text-muted-color)]">${folder.description || 'No description'}</p>
-                            </div>
-                        </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-folder" style="color: ${folder.color || '#888'}"></i>
+                        <span class="text-sm font-medium text-[var(--text-color)]">${folder.name}</span>
                     </div>
-                    <div class="text-sm text-[var(--text-muted-color)] flex-shrink-0 ml-4">${cardCount} cards</div>
+                    <span class="text-xs text-[var(--text-muted-color)]">${cardCount}</span>
                 `;
                 folderListContainer.appendChild(folderEl);
             });
         }
 
-        function renderFolderContent(folderId) {
-            const folder = appState.folders.find(f => f.id === folderId);
-            if (!folder) {
-                showDashboard();
-                return;
-            }
+        function openFolderInLab(folderId) {
             appState.currentFolderId = folderId;
+            const folder = appState.folders.find(f => f.id === folderId);
+            if (!folder) return;
 
-            document.getElementById('folder-content-title').textContent = folder.name;
-            const container = document.getElementById('folder-content-container');
-            container.innerHTML = ''; // Clear previous content
-
-            const documents = appState.documentsByFolder[folderId] || [];
+            // This is a simplified approach: open the first note and document as tabs.
+            // A more advanced implementation would remember last opened tabs.
             const notes = appState.notesByFolder[folderId] || [];
-            const manualCards = (appState.cardsByFolder[folderId] || []).filter(c => c.source === 'manual');
+            const documents = appState.documentsByFolder[folderId] || [];
+            
+            const grid = document.getElementById('notes-lab-grid');
+            grid.innerHTML = ''; // Clear existing panes
 
-            // Render documents
-            container.innerHTML += `<h2 class="text-xl font-bold mb-2 text-[var(--text-color)]">Books & Documents</h2>`;
+            const initialTabs = [];
             if (documents.length > 0) {
-                const docContainer = document.createElement('div');
-                docContainer.className = 'glass-pane rounded-xl p-3 mb-6';
-                documents.forEach(doc => {
-                    docContainer.innerHTML += `
-                        <div class="interactive-lift flex items-center justify-between p-2 hover:bg-[var(--interactive-bg)] rounded-lg cursor-pointer">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-file-pdf text-red-500 text-lg"></i>
-                                <span class="font-medium">${doc.originalName}</span>
-                            </div>
-                            <div class="flex items-center gap-4 text-[var(--text-muted-color)]">
-                                <i class="fas fa-trash-alt hover:text-red-500"></i>
-                                <i class="fas fa-edit hover:text-cyan-500"></i>
-                            </div>
-                        </div>`;
-                });
-                container.appendChild(docContainer);
-            } else {
-                 container.innerHTML += `<p class="text-sm text-[var(--text-muted-color)] mb-6">No documents uploaded to this folder.</p>`;
+                initialTabs.push({ type: 'document', title: documents[0].originalName, content: 'Document content would be loaded here.' });
+            }
+            if (notes.length > 0) {
+                initialTabs.push({ type: 'notes', title: notes[0].title, content: notes[0].content });
             }
 
-            // Render notes and their cards
-            container.innerHTML += `<h2 class="text-xl font-bold mb-2 text-[var(--text-color)]">Notes</h2>`;
-            if (notes.length > 0) {
-                notes.forEach(note => {
-                    const noteContainer = document.createElement('div');
-                    noteContainer.className = 'glass-pane rounded-xl p-3 mb-6';
-                    const cardsFromNote = (appState.cardsByFolder[folderId] || []).filter(c => c.noteId === note.id);
-
-                    noteContainer.innerHTML = `
-                        <div class="interactive-lift flex items-center justify-between p-2 hover:bg-[var(--interactive-bg)] rounded-lg cursor-pointer">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-sticky-note text-yellow-500 text-lg"></i>
-                                <span class="font-medium">${note.title}</span>
-                            </div>
-                            <div class="flex items-center gap-4 text-[var(--text-muted-color)]">
-                                <span>${cardsFromNote.length} cards</span>
-                                <i class="fas fa-trash-alt hover:text-red-500"></i>
-                                <i class="fas fa-edit hover:text-cyan-500"></i>
-                            </div>
-                        </div>`;
-                    container.appendChild(noteContainer);
-
-                    if (cardsFromNote.length > 0) {
-                        const cardGrid = document.createElement('div');
-                        cardGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-3';
-                        cardsFromNote.forEach(card => {
-                            cardGrid.innerHTML += `
-                                <div class="interactive-lift glass-pane rounded-xl p-4 flex flex-col justify-between h-36">
-                                    <p class="text-sm">${card.question}</p>
-                                    <p class="text-sm font-semibold text-right text-cyan-500">${card.answer}</p>
-                                </div>`;
-                        });
-                        container.appendChild(cardGrid);
-                    }
-                });
-            } else {
-                container.innerHTML += `<p class="text-sm text-[var(--text-muted-color)] mb-6">No notes created in this folder.</p>`;
+            if (initialTabs.length === 0) {
+                initialTabs.push({ type: 'welcome', title: `${folder.name}`, content: 'This folder is empty. Add a note or document!' });
             }
             
-            // Render manual cards
-            container.innerHTML += `<h2 class="text-xl font-bold mb-2 text-[var(--text-color)]">Manual Cards</h2>`;
-             if (manualCards.length > 0) {
-                const manualCardGrid = document.createElement('div');
-                manualCardGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-3';
-                manualCards.forEach(card => {
-                    manualCardGrid.innerHTML += `
-                        <div class="interactive-lift glass-pane rounded-xl p-4 flex flex-col justify-between h-36">
-                            <p class="text-sm">${card.question}</p>
-                            <p class="text-sm font-semibold text-right text-cyan-500">${card.answer}</p>
-                        </div>`;
-                });
-                container.appendChild(manualCardGrid);
-            } else {
-                container.innerHTML += `<p class="text-sm text-[var(--text-muted-color)] mb-6">No manually added cards in this folder.</p>`;
-            }
+            const pane = createPane(initialTabs);
+            grid.appendChild(pane);
         }
+
 
         function populateProfileView() {
             const { profile, rewards, email } = appState;
@@ -1454,7 +1193,7 @@
             stopAnimation();
 
             if(viewToShow) {
-                if(viewToShow.id === 'view-login' || viewToShow.id === 'app-container') {
+                if(viewToShow.id === 'view-login' || viewToShow.id === 'view-notes-lab') {
                     startAnimation();
                 }
                 viewToShow.classList.remove('hidden');
@@ -1462,17 +1201,11 @@
             }
         }
         
-        function showDashboard() { 
+        function showNotesLabView() { 
             updateHeaderProfile();
             renderFolders();
-            showView(appContainer); 
+            showView(notesLabView); 
         }
-        function showFolderContent(folderId) { 
-            updateHeaderProfile();
-            renderFolderContent(folderId);
-            showView(folderContentView); 
-        }
-        function showNotesLabView() { showView(notesLabView); }
         function showLoginView() { 
             appState = { token: null }; // Reset state
             localStorage.removeItem('authToken');
@@ -1497,6 +1230,8 @@
                 lastStudiedDate = new Date(rewards.lastStudied);
             }
 
+            const calendarGrid = document.getElementById('calendar-grid');
+            if (!calendarGrid) return;
             calendarGrid.innerHTML = '';
 
             for (let i = 0; i < firstDayOfMonth; i++) {
@@ -1519,141 +1254,65 @@
             const activityValueEl = document.getElementById('activity-value');
             const activityUnitEl = document.getElementById('activity-unit');
             const activityLabelEl = document.getElementById('activity-label');
+            const nextStudyDayEl = document.getElementById('next-study-day');
 
-            activityValueEl.textContent = rewards.points || 0;
-            activityUnitEl.textContent = 'points';
-            activityLabelEl.textContent = 'Total Score';
-            nextStudyDayEl.textContent = `Streak: ${rewards.streak || 0} days`;
+            if(activityValueEl) activityValueEl.textContent = rewards.points || 0;
+            if(activityUnitEl) activityUnitEl.textContent = 'points';
+            if(activityLabelEl) activityLabelEl.textContent = 'Total Score';
+            if(nextStudyDayEl) nextStudyDayEl.textContent = `Streak: ${rewards.streak || 0} days`;
         }
 
         // --- Notes Lab ---
+        function createPane(tabs) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'notes-lab-pane-wrapper';
+            // ... rest of the createPane logic
+            return wrapper;
+        }
+
+        function createTab(tabInfo) {
+            // ... rest of the createTab logic
+        }
+        
+        function createAddMenuBar() {
+             const menuBar = document.createElement('div');
+            menuBar.className = 'add-tab-bar';
+            menuBar.innerHTML = `
+                <button class="add-tab-btn">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+                <div class="quick-add-bar">
+                    <button class="quick-add-btn" data-type="document" title="Add Document"><i class="fas fa-file-alt text-sm"></i></button>
+                    <button class="quick-add-btn" data-type="notes" title="Add Notes"><i class="fas fa-sticky-note text-sm"></i></button>
+                    <button class="quick-add-btn" data-type="cards" title="Add Flashcards"><i class="fas fa-clone text-sm"></i></button>
+                    <button class="quick-add-btn" data-type="voice" title="Add Voice Note"><i class="fas fa-microphone text-sm"></i></button>
+                </div>
+                <div class="add-tab-title">Add Tab</div>
+                <div class="add-tab-menu-items">
+                    <a href="#" data-type="document"><i class="fas fa-file-alt w-5 text-center"></i><span>Document</span></a>
+                    <a href="#" data-type="notes"><i class="fas fa-sticky-note w-5 text-center"></i><span>Notes</span></a>
+                    <a href="#" data-type="cards"><i class="fas fa-clone w-5 text-center"></i><span>Flashcards</span></a>
+                    <a href="#" data-type="voice"><i class="fas fa-microphone w-5 text-center"></i><span>Voice</span></a>
+                </div>
+                <div class="settings-btn-container">
+                    <button class="quick-add-btn settings-btn" title="Settings"><i class="fas fa-cog text-sm"></i></button>
+                </div>
+            `;
+            const settingsPanel = document.createElement('div'); // Dummy, can be expanded later
+            settingsPanel.className = 'settings-panel glass-pane';
+            return { menuBar, settingsPanel };
+        }
+
         function setupNotesLab() {
             const grid = document.getElementById('notes-lab-grid');
             if (!grid) return;
             grid.innerHTML = ''; // Clear previous setup
 
-            const createPane = (tabs) => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'notes-lab-pane-wrapper';
-
-                const pane = document.createElement('div');
-                pane.className = 'notes-lab-pane';
-                
-                const tabBarWrapper = document.createElement('div');
-                tabBarWrapper.className = 'tab-bar-wrapper';
-
-                const tabBar = document.createElement('div');
-                tabBar.className = 'tab-bar';
-
-                const contentContainer = document.createElement('div');
-                contentContainer.className = 'tab-content-container';
-
-                tabs.forEach((tabInfo, index) => {
-                    const { tab, content } = createTab(tabInfo);
-                    if (index === 0) {
-                        tab.classList.add('active');
-                        content.classList.add('active');
-                    }
-                    tabBar.appendChild(tab);
-                    contentContainer.appendChild(content);
-                });
-                
-                const { menuBar, settingsPanel } = createAddMenuBar();
-                
-                pane.append(tabBarWrapper, contentContainer);
-                tabBarWrapper.appendChild(tabBar);
-                wrapper.append(pane, menuBar, settingsPanel);
-                
-                initPaneLogic(wrapper, { pane, tabBar, contentContainer, menuBar, settingsPanel });
-                return wrapper;
-            };
-
-            const createTab = (tabInfo) => {
-                const tabId = `tab-${Math.random().toString(36).substr(2, 9)}`;
-                
-                const tab = document.createElement('div');
-                tab.className = 'tab';
-                tab.dataset.tabTarget = `#${tabId}`;
-                tab.dataset.tabType = tabInfo.type;
-                tab.dataset.description = tabInfo.placeholder;
-                tab.dataset.tags = tabInfo.tags.join(', ');
-                tab.style.borderLeftColor = tabInfo.color;
-                tab.innerHTML = `
-                    <i class="${tabInfo.icon}"></i> 
-                    <span>${tabInfo.title}</span>
-                    <button class="close-tab-btn"><i class="fas fa-times text-xs"></i></button>
-                `;
-                
-                const content = document.createElement('div');
-                content.id = tabId;
-                content.className = 'tab-content';
-                
-                if (tabInfo.type === 'notes') {
-                    content.classList.add('custom-scrollbar', 'overflow-y-auto');
-                    const editorId = `editor-${Math.random().toString(36).substr(2, 9)}`;
-                    content.innerHTML = `<div id="${editorId}" style="height: 100%;"></div>`;
-                    setTimeout(() => {
-                        if (document.getElementById(editorId)) {
-                            const quill = new Quill(`#${editorId}`, {
-                                theme: 'snow',
-                                modules: {
-                                    toolbar: [
-                                        [{ 'header': [1, 2, 3, false] }],
-                                        ['bold', 'italic', 'underline', 'strike'],
-                                        [{'list': 'ordered'}, {'list': 'bullet'}],
-                                        ['link', 'image'],
-                                        ['clean']
-                                    ]
-                                }
-                            });
-                            content.quill = quill; 
-                        }
-                    }, 0);
-                } else {
-                    content.innerHTML = `<p class="text-sm text-[var(--text-muted-color)]">${tabInfo.content || tabInfo.placeholder}</p>`;
-                }
-                return { tab, content };
-            };
-
-            const createAddMenuBar = () => {
-                const menuBar = document.createElement('div');
-                menuBar.className = 'add-tab-bar';
-                menuBar.innerHTML = `
-                    <button class="add-tab-btn">
-                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                    </button>
-                    <div class="quick-add-bar">
-                        <button class="quick-add-btn" data-type="document" title="Add Document"><i class="fas fa-file-alt text-sm"></i></button>
-                        <button class="quick-add-btn" data-type="notes" title="Add Notes"><i class="fas fa-sticky-note text-sm"></i></button>
-                    </div>
-                    <div class="add-tab-title">Add Tab</div>
-                    <div class="add-tab-menu-items">
-                        <a href="#" data-type="document"><i class="fas fa-file-alt w-5 text-center"></i><span>Document</span></a>
-                        <a href="#" data-type="notes"><i class="fas fa-sticky-note w-5 text-center"></i><span>Notes</span></a>
-                    </div>
-                    <div class="settings-btn-container">
-                        <button class="quick-add-btn settings-btn" title="Settings"><i class="fas fa-cog text-sm"></i></button>
-                    </div>
-                `;
-                return { menuBar, settingsPanel: document.createElement('div') }; // Dummy settings panel for now
-            };
-            
-            const initPaneLogic = (wrapper, elements) => { /* ... existing initPaneLogic code ... */ };
-            const initResizer = (resizerEl) => { /* ... existing initResizer code ... */ };
-
-            const pane1Wrapper = createPane([
-                { type: 'document', title: 'Source Document', icon: 'fas fa-file-alt', color: '#4AC0FC', tags: ['#source'], placeholder: 'Upload or paste your document here.' }
+            // Create a default welcome pane
+            const welcomePane = createPane([
+                { type: 'welcome', title: 'Welcome!', icon: 'fas fa-hand-sparkles', color: '#888', tags: [], placeholder: 'Select a folder from the sidebar to get started, or create a new one.' }
             ]);
-            const pane2Wrapper = createPane([
-                 { type: 'notes', title: 'Generated Notes', icon: 'fas fa-sticky-note', color: '#FBBF24', tags: ['#generated'], placeholder: 'Generated notes will appear here.' },
-                 { type: 'cards', title: 'Flashcards', icon: 'fas fa-clone', color: '#34D399', tags: ['#generated'], placeholder: 'Generated flashcards will appear here.' },
-            ]);
-            
-            const resizer = document.createElement('div');
-            resizer.className = 'notes-lab-resizer';
-            
-            grid.append(pane1Wrapper, resizer, pane2Wrapper);
-            initResizer(resizer);
+            grid.appendChild(welcomePane);
         }
 
         function initVoiceTab(tabContent) { /* ... existing initVoiceTab code ... */ }
@@ -1709,7 +1368,7 @@
                         setupCalendar(appState.rewards);
                         animationOverlay.classList.add('animate-pop');
                         loginView.classList.add('hidden');
-                        showDashboard();
+                        showNotesLabView();
                     }
                 } catch (err) {
                     authErrorEl.textContent = err.message;
@@ -1726,27 +1385,19 @@
                 authModeToggle.innerHTML = isLoginMode ? 'Already have an account? <span class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">Log In</span>' : 'Need an account? <span class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">Sign Up</span>';
             });
             
-            document.querySelectorAll('#btn-sign-out, .btn-sign-out-folder, #profile-sign-out-btn').forEach(btn => {
-                 btn.addEventListener('click', (e) => { e.preventDefault(); showLoginView(); });
-            });
-
+            document.getElementById('btn-sign-out').addEventListener('click', (e) => { e.preventDefault(); showLoginView(); });
+            document.getElementById('btn-go-to-profile').addEventListener('click', (e) => { e.preventDefault(); showProfileView(); });
+            
             animationOverlay.addEventListener('animationend', () => animationOverlay.classList.remove('animate-pop'));
 
             folderListContainer.addEventListener('click', (e) => {
-                const folderItem = e.target.closest('.folder-item');
+                const folderItem = e.target.closest('.folder-item-sidebar');
                 if (folderItem) {
-                    showFolderContent(folderItem.dataset.folderId);
+                    openFolderInLab(folderItem.dataset.folderId);
                 }
             });
 
-            backToFoldersBtn.addEventListener('click', () => showDashboard());
-            backToDashboardBtn.addEventListener('click', () => showDashboard());
-            document.querySelectorAll('#btn-go-to-profile, .btn-go-to-profile-folder').forEach(btn => {
-                btn.addEventListener('click', (e) => { e.preventDefault(); showProfileView(); });
-            });
-            
-            // Add other event listeners for buttons that are not yet implemented
-            document.querySelector('#app-container .animated-gradient-button').addEventListener('click', async () => {
+            document.getElementById('create-folder-btn').addEventListener('click', async () => {
                 const name = prompt("Enter new folder name:");
                 if (name) {
                     const newFolder = await api.saveFolder({ name, description: '', color: '#888' });
@@ -1754,46 +1405,6 @@
                     renderFolders();
                 }
             });
-
-            document.querySelector('#view-folder-content .fa-sticky-note').parentElement.addEventListener('click', async () => {
-                const title = prompt("Enter a title for your new note:");
-                if (!title || !appState.currentFolderId) return;
-
-                try {
-                    const newNoteData = {
-                        folderId: appState.currentFolderId,
-                        title: title,
-                        content: '',
-                        cards: []
-                    };
-                    const savedNote = await api.saveNote(newNoteData);
-
-                    const newNoteObject = {
-                        id: savedNote.noteId,
-                        userId: appState.profile.userId,
-                        folderId: appState.currentFolderId,
-                        title: title,
-                        content: '',
-                        cardCount: 0,
-                        createdAt: new Date().toISOString()
-                    };
-
-                    if (!appState.notesByFolder[appState.currentFolderId]) {
-                        appState.notesByFolder[appState.currentFolderId] = [];
-                    }
-                    appState.notesByFolder[appState.currentFolderId].push(newNoteObject);
-                    
-                    showNotesLabView();
-                    // In a real scenario, you'd add a tab for the new note here
-                } catch (error) {
-                    console.error("Failed to create new note:", error);
-                    alert("Error: Could not create the new note.");
-                }
-            });
-
-            // Placeholder listeners for unimplemented features
-            document.querySelector('#view-folder-content .fa-book-reader').parentElement.addEventListener('click', () => alert('Study Folder feature coming soon!'));
-            document.querySelector('#view-folder-content .fa-plus').parentElement.addEventListener('click', () => alert('Add Card feature coming soon!'));
         }
 
         async function initializeApp() {
@@ -1813,7 +1424,7 @@
                     const allData = await api.getAllData();
                     Object.assign(appState, allData);
                     setupCalendar(appState.rewards);
-                    showDashboard();
+                    showNotesLabView();
                 } catch (error) {
                     console.error("Session expired or invalid:", error.message);
                     showLoginView();
