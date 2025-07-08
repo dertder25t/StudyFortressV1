@@ -1,1401 +1,1048 @@
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Study Fortress - Dynamic UI</title>
+    <title>Flashcard Study Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Quill.js CSS -->
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
-        /* CSS Variables for Theming */
-        :root {
-            --bg-color: #f3f4f6;
-            --text-color: #1f2937;
-            --text-muted-color: #6b7280;
-            --glass-bg: rgba(255, 255, 255, 0.85);
-            --notes-lab-bg: #ffffff;
-            --solid-glass-bg: rgba(229, 231, 235, 0.95);
-            --border-color: rgba(0, 0, 0, 0.08);
-            --interactive-bg: rgba(0, 0, 0, 0.04);
-            --unlit-particle-color: rgba(55, 65, 81, 0.5);
-            --unlit-line-color: rgba(55, 65, 81, 0.6);
-            --card-bg: rgba(249, 250, 251, 0.75);
-            --card-border-color: rgba(229, 231, 235, 0.8);
-            --card-hover-bg: rgba(243, 244, 246, 0.9);
-            --active-toggle-bg: #4AC0FC;
-            --active-toggle-text: white;
-            --highlight-bg: rgba(74, 192, 252, 0.3);
-            --sidebar-bg: rgba(249, 250, 251, 0.8);
-        }
-
-        html.dark {
-            --bg-color: #000000;
-            --text-color: #f3f4f6;
-            --text-muted-color: #9ca3af;
-            --glass-bg: rgba(32, 32, 32, 0.9);
-            --notes-lab-bg: #111827;
-            --solid-glass-bg: rgba(31, 41, 55, 0.95);
-            --border-color: rgba(255, 255, 255, 0.1);
-            --interactive-bg: rgba(255, 255, 255, 0.05);
-            --unlit-particle-color: rgba(255, 255, 255, 0.2);
-            --unlit-line-color: rgba(255, 255, 255, 0.4);
-            --card-bg: rgba(55, 65, 81, 0.5);
-            --card-border-color: rgba(255, 255, 255, 0.15);
-            --card-hover-bg: rgba(255, 255, 255, 0.15);
-            --highlight-bg: rgba(74, 192, 252, 0.4);
-            --sidebar-bg: rgba(31, 41, 55, 0.8);
-        }
-
-        html {
-            height: 100%;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            overflow: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-            height: 100%;
-        }
-        
-        body.font-size-sm { font-size: 0.875rem; }
-        body.font-size-md { font-size: 1rem; }
-        body.font-size-lg { font-size: 1.125rem; }
-
-        body.no-select {
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        #constellation-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            transition: opacity 0.4s ease;
-        }
-
-        body.canvas-dimmed #constellation-canvas {
-            opacity: 0.1;
-        }
-
-        .glass-pane {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out, background-color 0.3s ease;
-        }
-
-        .solid-glass-pane {
-            background: var(--solid-glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-        }
-        
-        .view {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
-            z-index: 10;
-        }
-
-        .view.hidden {
-            opacity: 0;
-            transform: scale(0.95);
-            pointer-events: none;
-        }
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+        .perspective { perspective: 2000px; }
+        .card { transition: all 0.3s ease; }
+        .card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2); }
+        .card-inner { transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .card.is-flipped .card-inner { transform: rotateY(180deg); }
+        .card-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .card-back { transform: rotateY(180deg); }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        [name="learn-q-type"] + label i.fa-check-circle { display: none; }
+        [name="learn-q-type"]:checked + label i.fa-check-circle { display: inline-block; }
+        .dark [name="learn-q-type"]:checked + label { @apply bg-cyan-900/50 text-white border-cyan-500; }
+        .dark [name="learn-q-type"]:checked + label i.fa-check-circle { @apply text-cyan-400; }
+        .matching-item.selected { transform: scale(1.05); @apply bg-cyan-600 border-cyan-500 text-white; }
+        .matching-item.correct { background-color: #10b981 !important; border-color: #059669 !important; color: white; opacity: 0.7; cursor: not-allowed; }
+        .matching-item.incorrect { animation: shake 0.5s; background-color: #ef4444 !important; border-color: #dc2626 !important; color: white; cursor: not-allowed;}
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .note-content, .kg-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .is-open > .note-content, .is-open > .kg-content { max-height: 1000px; transition: max-height 0.5s ease-in; }
+        .is-open .note-chevron, .is-open .kg-chevron { transform: rotate(180deg); }
+        .note-chevron, .kg-chevron { transition: transform 0.3s; }
+        .dot { transition: transform .3s ease-in-out; }
+        .peer:checked ~ .dot { transform: translateX(1.5rem); background-color: #22d3ee; }
+        .peer:checked ~ .block { background-color: #06b6d4; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); border-radius: 20px; }
-        
-        .interactive-lift {
-            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-        }
-        .interactive-lift:hover {
-            transform: translateY(-6px) scale(1.03);
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1);
-        }
-        html.dark .interactive-lift:hover {
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25);
-        }
-
-        .folder-item {
-            --folder-color: #888; 
-        }
-
-        .folder-item:hover {
-            background-color: var(--card-hover-bg);
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1), 0 0 12px -5px var(--folder-color);
-        }
-
-        html.dark .folder-item:hover {
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25), 0 0 15px -5px var(--folder-color);
-        }
-
-        .tag {
-            background-color: rgba(0, 0, 0, 0.05);
-            color: var(--text-muted-color);
-            padding: 2px 8px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        html.dark .tag {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        @keyframes gradient-flow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        .animated-gradient-button {
-            background: linear-gradient(to right, #DC2188, #4AC0FC, #DC2188);
-            background-size: 200% auto;
-            animation: gradient-flow 4s ease-in-out infinite;
-        }
-
-        @keyframes app-fade-in {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .app-fade-in {
-            animation: app-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-
-        .app-fade-in > * {
-            opacity: 0;
-            animation: app-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-
-        .app-fade-in > :nth-child(1) { animation-delay: 0.1s; }
-        .app-fade-in > :nth-child(2) { animation-delay: 0.2s; }
-
-        #login-animation-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 5;
-            pointer-events: none;
-            opacity: 0;
-        }
-
-        @keyframes color-pop {
-            0% {
-                opacity: 1;
-                transform: scale(0);
-                background: radial-gradient(circle, #DC2188 0%, #4AC0FC 40%, rgba(74,192,252,0) 70%);
-            }
-            100% {
-                opacity: 0;
-                transform: scale(2.5);
-                background: radial-gradient(circle, #DC2188 0%, #4AC0FC 40%, rgba(74,192,252,0) 70%);
-            }
-        }
-        
-        .animate-pop {
-            animation: color-pop 1.5s cubic-bezier(0.25, 1, 0.3, 1) forwards;
-        }
-
-        .notes-lab-grid {
-            display: flex;
-            flex-direction: row;
-            gap: 0;
-        }
-        
-        .notes-lab-pane-wrapper {
-            flex-grow: 1;
-            flex-basis: 0;
-            min-width: 50px;
-            position: relative;
-        }
-
-        .notes-lab-pane {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            background: var(--notes-lab-bg);
-            border-radius: 12px;
-            z-index: 2;
-            padding-right: 26px; /* Space for the collapsed menu bar */
-        }
-
-        .notes-lab-resizer {
-            flex-basis: 8px;
-            flex-shrink: 0;
-            background-color: transparent;
-            cursor: col-resize;
-            transition: background-color 0.3s ease;
-            z-index: 20;
-        }
-        .notes-lab-resizer:hover {
-            background-color: #4AC0FC;
-        }
-        
-        .tab-bar-wrapper {
-            display: flex;
-            align-items: center;
-            padding: 4px;
-            flex-shrink: 0;
-            border-bottom: 1px solid var(--border-color);
-            z-index: 2;
-        }
-        
-        .tab-bar {
-            flex-grow: 1;
-            min-width: 0;
-            display: flex;
-            align-items: center;
-            overflow-x: auto;
-        }
-        .tab-bar::-webkit-scrollbar { height: 4px; }
-        .tab-bar::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); border-radius: 20px; }
-
-        .tab {
-            flex: 0 0 auto; 
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            border-left: 3px solid transparent;
-            position: relative;
-            white-space: nowrap;
-            transition: padding 0.2s ease, gap 0.2s ease;
-        }
-        .tab.active {
-            background-color: var(--interactive-bg);
-            border-left: 3px solid var(--active-toggle-bg);
-        }
-        .tab span {
-            transition: opacity 0.2s ease, width 0.2s ease, margin-left 0.2s ease;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .tab-bar.compact-tabs .tab span {
-            opacity: 0;
-            width: 0;
-            margin-left: -6px;
-        }
-
-        .tab-content-container {
-            flex-grow: 1;
-            position: relative;
-            z-index: 1;
-            overflow: hidden;
-        }
-        .tab-content {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            padding: 1rem;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s;
-            display: flex;
-            flex-direction: column;
-        }
-        .tab-content.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .close-tab-btn {
-            opacity: 0;
-            margin-left: 0;
-            width: 0;
-            padding: 2px;
-            border-radius: 50%;
-            transition: opacity 0.2s ease, width 0.2s ease, margin-left 0.2s ease;
-            overflow: hidden;
-            white-space: nowrap;
-        }
-        .tab:hover .close-tab-btn {
-            opacity: 0.5;
-            width: 20px;
-            margin-left: 8px;
-        }
-        .close-tab-btn:hover {
-            opacity: 1;
-            background-color: rgba(0,0,0,0.1);
-        }
-
-        /* --- Menu Bar Customization --- */
-        .add-tab-bar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 26px;
-            height: 100%;
-            background: linear-gradient(to top, #4AC0FC, #3294c7, #a81865, #e01e84);
-            background-size: 400% 400%;
-            animation: gradient-flow 15s ease infinite;
-            z-index: 3;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 7px;
-            transition: width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
-        }
-
-        .add-tab-bar.animation-disabled {
-            animation: none;
-        }
-
-        .menu-open .add-tab-bar {
-            width: 140px;
-        }
-
-        .add-tab-btn {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 2px;
-            margin-bottom: 15px;
-        }
-        
-        .add-tab-btn .icon {
-            color: white;
-            width: 16px;
-            height: 16px;
-            transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
-        }
-        
-        .menu-open .add-tab-btn .icon {
-             transform: rotate(180deg);
-        }
-
-        .add-tab-title {
-            color: white;
-            font-weight: 600;
-            font-size: 1rem;
-            padding: 0 15px;
-            margin-bottom: 15px;
-            opacity: 0;
-            transform: translateX(20px);
-            transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.3s ease;
-            transition-delay: 0.1s;
-            width: 100%;
-            display: none; /* Hidden by default */
-        }
-        .menu-open .add-tab-title {
-            display: block;
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .add-tab-menu-items {
-            width: 100%;
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 0 10px;
-            opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
-        }
-        
-        .menu-open .add-tab-menu-items {
-            display: flex;
-            opacity: 1;
-        }
-
-        .add-tab-menu-items a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.875rem;
-            padding: 10px 15px;
-            border-radius: 8px;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transform: translateX(20px);
-            opacity: 0;
-            transition: background 0.2s ease, transform 0.4s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.3s ease;
-        }
-
-        .menu-open .add-tab-menu-items a {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        
-        .menu-open .add-tab-menu-items a:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .menu-open .add-tab-menu-items a:nth-child(1) { transition-delay: 0.15s; }
-        .menu-open .add-tab-menu-items a:nth-child(2) { transition-delay: 0.20s; }
-        .menu-open .add-tab-menu-items a:nth-child(3) { transition-delay: 0.25s; }
-        .menu-open .add-tab-menu-items a:nth-child(4) { transition-delay: 0.30s; }
-        
-        .quick-add-bar {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
-        }
-
-        .menu-open .quick-add-bar {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .quick-add-btn {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: white;
-            transition: transform 0.2s ease;
-            padding: 4px;
-        }
-
-        .quick-add-btn:hover {
-            transform: scale(1.15);
-        }
-
-        .settings-btn-container {
-            margin-top: auto;
-            padding-bottom: 10px;
-        }
-
-        /* --- Settings Panel --- */
-        .settings-panel {
-            position: absolute;
-            bottom: 1rem;
-            right: 3rem;
-            width: 220px;
-            z-index: 30;
-            opacity: 0;
-            transform: translateY(10px) scale(0.95);
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        .settings-open .settings-panel {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            pointer-events: all;
-        }
-
-        /* --- Settings Toggle Switch --- */
-        .toggle-checkbox:checked {
-            right: 0;
-            border-color: var(--active-toggle-bg);
-        }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: var(--active-toggle-bg);
-        }
-        /* --- End Menu Bar Styles --- */
-
-
-        #tab-tooltip {
-            position: fixed;
-            z-index: 100;
-            padding: 8px 12px;
-            max-width: 250px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            pointer-events: none;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-        #tab-tooltip.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        /* Quill Editor Styles */
-        .ql-toolbar {
-            border-top-left-radius: 0.5rem;
-            border-top-right-radius: 0.5rem;
-            border-color: var(--border-color) !important;
-        }
-        .ql-container {
-            border-bottom-left-radius: 0.5rem;
-            border-bottom-right-radius: 0.5rem;
-            border-color: var(--border-color) !important;
-            color: var(--text-color);
-            flex-grow: 1;
-            font-family: 'Poppins', sans-serif;
-        }
-        .ql-editor {
-             height: 100%;
-        }
-        html.dark .ql-snow .ql-stroke {
-            stroke: var(--text-muted-color);
-        }
-        html.dark .ql-snow .ql-picker-label {
-            color: var(--text-muted-color);
-        }
-        html.dark .ql-snow .ql-active .ql-stroke {
-            stroke: var(--active-toggle-bg);
-        }
-
-        /* Flashcard Styles */
-        .flashcard-container {
-            perspective: 1000px;
-            width: 100%;
-            max-width: 500px;
-            margin: auto;
-        }
-        .flashcard {
-            width: 100%;
-            height: 250px;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.6s;
-        }
-        .flashcard.is-flipped {
-            transform: rotateY(180deg);
-        }
-        .flashcard-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            border-radius: 1rem;
-        }
-        .flashcard-front {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border-color);
-        }
-        .flashcard-back {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border-color);
-            transform: rotateY(180deg);
-        }
-
-        /* Voice Tab Widget Styles */
-        .voice-widget-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-        .voice-widget {
-            position: absolute;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            resize: both;
-            overflow: hidden; 
-            min-width: 180px;
-            min-height: 150px;
-            container-type: inline-size;
-        }
-        .voice-widget-dragger {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 20px;
-            cursor: move;
-        }
-        .voice-widget-closer {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(135deg, #DC2188, #4AC0FC);
-            border-bottom-left-radius: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease;
-        }
-        .voice-widget-closer:hover {
-            transform: scale(1.1);
-        }
-        .voice-widget-closer i {
-            font-size: 0.7rem;
-            color: white;
-        }
-        .voice-widget-content {
-            padding: 12px;
-            flex-grow: 1;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            margin-top: 10px; /* Space for dragger */
-        }
-        .voice-widget-content textarea {
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            border: none;
-            resize: none;
-            color: var(--text-color);
-        }
-        .voice-widget-content textarea:focus {
-            outline: none;
-        }
-        
-        .manage-widgets-container {
-            position: absolute;
-            bottom: 1rem;
-            right: 1rem;
-            z-index: 50;
-        }
-
-        /* Dynamic Widget Content Styling */
-        @container (max-width: 200px) {
-            .voice-widget-content .widget-title,
-            .voice-widget-content .record-btn-text, 
-            .voice-widget-content .upload-btn-text,
-            .voice-widget-content .player-info {
-                display: none;
-            }
-            .voice-widget-content .record-btn {
-                width: 4rem;
-                height: 4rem;
-            }
-            .voice-widget-content .record-btn i {
-                font-size: 1.5rem;
-            }
-            .voice-widget-content .upload-btn {
-                padding: 0.5rem;
-            }
-            .voice-widget-content .player-controls {
-                gap: 0.5rem;
-            }
-            .voice-widget-content .player-controls button {
-                font-size: 1rem;
-            }
-            .voice-widget-content .waveform {
-                display: none;
-            }
-        }
-        
-        /* Source Document & Highlighting */
-        #highlight-menu {
-            position: absolute;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            transform: translateY(10px);
-        }
-        #highlight-menu.visible {
-            opacity: 1;
-            pointer-events: all;
-            transform: translateY(0);
-        }
-        .source-highlight {
-            background-color: var(--highlight-bg);
-            transition: background-color 0.5s ease;
-        }
-        .source-link-icon {
-            cursor: pointer;
-            color: var(--text-muted-color);
-            font-size: 0.75rem;
-            margin-left: 8px;
-            transition: color 0.2s;
-        }
-        .source-link-icon:hover {
-            color: var(--active-toggle-bg);
-        }
-
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.8); }
+        .resizer { background-color: transparent; cursor: col-resize; width: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .resizer-line { width: 4px; height: 50px; background-color: #334155; border-radius: 4px; transition: background-color 0.2s; }
+        .resizer:hover .resizer-line { background-color: #475569; }
+        #note-editor-content { outline: none; }
+        #note-editor-content ul, #note-editor-content ol { padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        #note-editor-content ul { list-style: disc; }
+        #note-editor-content ol { list-style: decimal; }
+        #note-editor-content p { margin-bottom: 0.5rem; }
+        #pdf-canvas { border: 1px solid #4a5568; box-shadow: 0 4px 12px rgba(0,0,0,0.5); max-width: 100%; height: auto; }
+        .highlight { background-color: rgba(255, 255, 0, 0.3); }
+        .folder-item.active { @apply bg-cyan-600/50 border-cyan-500; }
+        .lab-tab.active { @apply border-cyan-400 text-cyan-400; }
     </style>
 </head>
-<body class="relative">
-    
-    <canvas id="constellation-canvas"></canvas>
-    <div id="login-animation-overlay"></div>
-    <div id="tab-tooltip" class="solid-glass-pane"></div>
-    <div id="highlight-menu" class="solid-glass-pane rounded-lg p-1 flex gap-1"></div>
-
+<body class="bg-slate-900 text-slate-100">
     <!-- Login View -->
-    <div id="view-login" class="view flex items-center justify-center p-4">
-        <div class="glass-pane w-full max-w-md rounded-2xl p-8 space-y-6 text-center">
-            <div class="mx-auto h-24 w-24 rounded-full bg-gradient-to-br from-[#DC2188] to-[#4AC0FC] flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+    <div id="view-login" class="min-h-screen flex items-center justify-center fade-in">
+        <div class="w-full max-w-sm p-8 space-y-6 bg-slate-800/50 border border-slate-700 rounded-2xl shadow-2xl">
+            <div>
+                <h2 id="login-title" class="text-center text-3xl font-bold tracking-tight text-white"><i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In</h2>
+                <p class="mt-2 text-center text-sm text-slate-400">to your Study Fortress</p>
             </div>
-            <h1 id="login-title-h1" class="text-3xl font-bold tracking-tight text-[var(--text-color)]">Study Fortress</h1>
-            <p class="text-[var(--text-muted-color)]">Your self-hosted, AI-powered study companion.</p>
-            <div class="pt-4">
-                <form id="login-form" class="space-y-4">
-                    <input id="email" name="email" type="email" autocomplete="email" required class="block w-full appearance-none rounded-lg border border-gray-300 bg-gray-50/50 px-3 py-2 text-[var(--text-color)] placeholder-gray-500 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm dark:bg-gray-800/50 dark:border-gray-600 dark:text-gray-200" placeholder="Email address">
-                    <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full appearance-none rounded-lg border border-gray-300 bg-gray-50/50 px-3 py-2 text-[var(--text-color)] placeholder-gray-500 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm dark:bg-gray-800/50 dark:border-gray-600 dark:text-gray-200" placeholder="Password">
-                    <button id="submit-auth-btn" type="submit" class="animated-gradient-button w-full text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:scale-105 transition-transform duration-300">
-                        Enter
-                    </button>
-                </form>
-                <p id="auth-error" class="text-xs text-center text-red-500 h-4 mt-2"></p>
-                <div class="text-center text-sm mt-4"><a href="#" id="auth-mode-toggle" class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">Need an account? Sign Up</a></div>
-            </div>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-300">Email address</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required class="mt-1 block w-full appearance-none rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required class="mt-1 block w-full appearance-none rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 sm:text-sm">
+                </div>
+                <button id="submit-auth-btn" type="submit" class="flex w-full justify-center rounded-lg bg-cyan-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700">Sign In</button>
+            </form>
+            <p id="auth-error" class="text-xs text-center text-red-400 h-4"></p>
+            <div class="text-center text-sm"><a href="#" id="auth-mode-toggle" class="font-medium text-cyan-400 hover:text-cyan-300">Need an account? Sign Up</a></div>
         </div>
     </div>
 
-    <!-- Main App View -->
-    <div id="view-notes-lab" class="view hidden p-4 sm:p-6 lg:p-8 flex gap-4">
-        <!-- Collapsible Sidebar -->
-        <aside id="notes-lab-sidebar" class="glass-pane rounded-2xl flex flex-col gap-4 w-64 flex-shrink-0 p-4">
-            <!-- Sidebar Header -->
-            <div class="flex-shrink-0 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-[var(--text-color)]">My Folders</h1>
-                <button id="create-folder-btn" class="interactive-lift h-8 w-8 flex items-center justify-center text-[var(--text-muted-color)] hover:text-[var(--text-color)] bg-gray-200/50 dark:bg-gray-700/50 rounded-full" title="Create New Folder">
-                    <i class="fas fa-plus"></i>
-                </button>
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="absolute top-4 right-4 flex items-center space-x-4 z-10">
+            <div id="rewards-display" class="flex items-center space-x-4 text-slate-300 bg-slate-800/50 px-3 py-2 rounded-lg">
+                <div title="Total Points"><i class="fas fa-star text-yellow-400"></i> <span id="points-display">0</span></div>
+                <div title="Study Streak"><i class="fas fa-fire text-orange-500"></i> <span id="streak-display">0</span></div>
             </div>
-            <!-- Folder List -->
-            <div id="folder-list-container" class="flex-grow overflow-y-auto custom-scrollbar -mr-2 pr-2">
-                <!-- Dynamic folder items will be inserted here -->
-            </div>
-            <!-- Sidebar Footer -->
-            <div class="flex-shrink-0 border-t border-[var(--border-color)] pt-3">
-                 <div class="relative group">
-                    <button id="profile-button" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--interactive-bg)]">
-                        <img id="header-avatar" src="https://placehold.co/40x40/e5e7eb/4b5563?text=?" class="w-10 h-10 rounded-full object-cover">
-                        <div class="flex-grow text-left">
-                            <p class="text-sm font-semibold text-[var(--text-color)]" id="sidebar-username"></p>
-                            <p class="text-xs text-[var(--text-muted-color)]" id="sidebar-email"></p>
-                        </div>
-                    </button>
-                    <div id="profile-menu" class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-56 solid-glass-pane rounded-md shadow-lg py-2 z-50">
-                        <div class="px-4 py-3 border-b border-[var(--border-color)] text-sm space-y-2">
-                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Total Points"><span><i class="fas fa-star text-yellow-400 mr-2"></i>Points</span> <span id="points-display" class="font-semibold"></span></div>
-                            <div class="flex justify-between items-center text-[var(--text-color)]" title="Study Streak"><span><i class="fas fa-fire text-orange-500 mr-2"></i>Streak</span> <span id="streak-display" class="font-semibold"></span></div>
-                        </div>
-                        <a href="#" id="btn-go-to-profile" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md mt-1">Profile & Settings</a>
-                        <a href="#" id="btn-sign-out" class="block px-4 py-2 text-sm text-[var(--text-color)] hover:bg-[var(--interactive-bg)] rounded-md">Sign Out</a>
-                    </div>
+            <div class="relative">
+                <button id="profile-button" class="text-slate-400 hover:text-white"><img id="header-avatar" src="https://placehold.co/40x40/1e293b/94a3b8?text=?" class="w-10 h-10 rounded-full object-cover"></button>
+                <div id="profile-menu" class="hidden absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-20">
+                    <a href="#" id="btn-go-to-profile" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Profile & Settings</a>
+                    <a href="#" id="btn-sign-out" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Sign Out</a>
                 </div>
             </div>
-        </aside>
+        </div>
+        
+        <!-- NEW: Unified Notes Lab View -->
+        <div id="view-notes-lab" class="hidden h-[calc(100vh-4rem)] flex gap-6">
+            <!-- Left Sidebar for Folders -->
+            <aside id="lab-sidebar" class="w-1/4 max-w-xs flex-shrink-0 flex flex-col bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Folders</h2>
+                    <button id="btn-show-create-folder-modal" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="relative mb-4">
+                    <input type="text" id="search-input" placeholder="Search folders..." class="bg-slate-800 text-white rounded-lg pl-10 pr-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                </div>
+                <div id="lab-folder-list" class="flex-grow space-y-2 overflow-y-auto custom-scrollbar pr-2"></div>
+                <div id="no-folders-message" class="hidden text-center py-20"><i class="fas fa-folder-open text-5xl text-slate-500"></i><h3 class="mt-4 text-xl font-semibold">No folders yet</h3><p class="mt-1 text-slate-400">Create a folder to get started!</p></div>
+            </aside>
 
-        <!-- Main Content -->
-        <main id="notes-lab-main-content" class="flex-grow flex flex-col gap-4">
-            <div id="notes-lab-grid" class="notes-lab-grid flex-grow">
-               <!-- Panes will be generated by JavaScript -->
+            <!-- Main Content Area -->
+            <main id="lab-main-content" class="flex-grow flex flex-col bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-6">
+                <div id="lab-content-placeholder" class="flex-grow flex items-center justify-center text-slate-500">
+                    <div class="text-center">
+                        <i class="fas fa-arrow-left text-5xl"></i>
+                        <h3 class="mt-4 text-xl font-semibold">Select a folder</h3>
+                        <p class="mt-1 text-slate-400">Choose a folder from the left to view its contents.</p>
+                    </div>
+                </div>
+                <div id="lab-content-active" class="hidden flex-grow flex flex-col">
+                    <!-- Header for the active folder -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-4 border-b border-slate-700">
+                        <div class="mb-4 sm:mb-0">
+                            <h1 id="folder-title" class="text-3xl font-bold mb-1"></h1>
+                            <p id="folder-description" class="text-slate-400"></p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                             <button id="btn-study-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-graduation-cap mr-2"></i>Study</button>
+                             <button id="btn-add-note-to-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-file-alt mr-2"></i>Add Note</button>
+                             <button id="btn-upload-book" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-book-open mr-2"></i>Upload PDF</button>
+                             <input type="file" id="book-upload-input" class="hidden" accept="application/pdf">
+                        </div>
+                    </div>
+                    <!-- Tab Navigation -->
+                    <div class="border-b border-slate-700 mb-4">
+                        <nav id="lab-tabs" class="-mb-px flex space-x-6">
+                            <button data-tab="notes" class="lab-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-400 hover:border-slate-300 hover:text-slate-300">Notes</button>
+                            <button data-tab="documents" class="lab-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-400 hover:border-slate-300 hover:text-slate-300">Documents</button>
+                            <button data-tab="cards" class="lab-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-400 hover:border-slate-300 hover:text-slate-300">Cards</button>
+                        </nav>
+                    </div>
+                    <!-- Tab Content Area -->
+                    <div id="lab-tab-content" class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+                        <div id="tab-content-notes" class="lab-tab-pane space-y-3"></div>
+                        <div id="tab-content-documents" class="lab-tab-pane space-y-2 hidden"></div>
+                        <div id="tab-content-cards" class="lab-tab-pane grid grid-cols-1 md:grid-cols-2 gap-4 hidden"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <div id="view-note-editor" class="hidden h-[calc(100vh-4rem)] flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                 <div class="flex items-center gap-2">
+                    <button id="btn-back-to-lab-from-editor" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-arrow-left mr-2"></i>Back</button>
+                    <button id="btn-toggle-book-mode" title="Toggle Book Mode" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-book"></i></button>
+                    <button id="btn-cycle-layout" title="Cycle Layout" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-columns"></i></button>
+                    <button id="btn-record-audio" title="Record Audio" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-microphone"></i></button>
+                    <button id="btn-ai-subpoints" title="Generate Subpoints" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
+                    <button id="btn-ai-highlight" title="Highlight Key Areas" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-highlighter"></i></button>
+                 </div>
+                 <h2 id="notes-lab-title-editor" class="text-xl font-bold text-cyan-400">Notes Editor</h2>
+                 <div class="flex items-center gap-2">
+                      <select id="ai-provider-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
+                            <option value="">Select Provider</option>
+                      </select>
+                      <select id="ai-model-selector" class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600" disabled>
+                            <option value="">Select Model</option>
+                      </select>
+                      <button id="btn-generate-from-note" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700" disabled>
+                            <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
+                      </button>
+                      <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>Save</button>
+                 </div>
             </div>
-        </main>
+            <div id="note-editor-grid" class="flex-grow flex gap-2 min-h-0" data-layout-mode="split-h">
+                <!-- Book Viewer Panel -->
+                <div id="book-viewer-panel" class="hidden bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex-col min-h-0" style="flex-basis: 50%;">
+                    <div class="flex-grow overflow-y-auto custom-scrollbar flex items-center justify-center">
+                        <canvas id="pdf-canvas"></canvas>
+                    </div>
+                    <div id="pdf-controls" class="flex-shrink-0 flex items-center justify-center space-x-4 pt-4">
+                        <button id="pdf-prev" class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"><i class="fas fa-arrow-left"></i></button>
+                        <span class="text-sm">Page <span id="pdf-page-num"></span> of <span id="pdf-page-count"></span></span>
+                        <button id="pdf-next" class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+                <!-- Resizer for Book Mode -->
+                <div id="book-viewer-resizer" class="resizer hidden"><div class="resizer-line"></div></div>
+                <!-- Note Editor Panel -->
+                <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%;">
+                    <input type="hidden" id="note-editor-id">
+                    <div class="mb-2 flex-shrink-0 flex items-center gap-4">
+                        <input type="text" id="note-editor-title" placeholder="Note Title..." class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none">
+                        <div id="note-editor-controls" class="flex items-center gap-2">
+                           <button id="btn-bullet-list" title="Bulleted List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ul"></i></button>
+                           <button id="btn-ordered-list" title="Numbered List" class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                    </div>
+                    <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
+                    <div id="subpoints-container" class="hidden mt-4"></div>
+                    <div id="audio-clips-container" class="mt-4 space-y-2"></div>
+                </div>
+                <!-- Resizer for Notes -->
+                <div id="note-editor-resizer" class="resizer"><div class="resizer-line"></div></div>
+                <!-- Flashcard Hub -->
+                <div id="flashcard-hub-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0">
+                     <div id="note-editor-cards-list" class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar"></div>
+                     <button id="btn-add-manual-card-in-editor" class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"><i class="fas fa-plus mr-2"></i>Add Manual Card</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container">
+        <!-- Create/Edit Folder Modal -->
+        <div id="modal-create-folder" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-md p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-4">Create Folder</h2>
+                <input type="hidden" id="folder-id-input">
+                <div class="space-y-4">
+                    <div><label for="folder-name-input" class="block text-sm font-medium text-slate-300">Folder Name</label><input type="text" id="folder-name-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white"></div>
+                    <div><label for="folder-description-input" class="block text-sm font-medium text-slate-300">Description</label><input type="text" id="folder-description-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white"></div>
+                    <div><label for="folder-color-input" class="block text-sm font-medium text-slate-300">Color</label><input type="color" id="folder-color-input" value="#06b6d4" class="mt-1 block w-full h-10 bg-slate-700 border-slate-600 rounded-lg"></div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3"><button id="btn-cancel-create-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button><button id="btn-save-folder" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Folder</button></div>
+            </div>
+        </div>
+        <!-- Add Manual Cards Modal -->
+        <div id="modal-add-card" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-4">Add Manual Cards</h2>
+                <div id="add-cards-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"></div>
+                <div class="mt-6 flex justify-between"><button id="btn-add-another-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500"><i class="fas fa-plus mr-2"></i>Add Another</button><div class="space-x-3"><button id="btn-cancel-add-card" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button><button id="btn-save-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Save Cards</button></div></div>
+            </div>
+        </div>
+        <!-- Learn Options Modal -->
+        <div id="modal-learn-options" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in">
+            <div class="bg-slate-800 border border-slate-700 w-full max-w-lg p-6 rounded-xl shadow-2xl">
+                <h2 class="text-2xl font-bold mb-1">Study Options</h2>
+                <p class="text-sm text-slate-400 mb-6">Choose how you want to study these cards.</p>
+                <div class="border-y border-slate-700 py-6"><h3 class="font-semibold mb-3 text-lg">Question Types</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><input type="checkbox" name="learn-q-type" id="q-type-mcq" value="mcq" checked class="hidden"><label for="q-type-mcq" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-list-ul text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Multiple Choice</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div><div><input type="checkbox" name="learn-q-type" id="q-type-written" value="written" checked class="hidden"><label for="q-type-written" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-keyboard text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Written Answer</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div><div><input type="checkbox" name="learn-q-type" id="q-type-tf" value="tf" class="hidden"><label for="q-type-tf" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-check-double text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">True / False</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div><div><input type="checkbox" name="learn-q-type" id="q-type-matching" value="matching" class="hidden"><label for="q-type-matching" class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"><i class="fas fa-puzzle-piece text-2xl mb-2 text-cyan-400"></i><span class="font-semibold block">Matching Game</span><i class="fas fa-check-circle absolute top-2 right-2 text-xl"></i></label></div></div></div>
+                <div class="border-b border-slate-700 py-6"><div class="flex items-center justify-between"><div><h3 class="font-semibold text-lg">Smart Review</h3><p class="text-sm text-slate-400">Only study cards that are due today.</p></div><label for="smart-review-toggle" class="relative inline-flex items-center cursor-pointer"><input type="checkbox" value="" id="smart-review-toggle" class="sr-only peer" checked><div class="w-14 h-8 bg-slate-600 peer-focus:outline-none rounded-full peer block peer-checked:bg-cyan-600"></div><div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition peer-checked:translate-x-6"></div></label></div><div id="study-planner-container" class="mt-4 p-4 bg-slate-900/50 rounded-lg"><label for="test-due-date-input" class="block text-sm font-medium text-slate-300">Optional: When is your test?</label><input type="date" id="test-due-date-input" class="mt-1 w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white"><p id="study-plan-recommendation" class="text-xs text-cyan-300 mt-2 h-4"></p></div></div>
+                <div class="mt-6 flex justify-end space-x-3"><button id="btn-cancel-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-600 text-slate-200 hover:bg-slate-500">Cancel</button><button id="btn-start-learn" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">Start Studying</button></div>
+            </div>
+        </div>
+        <!-- Update Log Modal -->
+        <div id="modal-update-log" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 fade-in"><div class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl flex flex-col" style="max-height: 80vh;"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Update Log</h2><button id="btn-close-update-log" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button></div><div class="bg-black/50 p-4 rounded-lg overflow-y-auto custom-scrollbar flex-grow"><pre id="update-log-content" class="text-xs whitespace-pre-wrap"></pre></div></div></div>
     </div>
     
-    <!-- Quill.js JS -->
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-    <script>
-    (() => {
-        // --- Application State ---
-        let appState = {
-            profile: {},
-            rewards: {},
-            folders: [],
-            notesByFolder: {},
-            cardsByFolder: {},
-            documentsByFolder: {},
-            settings: {},
-            audioClipsByNote: {},
-            token: null,
-            email: null,
-            currentFolderId: null,
-        };
+    <div id="toast" class="hidden fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50"></div>
 
-        // --- API Helper ---
-        const api = {
-            async request(endpoint, options = {}) {
-                const headers = { 'Content-Type': 'application/json', ...options.headers };
-                if (appState.token) {
-                    headers['Authorization'] = `Bearer ${appState.token}`;
-                }
-                const response = await fetch(`/api${endpoint}`, { ...options, headers });
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
-                if (response.status === 204) return null;
-                return response.json();
-            },
-            login: (email, password) => api.request('/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-            register: (email, password) => api.request('/register', { method: 'POST', body: JSON.stringify({ email, password }) }),
-            getAllData: () => api.request('/all-data'),
-            saveProfile: (profileData) => api.request('/profile', { method: 'POST', body: JSON.stringify(profileData) }),
-            saveFolder: (folderData) => api.request('/folders', { method: 'POST', body: JSON.stringify(folderData) }),
-            saveNote: (noteData) => api.request('/notes', { method: 'POST', body: JSON.stringify(noteData) }),
-        };
+    <script type="module">
+        // --- GLOBAL STATE ---
+        const APP_VERSION = '1.2.0';
+        const AppState = { currentFolderId: null, currentNoteId: null, currentDocumentId: null, localData: { profile: {}, rewards: {}, folders: [], notesByFolder: {}, cardsByFolder: {}, documentsByFolder: {}, settings: {}, audioClipsByNote: {} }, learnState: {}, matchingState: {} };
+        const API_BASE_URL = ''; 
 
-        // --- DOM Element Selection ---
-        const canvas = document.getElementById('constellation-canvas');
-        const ctx = canvas.getContext('2d');
-        const loginView = document.getElementById('view-login');
-        const loginForm = document.getElementById('login-form');
-        const htmlElement = document.documentElement;
-        const animationOverlay = document.getElementById('login-animation-overlay');
-        const notesLabView = document.getElementById('view-notes-lab');
-        const tabTooltip = document.getElementById('tab-tooltip');
-        const highlightMenu = document.getElementById('highlight-menu');
-        const authErrorEl = document.getElementById('auth-error');
-        const authModeToggle = document.getElementById('auth-mode-toggle');
-        const submitAuthBtn = document.getElementById('submit-auth-btn');
-        const folderListContainer = document.getElementById('folder-list-container');
-
-        // --- Performance & Animation ---
-        let particles = [];
-        const mouse = { x: null, y: null, radius: 150 };
-        const PARTICLE_COLORS = ['#DC2188', '#4AC0FC', '#FBBF24', '#34D399'];
-        const EMOJIS = ['📚', '🔬', '🎨', '🎵', '💻', '🏛️', '💡', '🧠', ' ', '🌍'];
-        const SHAPE_TYPES = ['circle', 'square', 'triangle', 'emoji', 'emoji', 'emoji', 'emoji'];
-        let animationFrameId;
-        let isMouseMoving = false;
+        // --- UTILITY FUNCTIONS ---
+        const Utils = { shuffle: (arr) => [...arr].sort(() => Math.random() - 0.5), escapeHtml: (str) => String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]), debounce: (func, wait) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func(...a), wait); }; } };
         
-        let themeColors = { unlitParticle: '', unlitLine: '' };
-
-        function poissonDiscSample(width, height, radius, k = 30) {
-            const cellSize = radius / Math.SQRT2;
-            const gridWidth = Math.ceil(width / cellSize);
-            const gridHeight = Math.ceil(height / cellSize);
-            const grid = new Array(gridWidth * gridHeight);
-            const active = [];
-            const samples = [];
-
-            function addSample(p) {
-                samples.push(p);
-                active.push(p);
-                grid[Math.floor(p.x / cellSize) + Math.floor(p.y / cellSize) * gridWidth] = p;
-            }
-
-            addSample({ x: Math.random() * width, y: Math.random() * height });
-
-            while (active.length > 0) {
-                const randIndex = Math.floor(Math.random() * active.length);
-                const pos = active[randIndex];
-                let found = false;
-
-                for (let i = 0; i < k; i++) {
-                    const a = Math.random() * 2 * Math.PI;
-                    const r = Math.sqrt(Math.random() * 3 * radius * radius + radius * radius);
-                    const p = { x: pos.x + r * Math.cos(a), y: pos.y + r * Math.sin(a) };
-
-                    if (p.x > 0 && p.x < width && p.y > 0 && p.y < height) {
-                        const x = Math.floor(p.x / cellSize);
-                        const y = Math.floor(p.y / cellSize);
-                        let ok = true;
-
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (y + dy >= 0 && y + dy < gridHeight && x + dx >= 0 && x + dx < gridWidth) {
-                                    const neighbor = grid[(x + dx) + (y + dy) * gridWidth];
-                                    if (neighbor) {
-                                        const d = Math.sqrt((neighbor.x - p.x) ** 2 + (neighbor.y - p.y) ** 2);
-                                        if (d < radius) {
-                                            ok = false;
-                                        }
-                                    }
-                                }
-                            }
+        // --- API & AUTHENTICATION CONTROLLERS ---
+        const ApiController = {
+            getToken: () => localStorage.getItem('accessToken'),
+            async apiCall(endpoint, method = 'GET', body = null, responseType = 'json') {
+                const isFormData = body instanceof FormData;
+                const headers = {};
+                if (!isFormData) { headers['Content-Type'] = 'application/json'; }
+                const token = this.getToken(); 
+                if(token) { headers['Authorization'] = `Bearer ${token}`; }
+                const options = { method, headers };
+                if (body) { options.body = isFormData ? body : JSON.stringify(body); }
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                    if (response.status === 401 || response.status === 403) { AuthController.signOut(); throw new Error("Authentication failed. Please sign in again."); }
+                    if (responseType === 'blob') {
+                        if (!response.ok) { 
+                            const errorText = await response.text();
+                            throw new Error(`Failed to fetch file. Server response: ${errorText}`);
                         }
-                        if (ok) {
-                            found = true;
-                            addSample(p);
-                            break;
-                        }
+                        return response.blob();
                     }
-                }
-                if (!found) {
-                    active.splice(randIndex, 1);
-                }
+                    if (!response.ok) { 
+                        const errText = await response.text();
+                        if (response.status === 429) {
+                            throw new Error("API rate limit exceeded. Please wait a moment and try again.");
+                        }
+                        try {
+                           const errJson = JSON.parse(errText);
+                           throw new Error(errJson.error || 'API Request Failed');
+                        } catch(e) { throw new Error(errText); }
+                    }
+                    return response.status === 204 ? { success: true } : await response.json();
+                } catch (error) { UI.showToast(error.message, true); throw error; }
             }
-            return samples;
-        }
+        };
+        const AuthController = {
+            signOut() { localStorage.removeItem('accessToken'); window.location.reload(); },
+            async handleAuth(email, password, isSignUp) {
+                const endpoint = isSignUp ? '/register' : '/login';
+                try {
+                    const result = await ApiController.apiCall(endpoint, 'POST', { email, password });
+                    if (isSignUp) { UI.showToast("Registration successful! Please sign in."); document.getElementById('auth-mode-toggle').click(); } 
+                    else { localStorage.setItem('accessToken', result.accessToken); await runApplication(); }
+                } catch (error) { console.error("Auth failed:", error); }
+            }
+        };
 
-        function updateThemeColors() {
-            const styles = getComputedStyle(document.body);
-            themeColors.unlitParticle = styles.getPropertyValue('--unlit-particle-color').trim();
-            themeColors.unlitLine = styles.getPropertyValue('--unlit-line-color').trim();
-        }
-
-        class Particle { 
-            constructor(x, y) {
-                this.x = x; this.y = y;
-                this.size = Math.random() * 3 + 1.5;
-                this.isLit = false; 
-                this.type = SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)];
-                if (this.type === 'emoji') {
-                    this.emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-                    this.size = Math.random() * 10 + 10;
-                }
-                this.color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
-            } 
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.isLit ? 1.0 : 0.6;
-                if (this.type === 'emoji') {
-                    if(!this.isLit) ctx.filter = 'grayscale(100%)';
-                    ctx.font = `${this.size}px Poppins`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(this.emoji, this.x, this.y);
+        // --- CORE LOGIC MODULES ---
+        const SRS = { MIN_EASE: 1.3, MAX_EASE: 3.5, INITIAL_INTERVAL: 1, MAXIMUM_INTERVAL: 365, addSRSData(card) { const srsData = { ease: this.MIN_EASE, interval: this.INITIAL_INTERVAL, dueDate: new Date().toISOString() }; return { ...card, ...srsData, createdAt: new Date().toISOString() }; }, async updateCardSRS(card, isCorrect) { let { ease, interval } = card; if (isCorrect) { interval = Math.min(this.MAXIMUM_INTERVAL, Math.round(interval * ease)); ease = Math.min(this.MAX_EASE, ease + 0.1); } else { interval = this.INITIAL_INTERVAL; ease = Math.max(this.MIN_EASE, ease - 0.2); } const newDueDate = new Date(); newDueDate.setDate(newDueDate.getDate() + interval); const srsUpdate = { ease, interval, dueDate: newDueDate.toISOString() }; await ApiController.apiCall(`/cards/${card.id}`, 'PUT', { srs: srsUpdate }); const cardIndex = AppState.localData.cardsByFolder[AppState.currentFolderId].findIndex(c => c.id === card.id); if(cardIndex > -1) Object.assign(AppState.localData.cardsByFolder[AppState.currentFolderId][cardIndex], srsUpdate); } };
+        const Rewards = { async update(isCorrect) { let r = AppState.localData.rewards; const today = new Date().toDateString(); const last = r.lastStudied ? new Date(r.lastStudied).toDateString() : null; if (isCorrect) { r.points = (r.points || 0) + 10; if (last !== today) { const y = new Date(); y.setDate(y.getDate()-1); r.streak = last === y.toDateString() ? (r.streak || 0) + 1 : 1; } } else { r.streak = 0; } r.lastStudied = new Date().toISOString(); AppState.localData.rewards = await ApiController.apiCall('/rewards', 'POST', r); this.display(); }, display() { const rewards = AppState.localData.rewards || {}; document.getElementById('points-display').textContent = rewards.points || 0; document.getElementById('streak-display').textContent = rewards.streak || 0; } };
+        const UI = { 
+            init() { 
+                this.views = { 
+                    login: document.getElementById('view-login'), 
+                    app: document.getElementById('app-container'), 
+                    notesLab: document.getElementById('view-notes-lab'), 
+                    noteEditor: document.getElementById('view-note-editor'),
+                    profile: document.getElementById('view-profile')
+                }; 
+                this.modals = { createFolder: document.getElementById('modal-create-folder'), addCard: document.getElementById('modal-add-card'), learnOptions: document.getElementById('modal-learn-options'), 'update-log': document.getElementById('modal-update-log') }; 
+                this.toast = document.getElementById('toast'); 
+            }, 
+            showView(viewId) { 
+                if(viewId === 'login') {
+                    this.views.login.classList.remove('hidden');
+                    this.views.app.classList.add('hidden');
                 } else {
-                    ctx.fillStyle = this.isLit ? this.color : themeColors.unlitParticle;
-                    ctx.beginPath();
-                    if (this.type === 'circle') ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    else if (this.type === 'square') ctx.rect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
-                    else if (this.type === 'triangle') {
-                        ctx.moveTo(this.x, this.y - this.size);
-                        ctx.lineTo(this.x - this.size, this.y + this.size);
-                        ctx.lineTo(this.x + this.size, this.y + this.size);
-                        ctx.closePath();
+                    this.views.login.classList.add('hidden');
+                    this.views.app.classList.remove('hidden');
+                    Object.values(this.views).forEach(v => {
+                        if (v && v !== this.views.app && v !== this.views.login) {
+                            v.classList.add('hidden');
+                        }
+                    });
+                    if (this.views[viewId]) {
+                        this.views[viewId].classList.remove('hidden');
+                        this.views[viewId].classList.add('flex'); // Use flex for main views
                     }
-                    ctx.fill();
-                }
-                ctx.restore();
-            } 
-            updateState() { 
-                if (mouse.x === null) { this.isLit = false; return; }
-                const dx = this.x - mouse.x; 
-                const dy = this.y - mouse.y; 
-                const distance = Math.sqrt(dx * dx + dy * dy); 
-                this.isLit = distance < mouse.radius;
-            } 
-        }
-
-        function createParticles() {
-            particles = [];
-            const points = poissonDiscSample(canvas.width, canvas.height, 90); // Increased radius for fewer particles
-            points.forEach(point => particles.push(new Particle(point.x, point.y)));
-        }
-
-        function connectParticles() { 
-            const litParticles = particles.filter(p => p.isLit); 
-            if (litParticles.length < 2) return;
-            const lineColor = themeColors.unlitLine;
-            const rgbPart = lineColor.substring(lineColor.indexOf('(') + 1, lineColor.lastIndexOf(',')).trim();
-            for (let i = 0; i < litParticles.length; i++) { 
-                for (let j = i + 1; j < litParticles.length; j++) { 
-                    const distance = Math.sqrt((litParticles[i].x - litParticles[j].x) ** 2 + (litParticles[i].y - litParticles[j].y) ** 2); 
-                    if (distance < 140) { // Increased connection distance slightly
-                        ctx.beginPath(); 
-                        const opacity = Math.max(0, 0.7 * (1 - distance / 140));
-                        ctx.strokeStyle = `rgba(${rgbPart}, ${opacity})`;
-                        ctx.lineWidth = 0.5; 
-                        ctx.moveTo(litParticles[i].x, litParticles[i].y); 
-                        ctx.lineTo(litParticles[j].x, litParticles[j].y); 
-                        ctx.stroke(); 
-                    } 
                 } 
+            }, 
+            toggleModal(modalId, show) { if (this.modals[modalId]) this.modals[modalId].classList.toggle('hidden', !show); }, 
+            showToast(message, isError = false) { this.toast.textContent = message; this.toast.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50 fade-in ${isError ? 'bg-red-500' : 'bg-green-500'}`; this.toast.classList.remove('hidden'); setTimeout(() => this.toast.classList.add('hidden'), 3000); }, 
+            createCardHTML: (card) => { const m = UI.getMasteryInfo(card.ease); return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`; }, 
+            createAudioPlayerHTML(clip) {
+                const hasOpenAIKey = !!AppState.localData.profile.openaiApiKey;
+                const hasGoogleKey = !!AppState.localData.profile.googleApiKey;
+                const transcribeBtnDisabled = (hasOpenAIKey || hasGoogleKey) ? '' : 'disabled';
+                const transcribeBtnTitle = (hasOpenAIKey || hasGoogleKey) ? 'Transcribe Audio' : 'Google or OpenAI API key required for transcription';
+                const transcribeBtnClasses = (hasOpenAIKey || hasGoogleKey) ? 'text-cyan-400 hover:text-cyan-300' : 'text-slate-600 cursor-not-allowed';
+
+                return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
+                            <audio id="audio-player-${clip.id}" controls class="w-full"></audio>
+                            <button class="transcribe-audio-btn flex-shrink-0 px-2 ${transcribeBtnClasses}" title="${transcribeBtnTitle}" ${transcribeBtnDisabled}>
+                                <i class="fas fa-closed-captioning"></i>
+                            </button>
+                            <button class="delete-audio-clip-btn text-slate-500 hover:text-red-400 flex-shrink-0">&times;</button>
+                        </div>`;
+            },
+            getMasteryInfo(ease) { if (ease < 2.0) return { label: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' }; if (ease < 2.8) return { label: 'Medium', color: 'bg-yellow-500', textColor: 'text-yellow-400' }; return { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' }; }, 
+            updateProfileForm(profile, settings) { 
+                if (!profile) return; 
+                document.getElementById('username-input').value = profile.username || ''; 
+                document.getElementById('bio-input').value = profile.bio || ''; 
+                document.getElementById('audio-quality-select').value = profile.audioQuality || '64000';
+                const avatar = profile.avatarUrl || 'https://placehold.co/100x100/1e293b/94a3b8?text=?'; 
+                document.getElementById('avatar-preview').src = avatar; 
+                document.getElementById('header-avatar').src = avatar; 
+                document.getElementById('google-api-key-input').value = profile.googleApiKey || ''; 
+                document.getElementById('openai-api-key-input').value = profile.openaiApiKey || ''; 
+                document.getElementById('groq-api-key-input').value = profile.groqApiKey || '';
+                document.getElementById('app-version-display').textContent = APP_VERSION; 
+                const adminPanel = document.getElementById('admin-panel'); 
+                if (profile.isAdmin) { 
+                    adminPanel.classList.remove('hidden'); 
+                    document.getElementById('admin-max-upload-size').value = settings.maxUploadSize || '10';
+                    document.getElementById('admin-audio-compression-toggle').checked = settings.enableAudioCompression === 'true';
+                } else { 
+                    adminPanel.classList.add('hidden'); 
+                } 
+            }, 
+        };
+        
+        const PDFViewer = {
+            pdfDoc: null,
+            pageNum: 1,
+            pageRendering: false,
+            pageNumPending: null,
+            scale: 1.5,
+            canvas: null,
+            ctx: null,
+            prevBtn: null,
+            nextBtn: null,
+            init() {
+                this.canvas = document.getElementById('pdf-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.prevBtn = document.getElementById('pdf-prev');
+                this.nextBtn = document.getElementById('pdf-next');
+
+                this.prevBtn.onclick = () => this.onPrevPage();
+                this.nextBtn.onclick = () => this.onNextPage();
+                
+                this.updateButtonState();
+            },
+            async loadDocument(url) {
+                this.pdfDoc = null;
+                this.updateButtonState();
+                try {
+                    const { pdfjsLib } = globalThis;
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
+                    const pdfBlob = await ApiController.apiCall(url, 'GET', null, 'blob');
+                    if (pdfBlob.type !== 'application/pdf') {
+                        throw new Error(`Expected a PDF file but received type: ${pdfBlob.type}`);
+                    }
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: await pdfBlob.arrayBuffer() }).promise;
+                    document.getElementById('pdf-page-count').textContent = this.pdfDoc.numPages;
+                    this.pageNum = 1;
+                    this.renderPage(this.pageNum);
+                } catch (error) {
+                    UI.showToast("Failed to load PDF.", true);
+                    console.error("PDF Load Error:", error);
+                    this.pdfDoc = null;
+                    this.updateButtonState();
+                }
+            },
+            renderPage(num) {
+                this.pageRendering = true;
+                this.updateButtonState();
+                this.pdfDoc.getPage(num).then((page) => {
+                    const viewport = page.getViewport({ scale: this.scale });
+                    this.canvas.height = viewport.height;
+                    this.canvas.width = viewport.width;
+                    const renderContext = { canvasContext: this.ctx, viewport: viewport };
+                    page.render(renderContext).promise.then(() => {
+                        this.pageRendering = false;
+                        if (this.pageNumPending !== null) {
+                            this.renderPage(this.pageNumPending);
+                            this.pageNumPending = null;
+                        }
+                        this.updateButtonState();
+                    });
+                });
+                document.getElementById('pdf-page-num').textContent = num;
+            },
+            queueRenderPage(num) {
+                if (this.pageRendering) { this.pageNumPending = num; } else { this.renderPage(num); }
+            },
+            onPrevPage() {
+                if (!this.pdfDoc || this.pageNum <= 1) return;
+                this.pageNum--;
+                this.queueRenderPage(this.pageNum);
+            },
+            onNextPage() {
+                if (!this.pdfDoc || this.pageNum >= this.pdfDoc.numPages) return;
+                this.pageNum++;
+                this.queueRenderPage(this.pageNum);
+            },
+            updateButtonState() {
+                if (!this.prevBtn || !this.nextBtn) return; // Guard against elements not being ready
+                if (!this.pdfDoc) {
+                    this.prevBtn.disabled = true;
+                    this.nextBtn.disabled = true;
+                    return;
+                }
+                this.prevBtn.disabled = this.pageRendering || this.pageNum <= 1;
+                this.nextBtn.disabled = this.pageRendering || this.pageNum >= this.pdfDoc.numPages;
+            }
+        };
+
+        const LearnController = { start(allCards, options) { const useSmartReview = document.getElementById('smart-review-toggle').checked; let cardsToStudy = useSmartReview ? allCards.filter(c => new Date(c.dueDate) <= new Date()) : allCards; if(cardsToStudy.length === 0){ UI.showToast(useSmartReview ? "No cards due today!" : "This folder has no cards to study!", true); return; } if(options.includes('matching') && cardsToStudy.length < 4){ if (options.length === 1) { UI.showToast("The Matching Game requires at least 4 cards.", true); return; } options = options.filter(o => o !== 'matching'); UI.showToast("Matching game disabled (needs 4+ cards). Continuing with other types.", false); } if (options.length === 0) { UI.showToast("Please select at least one valid question type.", true); return; } UI.toggleModal('learnOptions', false); UI.showView('learn'); AppState.learnState = { cards: Utils.shuffle(cardsToStudy), allCardsInFolder: allCards, options, currentIndex: 0, total: cardsToStudy.length, correctAnswers: 0 }; this.nextQuestion(); }, nextQuestion() { const { currentIndex, total } = AppState.learnState; document.getElementById('learn-progress-bar-inner').style.width = `${(currentIndex / total) * 100}%`; document.getElementById('learn-feedback-area').classList.add('hidden'); document.getElementById('learn-continue-btn').classList.add('hidden'); if (currentIndex >= total) { this.showSummary(); return; } const type = AppState.learnState.options[Math.floor(Math.random() * AppState.learnState.options.length)]; this.generateQuestion(type); AppState.learnState.currentIndex++; }, generateQuestion(type) { const container = document.getElementById('learn-question-container'); const card = AppState.learnState.currentCard = AppState.learnState.cards[AppState.learnState.currentIndex]; switch(type) { case 'written': container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4">Check Answer</button>`; document.getElementById('submit-written').onclick=()=>this.checkAnswer(); break; case 'mcq': let opts=[card.answer, ...Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.answer!==card.answer).map(c=>c.answer)).slice(0,3)]; container.innerHTML=`<p class="text-slate-400 mb-2">Choose the correct answer:</p><h3 class="text-2xl font-semibold mb-6">${Utils.escapeHtml(card.question)}</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${Utils.shuffle(opts).map(o=>`<button class="mcq-option rounded-lg p-4 text-left bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600">${Utils.escapeHtml(o)}</button>`).join('')}</div>`; document.querySelectorAll('.mcq-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.target.textContent)); break; case 'tf': const isTrue=Math.random()>0.5; const ans=isTrue?card.answer:Utils.shuffle(AppState.learnState.allCardsInFolder.filter(c=>c.id!==card.id))[0].answer; AppState.learnState.isTrueAnswer=isTrue; container.innerHTML=`<p class="text-slate-400 mb-2">True or false?</p><div class="bg-slate-900/50 p-6 rounded-lg"><h3 class="text-xl font-semibold mb-2">${Utils.escapeHtml(card.question)}</h3><hr class="border-slate-600 my-3"><p class="text-lg">${Utils.escapeHtml(ans)}</p></div><div class="flex justify-around mt-6"><button class="tf-option w-32 h-16 text-xl rounded-lg bg-green-600 hover:bg-green-700" data-value="true">True</button><button class="tf-option w-32 h-16 text-xl rounded-lg bg-red-600 hover:bg-red-700" data-value="false">False</button></div>`; document.querySelectorAll('.tf-option').forEach(b=>b.onclick=e=>this.checkAnswer(e.currentTarget.dataset.value==='true')); break; case 'matching': MatchingGame.start(); break; } }, checkAnswer(userAnswer) { let isCorrect = false; const { currentCard, isTrueAnswer } = AppState.learnState; const qType = document.getElementById('written-answer')?'written':document.querySelector('.mcq-option')?'mcq':'tf'; if(qType==='written'){isCorrect=document.getElementById('written-answer').value.trim().toLowerCase()===currentCard.answer.trim().toLowerCase();}else if(qType==='mcq'){isCorrect=userAnswer.trim()===currentCard.answer.trim();}else{isCorrect=userAnswer===isTrueAnswer;} SRS.updateCardSRS(currentCard, isCorrect); Rewards.update(isCorrect); const fb=document.getElementById('learn-feedback-area'),ft=document.getElementById('learn-feedback-text'),ca=document.getElementById('learn-correct-answer'); if(isCorrect){ft.textContent="Correct!";fb.className='mt-4 p-4 rounded-lg bg-green-500/20 text-green-300';ca.textContent='';AppState.learnState.correctAnswers++;}else{ft.textContent="Incorrect!";fb.className='mt-4 p-4 rounded-lg bg-red-500/20 text-red-300';ca.textContent=`Correct Answer: ${currentCard.answer}`;} fb.classList.remove('hidden'); document.getElementById('learn-continue-btn').classList.remove('hidden'); document.querySelectorAll('#learn-question-container button, #learn-question-container textarea').forEach(el=>el.disabled=true); }, showSummary() { const {total,correctAnswers}=AppState.learnState; document.getElementById('learn-question-container').innerHTML=`<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-cyan-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="rounded-lg px-4 py-2 bg-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`; document.getElementById('learn-again').onclick=()=>FolderActions.openStudyModal(); document.getElementById('learn-finish').onclick=()=>Lab.openFolder(AppState.currentFolderId);} };
+        
+        const MatchingGame = {
+            start(){
+                const container = document.getElementById('learn-question-container');
+                const pairCount = Math.min(6, Math.floor(AppState.learnState.cards.length / 2) * 2); 
+                const gameCards = Utils.shuffle(AppState.learnState.cards).slice(0, pairCount);
+                const terms = Utils.shuffle(gameCards.map(c => ({ id: c.id, text: c.question })));
+                const defs = Utils.shuffle(gameCards.map(c => ({ id: c.id, text: c.answer })));
+
+                AppState.matchingState = {
+                    selectedTerm: null,
+                    selectedDef: null,
+                    correctPairs: 0,
+                    totalPairs: pairCount,
+                    cards: gameCards,
+                };
+
+                container.innerHTML = `
+                    <p class="text-slate-400 mb-4 text-center">Match the terms with their definitions.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div id="matching-terms" class="space-y-3">${terms.map(t => `<button class="matching-item w-full p-4 h-24 rounded-lg bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600 flex items-center justify-center text-center" data-id="${t.id}" data-type="term">${Utils.escapeHtml(t.text)}</button>`).join('')}</div>
+                        <div id="matching-defs" class="space-y-3">${defs.map(d => `<button class="matching-item w-full p-4 h-24 rounded-lg bg-slate-700 ring-1 ring-slate-600 hover:bg-slate-600 flex items-center justify-center text-center" data-id="${d.id}" data-type="def">${Utils.escapeHtml(d.text)}</button>`).join('')}</div>
+                    </div>`;
+                
+                document.querySelectorAll('.matching-item').forEach(b => b.onclick = e => this.handleSelection(e));
+                document.getElementById('learn-continue-btn').classList.add('hidden');
+            },
+
+            handleSelection(e){
+                const btn = e.currentTarget;
+                if(btn.disabled) return;
+
+                const type = btn.dataset.type;
+                const state = AppState.matchingState;
+
+                if(type === 'term'){
+                    if(state.selectedTerm) state.selectedTerm.classList.remove('selected');
+                    state.selectedTerm = btn;
+                    btn.classList.add('selected');
+                } else {
+                    if(state.selectedDef) state.selectedDef.classList.remove('selected');
+                    state.selectedDef = btn;
+                    btn.classList.add('selected');
+                }
+                
+                if (state.selectedTerm && state.selectedDef) {
+                    this.checkMatch();
+                }
+            },
+
+            checkMatch(){
+                const state = AppState.matchingState;
+                if (!state.selectedTerm || !state.selectedDef) return;
+
+                const termId = state.selectedTerm.dataset.id;
+                const defId = state.selectedDef.dataset.id;
+                const card = state.cards.find(c => c.id === termId);
+                const termEl = state.selectedTerm;
+                const defEl = state.selectedDef;
+
+                if (termId === defId) {
+                    termEl.classList.add('correct');
+                    defEl.classList.add('correct');
+                    termEl.disabled = true;
+                    defEl.disabled = true;
+                    SRS.updateCardSRS(card, true);
+                    Rewards.update(true);
+                    state.correctPairs++;
+                    AppState.learnState.correctAnswers++;
+                } else {
+                    termEl.classList.add('incorrect');
+                    defEl.classList.add('incorrect');
+                    termEl.disabled = true;
+                    defEl.disabled = true;
+                    if(card) {
+                        SRS.updateCardSRS(card, false);
+                        Rewards.update(false);
+                    }
+                }
+                
+                state.selectedTerm = null;
+                state.selectedDef = null;
+                termEl.classList.remove('selected');
+                defEl.classList.remove('selected');
+
+                const allItems = document.querySelectorAll('.matching-item');
+                const allDisabled = Array.from(allItems).every(item => item.disabled);
+
+                if (allDisabled) {
+                    setTimeout(() => {
+                        const fb = document.getElementById('learn-feedback-area');
+                        const ft = document.getElementById('learn-feedback-text');
+                        ft.textContent = "Round complete!";
+                        fb.className = 'mt-4 p-4 rounded-lg bg-blue-500/20 text-blue-300';
+                        document.getElementById('learn-correct-answer').textContent = '';
+                        fb.classList.remove('hidden');
+                        document.getElementById('learn-continue-btn').classList.remove('hidden');
+                    }, 500);
+                }
+            }
+        };
+        
+        const AudioRecorder = {
+            recorder: null,
+            chunks: [],
+            isRecording: false,
+            async toggleRecording() {
+                if (!AppState.currentNoteId) {
+                    UI.showToast("Please save your note before recording audio.", true);
+                    return;
+                }
+                if (this.isRecording) {
+                    this.recorder.stop();
+                } else {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const options = { mimeType: 'audio/webm' };
+                        const enableCompression = AppState.localData.settings.enableAudioCompression === 'true';
+                        
+                        if (enableCompression) {
+                            const audioQuality = AppState.localData.profile.audioQuality || 64000;
+                            options.audioBitsPerSecond = parseInt(audioQuality, 10);
+                        }
+
+                        this.recorder = new MediaRecorder(stream, options);
+                        this.recorder.ondataavailable = e => this.chunks.push(e.data);
+                        this.recorder.onstop = () => this.handleStop();
+                        this.chunks = [];
+                        this.recorder.start();
+                        this.isRecording = true;
+                        document.getElementById('btn-record-audio').classList.add('animate-pulse', 'text-red-500');
+                        UI.showToast('Recording started...', false);
+                    } catch (err) {
+                        console.error("Error starting recording:", err);
+                        UI.showToast('Could not start recording. Check microphone permissions.', true);
+                    }
+                }
+            },
+            handleStop() {
+                this.isRecording = false;
+                document.getElementById('btn-record-audio').classList.remove('animate-pulse', 'text-red-500');
+                UI.showToast('Recording stopped. Uploading...', false);
+                const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+                this.uploadAndProcessAudio(audioBlob);
+                this.recorder.stream.getTracks().forEach(track => track.stop());
+            },
+            async uploadAndProcessAudio(audioBlob) {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                try {
+                    const newClip = await ApiController.apiCall(`/notes/${AppState.currentNoteId}/upload-audio`, 'POST', formData);
+                    if (!AppState.localData.audioClipsByNote[AppState.currentNoteId]) {
+                        AppState.localData.audioClipsByNote[AppState.currentNoteId] = [];
+                    }
+                    AppState.localData.audioClipsByNote[AppState.currentNoteId].push(newClip);
+                    document.getElementById('audio-clips-container').insertAdjacentHTML('beforeend', UI.createAudioPlayerHTML(newClip));
+                    this.loadClip(newClip.id); // Load the new clip immediately
+                    UI.showToast('Audio clip saved.', false);
+                } catch (error) {
+                    console.error("Audio upload error:", error);
+                }
+            },
+            async loadClip(clipId) {
+                try {
+                    const audioBlob = await ApiController.apiCall(`/audio-clips/${clipId}`, 'GET', null, 'blob');
+                    if (audioBlob.type !== 'audio/webm' && audioBlob.type !== 'video/webm') {
+                        throw new Error(`Expected an audio file but received type: ${audioBlob.type}`);
+                    }
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayer = document.getElementById(`audio-player-${clipId}`);
+                    if (audioPlayer) {
+                        audioPlayer.src = audioUrl;
+                    }
+                } catch (error) {
+                    console.error(`Failed to load audio clip ${clipId}:`, error);
+                }
+            }
+        };
+
+        const AI = { 
+            async generateFlashcards(provider, model) { if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return null; } const content = document.getElementById('note-editor-content').textContent; if (!content.trim()) { UI.showToast("Please write some notes first.", true); return null; } const btn = document.getElementById('btn-generate-from-note'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...'; try { const generatedCards = await ApiController.apiCall('/generate-ai-cards', 'POST', { provider, model, text: content }); return generatedCards; } catch (error) { console.error("Error generating flashcards:", error); return null; } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Generate'; } },
+            async generateSubpoints() {
+                const selection = window.getSelection();
+                const text = selection.toString().trim();
+                const provider = document.getElementById('ai-provider-selector').value;
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return; }
+                if (!text) { UI.showToast("Please select some text to generate subpoints from.", true); return; }
+                try {
+                    const result = await ApiController.apiCall('/generate-subpoints', 'POST', { text, provider, model });
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    const list = document.createElement('ul');
+                    list.innerHTML = result.subpoints.map(sp => `<li>${sp}</li>`).join('');
+                    range.insertNode(list);
+                } catch (error) { console.error("Subpoint generation error:", error); }
+            },
+            async highlightText() {
+                const noteContent = document.getElementById('note-editor-content');
+                const text = noteContent.innerText;
+                const provider = document.getElementById('ai-provider-selector').value;
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model.", true); return; }
+                if (!text.trim()) { UI.showToast("There is no text to highlight.", true); return; }
+                try {
+                    const result = await ApiController.apiCall('/highlight-text', 'POST', { text, provider, model });
+                    let newHtml = noteContent.innerHTML;
+                    result.highlights.forEach(h => {
+                        const regex = new RegExp(Utils.escapeHtml(h), "g");
+                        newHtml = newHtml.replace(regex, `<span class="highlight">${h}</span>`);
+                    });
+                    noteContent.innerHTML = newHtml;
+                } catch (error) { console.error("Highlighting error:", error); }
+            },
+            async transcribeAudio(clipId) {
+                const provider = document.getElementById('ai-provider-selector').value;
+                const model = document.getElementById('ai-model-selector').value;
+                if (!provider || !model) { UI.showToast("Please select an AI provider and model for transcription.", true); return; }
+                UI.showToast('Transcribing audio...', false);
+                try {
+                    const result = await ApiController.apiCall(`/audio-clips/${clipId}/transcribe`, 'POST', { provider, model });
+                    const noteContent = document.getElementById('note-editor-content');
+                    noteContent.innerHTML += `<p>${result.text}</p>`;
+                    UI.showToast('Transcription added to notes.', false);
+                } catch (error) {
+                    console.error("Transcription error:", error);
+                }
+            }
+        };
+
+        const CardActions = { init() { document.getElementById('btn-cancel-add-card').onclick = () => UI.toggleModal('addCard', false); document.getElementById('btn-add-another-card').onclick = () => this.addAnotherCardInput(); document.getElementById('btn-save-cards').onclick = () => this.saveCards(); document.getElementById('add-cards-container').onclick = e => { if (e.target.closest('.remove-card-input-btn')) e.target.closest('.card-input-group').remove(); }; }, createCardInputHTML: () => `<div class="card-input-group bg-slate-900/50 p-4 rounded-lg relative"><button class="remove-card-input-btn absolute top-2 right-2 text-slate-500 hover:text-red-400">&times;</button><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm">Question</label><textarea rows="3" class="mt-1 card-question block w-full bg-slate-700 p-2 rounded-lg"></textarea></div><div><label class="block text-sm">Answer</label><textarea rows="3" class="mt-1 card-answer block w-full bg-slate-700 p-2 rounded-lg"></textarea></div></div></div>`, addAnotherCardInput() { document.getElementById('add-cards-container').insertAdjacentHTML('beforeend', this.createCardInputHTML()); }, async saveCards() { const cardsRaw = Array.from(document.querySelectorAll('.card-input-group')).map(g => ({ question: g.querySelector('.card-question').value.trim(), answer: g.querySelector('.card-answer').value.trim() })).filter(c => c.question && c.answer); if (cardsRaw.length > 0) { const cards = cardsRaw.map(c => ({...SRS.addSRSData(c), source: 'manual'})); await ApiController.apiCall('/manual-cards', 'POST', { folderId: AppState.currentFolderId, cards }); Lab.render(); UI.toggleModal('addCard', false); } else { UI.showToast("Fill out at least one card.", true); } }, openAddCardModal() { document.getElementById('add-cards-container').innerHTML = this.createCardInputHTML(); UI.toggleModal('addCard', true); } };
+        
+        const NoteEditorActions = { 
+            init() { 
+                document.getElementById('btn-back-to-lab-from-editor').onclick=()=> { UI.showView('notesLab'); Lab.render(); };
+                document.getElementById('btn-save-note-and-cards').onclick=()=>this.save(); 
+                document.getElementById('btn-cycle-layout').onclick=()=>this.cycleLayout(); 
+                document.getElementById('btn-toggle-book-mode').onclick = () => this.toggleBookMode(); 
+                document.getElementById('btn-generate-from-note').onclick=async ()=>{const provider=document.getElementById('ai-provider-selector').value; const model=document.getElementById('ai-model-selector').value; const generated=await AI.generateFlashcards(provider, model); if(generated){ const list=document.getElementById('note-editor-cards-list'); generated.forEach(card=>list.insertAdjacentHTML('beforeend',this.createCardInputHTML(card,false)));}}; 
+                document.getElementById('btn-add-manual-card-in-editor').onclick=()=>{document.getElementById('note-editor-cards-list').insertAdjacentHTML('beforeend',this.createCardInputHTML({}))}; 
+                document.getElementById('note-editor-cards-list').onclick=e=>{if(e.target.closest('.remove-card-editor-btn')){e.target.closest('.card-editor-group').remove()}}; 
+                document.getElementById('audio-clips-container').onclick = async e => {
+                    if (e.target.closest('.delete-audio-clip-btn')) {
+                        const clipWrapper = e.target.closest('.audio-player-wrapper');
+                        const clipId = clipWrapper.dataset.id;
+                        if (confirm('Are you sure you want to delete this audio clip?')) {
+                            await ApiController.apiCall(`/audio-clips/${clipId}`, 'DELETE');
+                            clipWrapper.remove();
+                        }
+                    }
+                    if (e.target.closest('.transcribe-audio-btn')) {
+                        const clipWrapper = e.target.closest('.audio-player-wrapper');
+                        const clipId = clipWrapper.dataset.id;
+                        AI.transcribeAudio(clipId);
+                    }
+                };
+                document.getElementById('btn-bullet-list').onclick=()=>document.execCommand('insertUnorderedList',false,null); 
+                document.getElementById('btn-ordered-list').onclick=()=>document.execCommand('insertOrderedList',false,null); 
+                document.getElementById('note-editor-content').onpaste=e=>this.handlePaste(e); 
+                this.initResizer(); 
+                document.getElementById('btn-record-audio').onclick = () => AudioRecorder.toggleRecording();
+                document.getElementById('btn-ai-subpoints').onclick = () => AI.generateSubpoints();
+                document.getElementById('btn-ai-highlight').onclick = () => AI.highlightText();
+                document.getElementById('ai-provider-selector').onchange = () => this.updateModelSelector();
+            }, 
+            async open(noteId = null, documentId = null) {
+                this.refreshAiControls();
+                this.setEditorControlsEnabled(false);
+                UI.showView('noteEditor');
+                
+                ['note-editor-id', 'note-editor-title', 'pdf-page-num', 'pdf-page-count'].forEach(id => document.getElementById(id).value = '');
+                ['note-editor-content', 'note-editor-cards-list', 'audio-clips-container'].forEach(id => document.getElementById(id).innerHTML = '');
+                PDFViewer.pdfDoc = null;
+                PDFViewer.updateButtonState();
+
+                try {
+                    let noteToLoadId = noteId;
+                    AppState.currentDocumentId = documentId;
+
+                    if (documentId && !noteId) {
+                        const existingNote = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.documentId === documentId);
+                        if (existingNote) {
+                            noteToLoadId = existingNote.id;
+                        }
+                    }
+
+                    if (noteToLoadId) {
+                        AppState.currentNoteId = noteToLoadId;
+                    } else {
+                        const doc = documentId ? AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId) : null;
+                        await this.save(true, doc ? doc.originalName : 'Untitled Note', documentId); 
+                    }
+                    
+                    const noteToLoad = AppState.localData.notesByFolder[AppState.currentFolderId]?.find(n => n.id === AppState.currentNoteId);
+                    if (noteToLoad) {
+                        document.getElementById('note-editor-id').value = noteToLoad.id;
+                        document.getElementById('note-editor-title').value = noteToLoad.title || '';
+                        document.getElementById('note-editor-content').innerHTML = noteToLoad.content || '';
+                        const cards = (AppState.localData.cardsByFolder[AppState.currentFolderId] || []).filter(c => c.noteId === noteToLoad.id);
+                        document.getElementById('note-editor-cards-list').innerHTML = cards.map(c => this.createCardInputHTML(c, true)).join('');
+                        const audioClips = AppState.localData.audioClipsByNote[noteToLoad.id] || [];
+                        document.getElementById('audio-clips-container').innerHTML = audioClips.map(UI.createAudioPlayerHTML).join('');
+                        audioClips.forEach(clip => AudioRecorder.loadClip(clip.id));
+                    }
+
+                    if (documentId) {
+                        this.setLayout('book-mode');
+                        const doc = AppState.localData.documentsByFolder[AppState.currentFolderId]?.find(d => d.id === documentId);
+                        if (doc) {
+                            await PDFViewer.loadDocument(`/documents/${doc.id}`);
+                        }
+                    } else {
+                        this.setLayout(localStorage.getItem('noteEditorLayout') || 'split-h');
+                    }
+
+                } catch (error) {
+                    console.error("Error opening note editor:", error);
+                    UI.showToast("Could not open the editor.", true);
+                    UI.showView('notesLab');
+                } finally {
+                    this.setEditorControlsEnabled(true);
+                }
+            },
+            setEditorControlsEnabled(enabled) {
+                const btnIds = ['btn-record-audio', 'btn-ai-subpoints', 'btn-ai-highlight', 'btn-generate-from-note', 'btn-save-note-and-cards'];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        btn.disabled = !enabled;
+                        btn.classList.toggle('opacity-50', !enabled);
+                        btn.classList.toggle('cursor-not-allowed', !enabled);
+                    }
+                });
+                this.refreshAiControls();
+            },
+            cycleLayout(){
+                const g=document.getElementById('note-editor-grid'); 
+                const currentMode=g.dataset.layoutMode; 
+                let nextMode = 'split-h';
+                if(currentMode==='split-h'){ nextMode = 'notes-only'; }
+                else if(currentMode==='notes-only'){ nextMode = 'split-v'; }
+                this.setLayout(nextMode);
+            }, 
+            toggleBookMode() { if (!AppState.currentDocumentId) { UI.showToast("No document open to toggle.", true); return; } const grid = document.getElementById('note-editor-grid'); const currentMode = grid.dataset.layoutMode; if (currentMode === 'book-mode') { this.setLayout('notes-only'); } else { this.setLayout('book-mode'); } }, 
+            setLayout(mode){
+                localStorage.setItem('noteEditorLayout', mode);
+                const g=document.getElementById('note-editor-grid'),b=document.getElementById('book-viewer-panel'),r1=document.getElementById('book-viewer-resizer'),n=document.getElementById('note-editor-panel'),r2=document.getElementById('note-editor-resizer'),h=document.getElementById('flashcard-hub-panel'),c=document.getElementById('btn-cycle-layout'); g.dataset.layoutMode=mode; g.className='flex-grow flex gap-2 min-h-0'; n.style.flexBasis='50%'; b.style.flexBasis='50%'; h.style.flexBasis='50%'; n.classList.remove('hidden'); h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.remove('hidden'); b.classList.add('hidden'); r1.classList.add('hidden'); if(mode==='split-h'){g.classList.add('flex-row');c.innerHTML='<i class="fas fa-expand"></i>';c.title='Notes Only';}else if(mode==='notes-only'){g.classList.add('flex-row');n.style.flexBasis='100%';h.classList.add('hidden');r2.classList.add('hidden');c.innerHTML='<i class="fas fa-layer-group"></i>';c.title='Vertical Split';}else if(mode==='split-v'){g.classList.add('flex-col');c.innerHTML='<i class="fas fa-columns"></i>';c.title='Horizontal Split';}else if(mode==='book-mode'){b.classList.remove('hidden');r1.classList.remove('hidden');g.classList.add('flex-row'); n.style.flexBasis = '50%'; h.classList.remove('hidden'); r2.classList.remove('hidden'); c.classList.add('hidden');}}, 
+            initResizer(){const r=document.getElementById('note-editor-resizer'),g=document.getElementById('note-editor-grid'),l=document.getElementById('note-editor-panel');let i=false;const d=e=>{if(g.dataset.layoutMode!=='split-h')return;e.preventDefault();i=true;document.body.style.cursor='col-resize';document.addEventListener('mousemove',m);document.addEventListener('mouseup',u);};const m=e=>{if(!i)return;const t=g.offsetWidth;const n=e.clientX-g.getBoundingClientRect().left;if(n>200&&t-n>180)l.style.flexBasis=`${n}px`;};const u=()=>{i=false;document.body.style.cursor='default';document.removeEventListener('mousemove',m);document.removeEventListener('mouseup',u);};r.addEventListener('mousedown',d);}, 
+            handlePaste(e){e.preventDefault(); const d=e.clipboardData||window.clipboardData; let p=d.getData('text/html')||d.getData('text/plain'); document.execCommand('insertHTML',false,this.sanitizeHtml(p));}, 
+            sanitizeHtml(h){const a=['UL','OL','LI','P','BR','B','I','U','DIV','SPAN']; const p=new DOMParser(); const d=p.parseFromString(h,'text/html'); d.querySelectorAll('style,script,meta,link,title').forEach(e=>e.remove()); const w=d.createTreeWalker(d.body,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_COMMENT); const r=[],u=[]; while(w.nextNode()){const n=w.currentNode; if(n.nodeType===Node.COMMENT_NODE){r.push(n);continue;}if(a.includes(n.tagName)){n.removeAttribute('style'); n.removeAttribute('class');}else{u.push(n);}} u.forEach(n=>{const p=n.parentNode; while(n.firstChild)p.insertBefore(n.firstChild,n);});[...u,...r].forEach(n=>{if(n.parentNode)n.parentNode.removeChild(n);}); return d.body.innerHTML;}, 
+            createCardInputHTML(card,isExisting){const q=isExisting?card.question:(card.question||''); const a=isExisting?card.answer:(card.answer||''); return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm">Question</label><textarea rows="2" class="mt-1 card-question w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm">Answer</label><textarea rows="2" class="mt-1 card-answer w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(a)}</textarea></div></div>`;}, 
+            async save(isNewNote = false, defaultTitle = 'Untitled Note', docIdToAssociate = null) {
+                const noteData = {
+                    title: document.getElementById('note-editor-title').value.trim() || defaultTitle,
+                    content: document.getElementById('note-editor-content').innerHTML.trim(),
+                    documentId: docIdToAssociate || AppState.currentDocumentId 
+                };
+                const noteId = isNewNote ? null : document.getElementById('note-editor-id').value;
+                const cardsRaw = Array.from(document.querySelectorAll('.card-editor-group')).map(g => ({
+                    question: g.querySelector('.card-question').value.trim(),
+                    answer: g.querySelector('.card-answer').value.trim()
+                })).filter(c => c.question && c.answer);
+                const cardsWithSrs = cardsRaw.map(c => SRS.addSRSData({ ...c, source: 'generated' }));
+                
+                const response = await ApiController.apiCall('/notes', 'POST', {
+                    folderId: AppState.currentFolderId,
+                    noteId: noteId,
+                    ...noteData,
+                    cards: cardsWithSrs
+                });
+
+                if (isNewNote) {
+                    AppState.currentNoteId = response.noteId;
+                    if (!AppState.currentNoteId) {
+                        console.error("Failed to get new note ID from save response:", response);
+                        UI.showToast("Error: Could not create new note.", true);
+                        return;
+                    }
+                    await FolderActions.refreshData();
+                } else {
+                    await FolderActions.refreshData();
+                    UI.showToast("Note and cards saved!");
+                    UI.showView('notesLab');
+                }
+            },
+            refreshAiControls() {
+                const profile = AppState.localData.profile || {};
+                const providerSelector = document.getElementById('ai-provider-selector');
+                const modelSelector = document.getElementById('ai-model-selector');
+                const generateBtn = document.getElementById('btn-generate-from-note');
+                const aiActionBtns = ['btn-ai-subpoints', 'btn-ai-highlight', 'btn-record-audio'];
+
+                providerSelector.innerHTML = '<option value="">Select Provider</option>';
+                if (profile.googleApiKey) providerSelector.innerHTML += '<option value="google">Google AI</option>';
+                if (profile.openaiApiKey) providerSelector.innerHTML += '<option value="openai">OpenAI</option>';
+                if (profile.groqApiKey) providerSelector.innerHTML += '<option value="groq">Groq</option>';
+
+                const hasAnyKey = profile.googleApiKey || profile.openaiApiKey || profile.groqApiKey;
+
+                providerSelector.disabled = !hasAnyKey;
+                generateBtn.disabled = !hasAnyKey;
+                aiActionBtns.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if(btn) btn.disabled = !hasAnyKey;
+                });
+
+                if (!hasAnyKey) {
+                    providerSelector.innerHTML = '<option value="">Add API Key in Settings</option>';
+                }
+                
+                this.updateModelSelector();
+            },
+            async updateModelSelector() {
+                const provider = document.getElementById('ai-provider-selector').value;
+                const modelSelector = document.getElementById('ai-model-selector');
+                modelSelector.innerHTML = '<option value="">Select Model</option>';
+                modelSelector.disabled = true;
+
+                if (provider) {
+                    try {
+                        const models = await ApiController.apiCall('/ai-models');
+                        const providerModels = models[provider] || [];
+                        if (providerModels.length > 0) {
+                            modelSelector.innerHTML += providerModels.map(m => `<option value="${m}">${m}</option>`).join('');
+                            modelSelector.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error("Failed to fetch AI models:", error);
+                    }
+                }
+            }
+        };
+        const ProfileActions = { 
+            init() { 
+                document.getElementById('profile-button').onclick=e=>{e.stopPropagation(); document.getElementById('profile-menu').classList.toggle('hidden');}; 
+                document.getElementById('btn-go-to-profile').onclick=e=>{e.preventDefault();this.openProfile();}; 
+                document.getElementById('btn-sign-out').onclick=e=>{e.preventDefault();AuthController.signOut();}; 
+                document.getElementById('btn-back-to-folders-from-profile').onclick=()=>UI.showView('notesLab'); 
+                document.getElementById('profile-form').onsubmit=e=>this.saveProfile(e); 
+                document.getElementById('avatar-input').onchange=e=>this.handleAvatarChange(e); 
+                document.getElementById('btn-check-for-update').onclick = () => this.checkForUpdate(); 
+                document.getElementById('btn-update-app').onclick = () => this.updateApplication(); 
+                document.getElementById('btn-close-update-log').onclick = () => UI.toggleModal('update-log', false); 
+            }, 
+            async openProfile(){
+                UI.showView('profile');
+                document.getElementById('profile-menu').classList.add('hidden');
+                if (AppState.localData.profile.isAdmin) {
+                    const settings = await ApiController.apiCall('/admin/settings');
+                    AppState.localData.settings = settings;
+                    UI.updateProfileForm(AppState.localData.profile, AppState.localData.settings);
+                }
+            }, 
+            async saveProfile(e){
+                e.preventDefault(); 
+                const profileData={
+                    username:document.getElementById('username-input').value.trim(),
+                    bio:document.getElementById('bio-input').value.trim(),
+                    avatarUrl:document.getElementById('avatar-preview').src,
+                    googleApiKey:document.getElementById('google-api-key-input').value.trim(),
+                    openaiApiKey:document.getElementById('openai-api-key-input').value.trim(),
+                    groqApiKey:document.getElementById('groq-api-key-input').value.trim(),
+                    audioQuality: document.getElementById('audio-quality-select').value
+                }; 
+                AppState.localData.profile = await ApiController.apiCall('/profile','POST',profileData); 
+                
+                if (AppState.localData.profile.isAdmin) {
+                    const adminSettings = {
+                        maxUploadSize: document.getElementById('admin-max-upload-size').value,
+                        enableAudioCompression: document.getElementById('admin-audio-compression-toggle').checked,
+                    };
+                    await ApiController.apiCall('/admin/settings', 'POST', adminSettings);
+                }
+
+                UI.updateProfileForm(AppState.localData.profile, AppState.localData.settings); 
+                UI.showToast("Profile saved!");
+            }, 
+            handleAvatarChange(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;};r.readAsDataURL(f);},
+            async checkForUpdate() {
+                const statusEl = document.getElementById('update-status');
+                statusEl.textContent = 'Checking for updates...';
+                statusEl.classList.remove('text-green-400', 'text-cyan-400');
+                document.getElementById('btn-check-for-update').disabled = true;
+                try {
+                    const latest = await ApiController.apiCall('/version'); 
+                    if (latest.version > APP_VERSION) {
+                        statusEl.innerHTML = `Update available (v${latest.version})! <a href="https://github.com/dertder25t/StudyFortressV1" target="_blank" class="font-bold underline text-cyan-400 hover:text-cyan-300">View on GitHub</a>`;
+                        statusEl.classList.add('text-cyan-400');
+                    } else {
+                        statusEl.textContent = `You are on the latest version (v${APP_VERSION}).`;
+                        statusEl.classList.add('text-green-400');
+                    }
+                } catch (error) {
+                    statusEl.textContent = 'Could not check for updates.';
+                    console.error('Update check failed:', error);
+                } finally {
+                    document.getElementById('btn-check-for-update').disabled = false;
+                }
+            },
+            async updateApplication() {
+                if (!confirm("Are you sure you want to pull the latest code and restart the server? This will briefly interrupt the application.")) {
+                    return;
+                }
+                const statusEl = document.getElementById('admin-update-status');
+                const logContentEl = document.getElementById('update-log-content');
+                statusEl.textContent = 'Update initiated...';
+                logContentEl.textContent = 'Starting update process... please wait.';
+                UI.toggleModal('update-log', true);
+                try {
+                    const result = await ApiController.apiCall('/admin/update-app', 'POST');
+                    UI.showToast(result.message || 'Update process started.');
+                    logContentEl.textContent = result.output;
+                    statusEl.textContent = 'Update successful! The server is restarting.';
+                } catch (error) {
+                    statusEl.textContent = 'Update failed. Check server logs.';
+                    logContentEl.textContent = `Error: ${error.message}\n\n${error.output || ''}`;
+                    UI.showToast(error.message, true);
+                }
+            }
+        };
+        const MiscEventListeners = { init() { document.getElementById('btn-cancel-learn').onclick=()=>UI.toggleModal('learnOptions', false); document.getElementById('btn-start-learn').onclick=()=>{const sel=Array.from(document.querySelectorAll('[name="learn-q-type"]:checked')).map(cb=>cb.value); const all=AppState.localData.cardsByFolder[AppState.currentFolderId]||[]; LearnController.start(all,sel);}; document.getElementById('btn-back-to-folder-from-learn').onclick=()=>{if(confirm('End study session?'))Lab.openFolder(AppState.currentFolderId);}; document.getElementById('learn-continue-btn').onclick=()=>LearnController.nextQuestion(); document.getElementById('view-profile').addEventListener('click', e => { if (e.target.closest('.api-info-toggle')) { e.preventDefault(); const button = e.target.closest('.api-info-toggle'); const targetId = button.dataset.target; const infoPanel = document.getElementById(targetId); if (infoPanel) { infoPanel.classList.toggle('hidden'); } } });} };
+
+        async function runApplication() { 
+            try {
+                const data = await ApiController.apiCall('/all-data'); 
+                if(data){ 
+                    AppState.localData = { ...data };
+                    PDFViewer.init(); 
+                    Lab.init();
+                    CardActions.init(); 
+                    NoteEditorActions.init(); 
+                    ProfileActions.init(); 
+                    MiscEventListeners.init(); 
+                    UI.updateProfileForm(AppState.localData.profile, AppState.localData.settings); 
+                    Rewards.display(); 
+                    UI.showView('notesLab'); 
+                    Lab.render();
+                } else { 
+                    UI.showView('login'); 
+                } 
+            } catch (error) {
+                console.error("Critical error during application startup:", error);
+                UI.showToast("Failed to start the application. Signing out.", true);
+                AuthController.signOut();
+            }
+        }
+        function main() { 
+            UI.init(); 
+            if(ApiController.getToken()){ 
+                runApplication(); 
+            } else { 
+                UI.showView('login'); 
+                const form = document.getElementById('login-form');
+                const toggle = document.getElementById('auth-mode-toggle');
+                const title = document.getElementById('login-title');
+                const btn = document.getElementById('submit-auth-btn');
+                let isSignUp = false;
+                toggle.onclick = e => {
+                    e.preventDefault(); 
+                    isSignUp = !isSignUp; 
+                    title.innerHTML = isSignUp ? '<i class="fas fa-user-plus text-cyan-400 mr-2"></i> Create Account' : '<i class="fas fa-brain text-cyan-400 mr-2"></i> Sign In'; 
+                    btn.textContent = isSignUp ? 'Sign Up' : 'Sign In'; 
+                    toggle.textContent = isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'; 
+                    document.getElementById('auth-error').textContent = '';
+                }; 
+                form.onsubmit = e => {
+                    e.preventDefault(); 
+                    AuthController.handleAuth(form.email.value, form.password.value, isSignUp);
+                }; 
             } 
         }
-
-        function animate() { 
-            if (isMouseMoving) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height); 
-                particles.forEach(p => { p.updateState(); p.draw(); }); 
-                connectParticles();
-                isMouseMoving = false;
-            }
-            animationFrameId = requestAnimationFrame(animate); 
-        }
-
-        function startAnimation() { if (!animationFrameId) animate(); }
-        function stopAnimation() { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-
-        function handleResize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            createParticles();
-            isMouseMoving = true; // Trigger a redraw on resize
-        }
-
-        // --- Theme Management ---
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                htmlElement.classList.add('dark');
-            } else {
-                htmlElement.classList.remove('dark');
-            }
-            updateThemeColors();
-            isMouseMoving = true; // Trigger redraw on theme change
-        }
-
-        function toggleTheme() {
-            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
-            localStorage.setItem('theme', newTheme);
-            applyTheme(newTheme);
-        }
-
-        // --- UI Rendering ---
-        function updateHeaderProfile() {
-            const { profile, rewards, email } = appState;
-            if (!profile) return;
-            
-            const avatarUrl = profile.avatarUrl || `https://placehold.co/40x40/e5e7eb/4b5563?text=${profile.username ? profile.username[0].toUpperCase() : '?'}`;
-            
-            document.getElementById('header-avatar').src = avatarUrl;
-            document.getElementById('sidebar-username').textContent = profile.username || 'User';
-            document.getElementById('sidebar-email').textContent = email || '';
-            document.getElementById('points-display').textContent = rewards.points || 0;
-            document.getElementById('streak-display').textContent = `${rewards.streak || 0} days`;
-        }
-
-        function renderFolders() {
-            folderListContainer.innerHTML = ''; // Clear existing
-            if (appState.folders.length === 0) {
-                folderListContainer.innerHTML = `<p class="text-center text-xs text-[var(--text-muted-color)] p-4">No folders yet. Create one to get started!</p>`;
-                return;
-            }
-            appState.folders.forEach(folder => {
-                const cardCount = appState.cardsByFolder[folder.id]?.length || 0;
-                const folderEl = document.createElement('div');
-                folderEl.className = 'folder-item-sidebar p-2 rounded-lg flex items-center justify-between cursor-pointer hover:bg-[var(--interactive-bg)]';
-                folderEl.dataset.folderId = folder.id;
-                folderEl.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-folder" style="color: ${folder.color || '#888'}"></i>
-                        <span class="text-sm font-medium text-[var(--text-color)]">${folder.name}</span>
-                    </div>
-                    <span class="text-xs text-[var(--text-muted-color)]">${cardCount}</span>
-                `;
-                folderListContainer.appendChild(folderEl);
-            });
-        }
-
-        function openFolderInLab(folderId) {
-            appState.currentFolderId = folderId;
-            const folder = appState.folders.find(f => f.id === folderId);
-            if (!folder) return;
-
-            // This is a simplified approach: open the first note and document as tabs.
-            // A more advanced implementation would remember last opened tabs.
-            const notes = appState.notesByFolder[folderId] || [];
-            const documents = appState.documentsByFolder[folderId] || [];
-            
-            const grid = document.getElementById('notes-lab-grid');
-            grid.innerHTML = ''; // Clear existing panes
-
-            const initialTabs = [];
-            if (documents.length > 0) {
-                initialTabs.push({ type: 'document', title: documents[0].originalName, content: 'Document content would be loaded here.' });
-            }
-            if (notes.length > 0) {
-                initialTabs.push({ type: 'notes', title: notes[0].title, content: notes[0].content });
-            }
-
-            if (initialTabs.length === 0) {
-                initialTabs.push({ type: 'welcome', title: `${folder.name}`, content: 'This folder is empty. Add a note or document!' });
-            }
-            
-            const pane = createPane(initialTabs);
-            grid.appendChild(pane);
-        }
-
-
-        function populateProfileView() {
-            const { profile, rewards, email } = appState;
-            if (!profile) return;
-            document.getElementById('profile-avatar-img').src = profile.avatarUrl || `https://placehold.co/128x128/e5e7eb/4b5563?text=${profile.username ? profile.username[0].toUpperCase() : '?'}`;
-            document.getElementById('profile-username').textContent = profile.username || 'Anonymous User';
-            document.getElementById('profile-email').textContent = email || 'No email provided';
-            
-            const achievementsContainer = document.getElementById('profile-achievements');
-            achievementsContainer.innerHTML = `
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-fire text-orange-500 text-2xl w-8 text-center"></i>
-                    <div>
-                        <p class="font-semibold">${rewards.streak || 0} Day Streak</p>
-                        <p class="text-xs text-[var(--text-muted-color)]">Keep the flame alive!</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-star text-yellow-400 text-2xl w-8 text-center"></i>
-                    <div>
-                        <p class="font-semibold">${rewards.points || 0} Points</p>
-                        <p class="text-xs text-[var(--text-muted-color)]">Earned from studying.</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- View & State Management ---
-        function showView(viewToShow) {
-            const views = document.querySelectorAll('.view');
-            views.forEach(v => v.classList.add('hidden'));
-            stopAnimation();
-
-            if(viewToShow) {
-                if(viewToShow.id === 'view-login' || viewToShow.id === 'view-notes-lab') {
-                    startAnimation();
-                }
-                viewToShow.classList.remove('hidden');
-                viewToShow.classList.add('app-fade-in');
-            }
-        }
-        
-        function showNotesLabView() { 
-            updateHeaderProfile();
-            renderFolders();
-            showView(notesLabView); 
-        }
-        function showLoginView() { 
-            appState = { token: null }; // Reset state
-            localStorage.removeItem('authToken');
-            showView(loginView);
-        }
-        function showProfileView() { 
-            populateProfileView();
-            showView(profileView); 
-        }
-
-        function setupCalendar(rewards = {}) {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
-            const today = now.getDate();
-            
-            const firstDayOfMonth = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-            let lastStudiedDate = null;
-            if (rewards && rewards.lastStudied) {
-                lastStudiedDate = new Date(rewards.lastStudied);
-            }
-
-            const calendarGrid = document.getElementById('calendar-grid');
-            if (!calendarGrid) return;
-            calendarGrid.innerHTML = '';
-
-            for (let i = 0; i < firstDayOfMonth; i++) {
-                calendarGrid.insertAdjacentHTML('beforeend', '<div></div>');
-            }
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayEl = document.createElement('div');
-                dayEl.textContent = day;
-                dayEl.classList.add('calendar-day');
-                if (day === today && month === now.getMonth() && year === now.getFullYear()) {
-                    dayEl.classList.add('today');
-                }
-                if (lastStudiedDate && day === lastStudiedDate.getDate() && month === lastStudiedDate.getMonth() && year === lastStudiedDate.getFullYear()) {
-                    dayEl.classList.add('study-day');
-                }
-                calendarGrid.appendChild(dayEl);
-            }
-
-            const activityValueEl = document.getElementById('activity-value');
-            const activityUnitEl = document.getElementById('activity-unit');
-            const activityLabelEl = document.getElementById('activity-label');
-            const nextStudyDayEl = document.getElementById('next-study-day');
-
-            if(activityValueEl) activityValueEl.textContent = rewards.points || 0;
-            if(activityUnitEl) activityUnitEl.textContent = 'points';
-            if(activityLabelEl) activityLabelEl.textContent = 'Total Score';
-            if(nextStudyDayEl) nextStudyDayEl.textContent = `Streak: ${rewards.streak || 0} days`;
-        }
-
-        // --- Notes Lab ---
-        function createPane(tabs) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'notes-lab-pane-wrapper';
-            // ... rest of the createPane logic
-            return wrapper;
-        }
-
-        function createTab(tabInfo) {
-            // ... rest of the createTab logic
-        }
-        
-        function createAddMenuBar() {
-             const menuBar = document.createElement('div');
-            menuBar.className = 'add-tab-bar';
-            menuBar.innerHTML = `
-                <button class="add-tab-btn">
-                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-                <div class="quick-add-bar">
-                    <button class="quick-add-btn" data-type="document" title="Add Document"><i class="fas fa-file-alt text-sm"></i></button>
-                    <button class="quick-add-btn" data-type="notes" title="Add Notes"><i class="fas fa-sticky-note text-sm"></i></button>
-                    <button class="quick-add-btn" data-type="cards" title="Add Flashcards"><i class="fas fa-clone text-sm"></i></button>
-                    <button class="quick-add-btn" data-type="voice" title="Add Voice Note"><i class="fas fa-microphone text-sm"></i></button>
-                </div>
-                <div class="add-tab-title">Add Tab</div>
-                <div class="add-tab-menu-items">
-                    <a href="#" data-type="document"><i class="fas fa-file-alt w-5 text-center"></i><span>Document</span></a>
-                    <a href="#" data-type="notes"><i class="fas fa-sticky-note w-5 text-center"></i><span>Notes</span></a>
-                    <a href="#" data-type="cards"><i class="fas fa-clone w-5 text-center"></i><span>Flashcards</span></a>
-                    <a href="#" data-type="voice"><i class="fas fa-microphone w-5 text-center"></i><span>Voice</span></a>
-                </div>
-                <div class="settings-btn-container">
-                    <button class="quick-add-btn settings-btn" title="Settings"><i class="fas fa-cog text-sm"></i></button>
-                </div>
-            `;
-            const settingsPanel = document.createElement('div'); // Dummy, can be expanded later
-            settingsPanel.className = 'settings-panel glass-pane';
-            return { menuBar, settingsPanel };
-        }
-
-        function setupNotesLab() {
-            const grid = document.getElementById('notes-lab-grid');
-            if (!grid) return;
-            grid.innerHTML = ''; // Clear previous setup
-
-            // Create a default welcome pane
-            const welcomePane = createPane([
-                { type: 'welcome', title: 'Welcome!', icon: 'fas fa-hand-sparkles', color: '#888', tags: [], placeholder: 'Select a folder from the sidebar to get started, or create a new one.' }
-            ]);
-            grid.appendChild(welcomePane);
-        }
-
-        function initVoiceTab(tabContent) { /* ... existing initVoiceTab code ... */ }
-        function createVoiceWidget(type, details) { /* ... existing createVoiceWidget code ... */ }
-        function initDraggable(widget) { /* ... existing initDraggable code ... */ }
-        function initSourceDocumentInteractions(container) { /* ... existing initSourceDocumentInteractions code ... */ }
-        function handleAddToNotes(selectionRange) { /* ... existing handleAddToNotes code ... */ }
-
-        // --- Global Settings ---
-        function applySettings() {
-            const animationEnabled = localStorage.getItem('animationEnabled') !== 'false';
-            document.querySelectorAll('.animation-toggle').forEach(toggle => toggle.checked = animationEnabled);
-            document.querySelectorAll('.add-tab-bar').forEach(bar => bar.classList.toggle('animation-disabled', !animationEnabled));
-            const savedFontSize = localStorage.getItem('fontSize') || 'md';
-            document.body.className = document.body.className.replace(/font-size-\w+/g, '');
-            document.body.classList.add(`font-size-${savedFontSize}`);
-            document.querySelectorAll('.font-size-select').forEach(select => select.value = savedFontSize);
-            const savedAiModel = localStorage.getItem('aiModel') || 'gemini-flash';
-            document.querySelectorAll('.ai-model-select').forEach(select => select.value = savedAiModel);
-        }
-
-        // --- Event Listeners & Initialization ---
-        function setupEventListeners() {
-            window.addEventListener('resize', handleResize);
-            window.addEventListener('mousemove', (e) => {
-                mouse.x = e.clientX; mouse.y = e.clientY;
-                isMouseMoving = true;
-            });
-            window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
-
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                authErrorEl.textContent = '';
-                const email = loginForm.email.value;
-                const password = loginForm.password.value;
-                const isRegistering = submitAuthBtn.textContent.trim() === 'Sign Up';
-
-                try {
-                    if (isRegistering) {
-                        await api.register(email, password);
-                        authModeToggle.click(); 
-                        authErrorEl.textContent = 'Registration successful! Please log in.';
-                        authErrorEl.classList.remove('text-red-500');
-                        authErrorEl.classList.add('text-green-500');
-                    } else {
-                        const { accessToken } = await api.login(email, password);
-                        appState.token = accessToken;
-                        appState.email = email; // Store email for display
-                        localStorage.setItem('authToken', accessToken);
-                        const allData = await api.getAllData();
-                        Object.assign(appState, allData);
-                        
-                        setupCalendar(appState.rewards);
-                        animationOverlay.classList.add('animate-pop');
-                        loginView.classList.add('hidden');
-                        showNotesLabView();
-                    }
-                } catch (err) {
-                    authErrorEl.textContent = err.message;
-                    authErrorEl.classList.add('text-red-500');
-                    authErrorEl.classList.remove('text-green-500');
-                }
-            });
-
-            authModeToggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                const isLoginMode = submitAuthBtn.textContent.trim() === 'Enter';
-                document.getElementById('login-title-h1').textContent = isLoginMode ? 'Create Account' : 'Study Fortress';
-                submitAuthBtn.textContent = isLoginMode ? 'Sign Up' : 'Enter';
-                authModeToggle.innerHTML = isLoginMode ? 'Already have an account? <span class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">Log In</span>' : 'Need an account? <span class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">Sign Up</span>';
-            });
-            
-            document.getElementById('btn-sign-out').addEventListener('click', (e) => { e.preventDefault(); showLoginView(); });
-            document.getElementById('btn-go-to-profile').addEventListener('click', (e) => { e.preventDefault(); showProfileView(); });
-            
-            animationOverlay.addEventListener('animationend', () => animationOverlay.classList.remove('animate-pop'));
-
-            folderListContainer.addEventListener('click', (e) => {
-                const folderItem = e.target.closest('.folder-item-sidebar');
-                if (folderItem) {
-                    openFolderInLab(folderItem.dataset.folderId);
-                }
-            });
-
-            document.getElementById('create-folder-btn').addEventListener('click', async () => {
-                const name = prompt("Enter new folder name:");
-                if (name) {
-                    const newFolder = await api.saveFolder({ name, description: '', color: '#888' });
-                    appState.folders.unshift(newFolder); // Add to the top of the list
-                    renderFolders();
-                }
-            });
-        }
-
-        async function initializeApp() {
-            const savedTheme = localStorage.getItem('theme');
-            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            applyTheme(savedTheme || (systemPrefersDark ? 'dark' : 'light'));
-
-            setupEventListeners();
-            setupNotesLab();
-            handleResize();
-            applySettings();
-
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                appState.token = token;
-                try {
-                    const allData = await api.getAllData();
-                    Object.assign(appState, allData);
-                    setupCalendar(appState.rewards);
-                    showNotesLabView();
-                } catch (error) {
-                    console.error("Session expired or invalid:", error.message);
-                    showLoginView();
-                }
-            } else {
-                setupCalendar(); // Setup calendar with default (empty) data
-                showLoginView();
-            }
-        }
-
-        initializeApp();
-
-    })();
+        document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
