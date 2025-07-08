@@ -98,7 +98,6 @@ async function initializeDatabase() {
     console.log('Connected to the SQLite database.');
     await db.exec('PRAGMA foreign_keys = ON;');
     await db.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, isAdmin INTEGER NOT NULL DEFAULT 0);`);
-    // FIX: Added groqApiKey to the profile table schema.
     await db.exec(`CREATE TABLE IF NOT EXISTS profile (userId INTEGER PRIMARY KEY, username TEXT, bio TEXT, avatarUrl TEXT, googleApiKey TEXT, openaiApiKey TEXT, groqApiKey TEXT, audioQuality TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS rewards (userId INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, lastStudied TEXT, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
     await db.exec(`CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, color TEXT, createdAt TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);`);
@@ -175,7 +174,6 @@ async function generateWithOpenAI(text, apiKey, model, promptFunction) {
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from OpenAI");
     return JSON.parse(cleanJsonString(response.choices[0].message.content));
 }
-// FIX: Added a new function to handle Groq API calls.
 async function generateWithGroq(text, apiKey, model, promptFunction) {
     const groq = new OpenAI({
         baseURL: 'https://api.groq.com/openai/v1',
@@ -184,7 +182,6 @@ async function generateWithGroq(text, apiKey, model, promptFunction) {
     const response = await groq.chat.completions.create({
         model: model,
         messages: [{ role: 'user', content: promptFunction(text) }],
-        // Groq API requires a JSON response format to be specified this way
         response_format: { type: "json_object" },
     });
     if (!response.choices?.[0]?.message?.content) throw new Error("Invalid response from Groq");
@@ -619,7 +616,6 @@ apiRouter.get('/ai-models', authenticateToken, (req, res) => {
     res.json({
         google: ['gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'],
         openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-        // FIX: Added supported Groq models.
         groq: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
     });
 });
