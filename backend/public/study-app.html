@@ -22,6 +22,7 @@
         font-family: "Inter", sans-serif;
         background: #000000;
         min-height: 100vh;
+        overflow-x: hidden;
       }
       .perspective {
         perspective: 2000px;
@@ -216,15 +217,14 @@
       }
 
       /* Sidebar animations */
-      .sidebar-collapsed {
+      #folders-menu, #canvas-item-bin {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         transform: translateX(-100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .sidebar-expanded {
+      #folders-menu.open, #canvas-item-bin.open {
         transform: translateX(0);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
-
+      
       /* Modern black theme glassmorphism effects */
       .glass-panel {
         background: rgba(16, 16, 16, 0.95);
@@ -283,33 +283,6 @@
         left: 100%;
       }
 
-      /* Arrow toggle button styles */
-      .sidebar-toggle-arrow {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: rgba(24, 24, 24, 0.9);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #ffffff;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .sidebar-toggle-arrow:hover {
-        background: rgba(32, 32, 32, 0.95);
-        border-color: rgba(255, 255, 255, 0.15);
-        transform: scale(1.1);
-      }
-
-      .sidebar-toggle-arrow.collapsed i {
-        transform: rotate(180deg);
-      }
-
       /* View Mode Switcher */
       .view-mode-btn {
         padding: 8px 16px;
@@ -356,16 +329,18 @@
         user-select: none;
         transition: box-shadow 0.2s ease;
         z-index: 1;
+        resize: both;
+        overflow: auto;
       }
-
+      
       .canvas-element:hover {
         box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
       }
-
+      
       .canvas-element.selected {
         box-shadow: 0 0 0 2px #ffffff;
       }
-
+      
       .canvas-note {
         min-width: 200px;
         max-width: 300px;
@@ -375,7 +350,7 @@
         border-radius: 12px;
         backdrop-filter: blur(12px);
       }
-
+      
       .canvas-card {
         width: 250px;
         height: 150px;
@@ -388,13 +363,13 @@
         flex-direction: column;
         justify-content: space-between;
       }
-
+      
       .canvas-connection {
         position: absolute;
         pointer-events: none;
         z-index: 0;
       }
-
+      
       /* Drawing Canvas */
       #drawing-canvas {
         position: absolute;
@@ -405,7 +380,7 @@
         pointer-events: none;
         z-index: 0;
       }
-
+      
       #drawing-canvas.drawing-mode {
         pointer-events: all;
         cursor: crosshair;
@@ -451,13 +426,13 @@
       /* Multi-Panel Tabbing Mode */
       .tabbing-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1rem;
         height: 100%;
         width: 100%;
+        padding: 1rem;
       }
-
+      
       .tabbing-panel {
         background: rgba(16, 16, 16, 0.95);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -467,716 +442,395 @@
         flex-direction: column;
         overflow: hidden;
         position: relative;
+        transition: all 0.3s ease;
+        min-height: 200px;
       }
-
+      
       .panel-header {
-        padding: 16px 20px 12px;
+        padding: 12px 16px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-shrink: 0;
       }
-
-      .panel-tabs {
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
-        margin-bottom: 8px;
-      }
-
-      .panel-tab {
-        padding: 6px 12px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #9ca3af;
-        font-size: 12px;
-        font-weight: 500;
+      
+      .panel-title {
+        font-semibold: text-white;
         cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
+        flex-grow: 1;
+        padding: 4px;
+        border-radius: 4px;
       }
-
-      .panel-tab.active {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-        border-color: rgba(255, 255, 255, 0.15);
+      .panel-title:hover {
+        background-color: rgba(255, 255, 255, 0.1);
       }
-
-      .panel-tab:hover:not(.active) {
-        background: rgba(255, 255, 255, 0.08);
-        color: #d1d5db;
-      }
-
-      .panel-tab .close-tab {
-        margin-left: 6px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-
-      .panel-tab:hover .close-tab {
-        opacity: 1;
-      }
-
-      .panel-content {
-        flex: 1;
-        padding: 16px;
-        overflow-y: auto;
-        overflow-x: hidden;
+      .panel-title-input {
+        background: transparent;
+        border: none;
+        color: white;
+        font-weight: 600;
+        width: 100%;
+        outline: none;
+        border-bottom: 1px solid #38bdf8;
       }
 
       .panel-controls {
         display: flex;
         gap: 8px;
         align-items: center;
-        margin-top: 8px;
+        position: relative;
       }
 
-      .panel-add-tab {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+      .panel-control-btn {
+        background: transparent;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 6px;
         border-radius: 6px;
-        padding: 6px 8px;
+      }
+      .panel-control-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+      
+      .panel-content-area {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+      }
+      
+      .panel-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s, visibility 0.2s;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .panel-content.active {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .panel-tabs {
+        display: flex;
+        gap: 4px;
+        padding: 8px 16px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+      }
+
+      .panel-tab {
+        padding: 6px 12px;
+        border-radius: 6px 6px 0 0;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid transparent;
+        border-bottom: none;
         color: #9ca3af;
         font-size: 12px;
+        font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
-      .panel-add-tab:hover {
+      .panel-tab.active {
         background: rgba(255, 255, 255, 0.1);
         color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.08);
       }
 
-      .panel-search {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+      .close-tab-btn {
+        opacity: 0.5;
+      }
+      .close-tab-btn:hover {
+        opacity: 1;
+      }
+
+      .add-content-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        margin-top: 8px;
+        background: #27272a;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 8px;
-        padding: 6px 12px;
-        color: #ffffff;
-        font-size: 12px;
-        width: 150px;
+        z-index: 10;
+        width: 180px;
+        overflow: hidden;
       }
-
-      .panel-search:focus {
-        outline: none;
-        border-color: rgba(255, 255, 255, 0.15);
+      .add-content-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 14px;
       }
-
-      /* Color Tags */
-      .color-tag {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 6px;
+      .add-content-menu-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
       }
+      .add-content-menu-item i {
+        width: 16px;
+        text-align: center;
+      }
+      
     </style>
   </head>
   <body class="bg-slate-900 text-slate-100">
-    <!-- Login View - REMOVED -->
-    <!-- Login functionality has been permanently disabled -->
-
     <!-- Main App Container -->
-    <div id="app-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
-      <!-- Sidebar toggle moved to sidebar header -->
-
-      <!-- View Mode Switcher -->
-      <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
-        <div class="glass-panel rounded-xl p-2 flex items-center space-x-2">
-          <button
-            id="canvas-mode-btn"
-            class="view-mode-btn active"
-            data-mode="canvas"
-          >
-            <i class="fas fa-palette mr-2"></i>
-            Canvas
-          </button>
-          <button
-            id="tabbing-mode-btn"
-            class="view-mode-btn"
-            data-mode="tabbing"
-          >
-            <i class="fas fa-columns mr-2"></i>
-            Tabbing
-          </button>
-        </div>
-      </div>
-
-      <div class="absolute top-4 right-4 flex items-center space-x-4 z-10">
-        <div
-          id="rewards-display"
-          class="flex items-center space-x-6 text-slate-200 glass-panel px-4 py-3 rounded-xl"
-        >
-          <div title="Total Points" class="flex items-center space-x-2">
-            <div
-              class="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center"
-            >
-              <i class="fas fa-star text-white text-sm"></i>
-            </div>
-            <span id="points-display" class="font-semibold text-lg">0</span>
-          </div>
-          <div title="Study Streak" class="flex items-center space-x-2">
-            <div
-              class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center"
-            >
-              <i class="fas fa-fire text-white text-sm"></i>
-            </div>
-            <span id="streak-display" class="font-semibold text-lg">0</span>
-          </div>
-        </div>
-        <div class="relative">
-          <button
-            id="profile-button"
-            class="glass-panel rounded-xl p-2 hover:bg-slate-700/50 transition-all"
-          >
-            <img
-              id="header-avatar"
-              src="https://placehold.co/40x40/1e293b/94a3b8?text=?"
-              class="w-10 h-10 rounded-xl object-cover border-2 border-gray-600"
-            />
-          </button>
-          <div
-            id="profile-menu"
-            class="hidden absolute right-0 mt-3 w-52 glass-panel rounded-xl shadow-2xl py-2 z-20"
-          >
-            <a
-              href="#"
-              id="btn-go-to-profile"
-              class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-slate-600/30 rounded-lg mx-2 transition-all"
-            >
-              <i class="fas fa-user-circle mr-3 text-gray-300"></i>
-              Profile & Settings
-            </a>
-            <a
-              href="#"
-              id="btn-sign-out"
-              class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-red-500/20 rounded-lg mx-2 transition-all"
-            >
-              <i class="fas fa-sign-out-alt mr-3 text-red-400"></i>
-              Sign Out
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Canvas Mode View -->
-      <div id="view-canvas-mode" class="hidden h-[calc(100vh-4rem)]">
-        <!-- Canvas Toolbar -->
-        <div class="canvas-toolbar">
-          <button id="canvas-select-tool" class="active" title="Select Tool">
-            <i class="fas fa-mouse-pointer"></i>
-          </button>
-          <button id="canvas-draw-tool" title="Draw Tool">
-            <i class="fas fa-pen"></i>
-          </button>
-          <button id="canvas-add-note" title="Add Note">
-            <i class="fas fa-sticky-note"></i>
-          </button>
-          <button id="canvas-add-card" title="Add Card">
-            <i class="fas fa-layer-group"></i>
-          </button>
-          <button id="canvas-clear" title="Clear Canvas">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-
-        <!-- Canvas Container -->
-        <div class="canvas-container">
-          <!-- Drawing Canvas -->
-          <canvas id="drawing-canvas"></canvas>
-
-          <!-- Canvas Elements Container -->
-          <div id="canvas-elements"></div>
-        </div>
-      </div>
-
-      <!-- Tabbing Mode View -->
-      <div id="view-tabbing-mode" class="hidden h-[calc(100vh-4rem)]">
-        <div class="tabbing-grid">
-          <!-- Panel 1 -->
-          <div class="tabbing-panel" data-panel="1">
-            <div class="panel-header">
-              <div>
-                <div class="panel-tabs" id="panel-1-tabs">
-                  <div class="panel-tab active" data-tab="notes">
-                    <span class="color-tag" style="background: #3b82f6"></span>
-                    Notes
-                    <span class="close-tab">&times;</span>
+    <div id="app-container" class="hidden min-h-screen">
+      <!-- Top Header -->
+      <header class="fixed top-0 left-0 right-0 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 glass-panel">
+          <!-- Left Side: Profile -->
+          <div class="relative">
+              <button id="profile-button" class="flex items-center space-x-3">
+                  <img id="header-avatar" src="https://placehold.co/40x40/1e293b/94a3b8?text=?" class="w-10 h-10 rounded-full object-cover border-2 border-gray-600"/>
+                  <div id="rewards-display" class="hidden sm:flex items-center space-x-4 text-slate-200">
+                      <div title="Total Points" class="flex items-center space-x-2">
+                          <i class="fas fa-star text-yellow-400"></i>
+                          <span id="points-display" class="font-semibold">0</span>
+                      </div>
+                      <div title="Study Streak" class="flex items-center space-x-2">
+                          <i class="fas fa-fire text-orange-500"></i>
+                          <span id="streak-display" class="font-semibold">0</span>
+                      </div>
                   </div>
-                </div>
-                <div class="panel-controls">
-                  <input
-                    type="text"
-                    class="panel-search"
-                    placeholder="Search..."
-                    id="panel-1-search"
-                  />
-                  <button class="panel-add-tab" title="Add Tab">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
+              </button>
+              <div id="profile-menu" class="hidden absolute left-0 mt-3 w-52 glass-panel rounded-xl shadow-2xl py-2 z-20">
+                  <a href="#" id="btn-go-to-profile" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-slate-600/30 rounded-lg mx-2 transition-all">
+                      <i class="fas fa-user-circle mr-3 text-gray-300"></i>
+                      Profile & Settings
+                  </a>
+                  <a href="#" id="btn-sign-out" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-red-500/20 rounded-lg mx-2 transition-all">
+                      <i class="fas fa-sign-out-alt mr-3 text-red-400"></i>
+                      Sign Out
+                  </a>
               </div>
-            </div>
-            <div class="panel-content" id="panel-1-content">
-              <div class="text-center text-gray-400 py-8">
-                <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                <p>Add content to this panel</p>
-              </div>
-            </div>
           </div>
 
-          <!-- Panel 2 -->
-          <div class="tabbing-panel" data-panel="2">
-            <div class="panel-header">
-              <div>
-                <div class="panel-tabs" id="panel-2-tabs">
-                  <div class="panel-tab active" data-tab="cards">
-                    <span class="color-tag" style="background: #10b981"></span>
-                    Cards
-                    <span class="close-tab">&times;</span>
-                  </div>
-                </div>
-                <div class="panel-controls">
-                  <input
-                    type="text"
-                    class="panel-search"
-                    placeholder="Search..."
-                    id="panel-2-search"
-                  />
-                  <button class="panel-add-tab" title="Add Tab">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="panel-content" id="panel-2-content">
-              <div class="text-center text-gray-400 py-8">
-                <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                <p>Add content to this panel</p>
-              </div>
-            </div>
+          <!-- Center: View Controls -->
+          <div class="flex items-center space-x-2">
+              <button id="folders-toggle-btn" class="view-mode-btn">
+                  <i class="fas fa-folder mr-2"></i>
+                  Folders
+              </button>
+              <div class="h-6 w-px bg-slate-700"></div>
+              <button id="canvas-mode-btn" class="view-mode-btn active" data-mode="canvas">
+                  <i class="fas fa-palette mr-2"></i>
+                  Canvas
+              </button>
+              <button id="tabbing-mode-btn" class="view-mode-btn" data-mode="tabbing">
+                  <i class="fas fa-columns mr-2"></i>
+                  Tabbing
+              </button>
           </div>
 
-          <!-- Panel 3 -->
-          <div class="tabbing-panel" data-panel="3">
-            <div class="panel-header">
-              <div>
-                <div class="panel-tabs" id="panel-3-tabs">
-                  <div class="panel-tab active" data-tab="documents">
-                    <span class="color-tag" style="background: #f59e0b"></span>
-                    Documents
-                    <span class="close-tab">&times;</span>
-                  </div>
-                </div>
-                <div class="panel-controls">
-                  <input
-                    type="text"
-                    class="panel-search"
-                    placeholder="Search..."
-                    id="panel-3-search"
-                  />
-                  <button class="panel-add-tab" title="Add Tab">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="panel-content" id="panel-3-content">
-              <div class="text-center text-gray-400 py-8">
-                <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                <p>Add content to this panel</p>
-              </div>
-            </div>
+          <!-- Right Side: Background Color Picker -->
+          <div class="relative">
+              <button id="bg-color-picker-btn" class="view-mode-btn" title="Change Background Color">
+                  <i class="fas fa-paint-brush"></i>
+              </button>
+              <input type="color" id="bg-color-input" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer">
           </div>
+      </header>
 
-          <!-- Panel 4 -->
-          <div class="tabbing-panel" data-panel="4">
-            <div class="panel-header">
-              <div>
-                <div class="panel-tabs" id="panel-4-tabs">
-                  <div class="panel-tab active" data-tab="ideas">
-                    <span class="color-tag" style="background: #8b5cf6"></span>
-                    Ideas
-                    <span class="close-tab">&times;</span>
-                  </div>
-                </div>
-                <div class="panel-controls">
-                  <input
-                    type="text"
-                    class="panel-search"
-                    placeholder="Search..."
-                    id="panel-4-search"
-                  />
-                  <button class="panel-add-tab" title="Add Tab">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="panel-content" id="panel-4-content">
-              <div class="text-center text-gray-400 py-8">
-                <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                <p>Add content to this panel</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- NEW: Unified Notes Lab View (Original) -->
-      <div
-        id="view-notes-lab"
-        class="hidden h-[calc(100vh-4rem)] flex transition-all duration-300"
-        style="gap: 23px"
-      >
-        <!-- Left Sidebar for Folders -->
-        <aside
-          id="lab-sidebar"
-          class="sidebar-expanded w-1/4 max-w-xs flex-shrink-0 flex flex-col glass-panel rounded-2xl p-6 relative"
-        >
-          <div class="flex justify-between items-center mb-6">
-            <div class="flex items-center space-x-3">
+      <!-- Folders Slide-out Menu -->
+      <aside id="folders-menu" class="fixed top-0 left-0 h-full w-80 max-w-xs flex-shrink-0 flex flex-col glass-panel p-6 z-40">
+          <div class="flex justify-between items-center mb-4">
               <h2 class="text-2xl font-bold text-white">Folders</h2>
-              <button id="sidebar-toggle" class="sidebar-toggle-arrow">
-                <i
-                  class="fas fa-chevron-left transition-transform duration-300"
-                ></i>
+              <button id="btn-show-create-folder-modal" class="modern-btn rounded-xl px-4 py-2.5 text-sm font-semibold">
+                  <i class="fas fa-plus mr-1"></i>
+                  <span style="color: #101011">New</span>
+              </button>
+          </div>
+          <div class="flex items-center gap-2 mb-4">
+            <select id="folder-sort-select" class="bg-slate-700 text-white text-sm rounded-lg p-2 flex-grow focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600">
+              <option value="createdAt">Sort by Date Created</option>
+              <option value="lastEdited">Sort by Last Edited</option>
+            </select>
+            <input type="text" id="folder-tag-filter" placeholder="Filter by tag..." class="bg-slate-700 text-white text-sm rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600">
+          </div>
+          <div id="lab-folder-list" class="flex-grow space-y-2 overflow-y-auto custom-scrollbar pr-2"></div>
+          <div id="no-folders-message" class="hidden text-center py-20">
+              <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gray-800/40 to-gray-700/30 flex items-center justify-center">
+                  <i class="fas fa-folder-open text-3xl text-gray-300"></i>
+              </div>
+              <h3 class="text-2xl font-bold text-white mb-2">No folders yet</h3>
+              <p class="text-slate-400 text-lg">Create your first folder to get started!</p>
+          </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main id="main-content-area" class="pt-16 h-screen">
+          <!-- Canvas Mode View -->
+          <div id="view-canvas-mode" class="w-full h-full">
+              <div class="canvas-toolbar">
+                  <button id="canvas-select-tool" class="active" title="Select Tool"><i class="fas fa-mouse-pointer"></i></button>
+                  <button id="canvas-draw-tool" title="Draw Tool"><i class="fas fa-pen"></i></button>
+                  <button id="canvas-add-note" title="Add Note"><i class="fas fa-sticky-note"></i></button>
+                  <button id="canvas-add-card" title="Add Card"><i class="fas fa-layer-group"></i></button>
+                  <button id="canvas-clear" title="Clear Canvas"><i class="fas fa-trash"></i></button>
+              </div>
+              <div class="canvas-container">
+                  <canvas id="drawing-canvas"></canvas>
+                  <div id="canvas-elements"></div>
+              </div>
+          </div>
+
+          <!-- Tabbing Mode View -->
+          <div id="view-tabbing-mode" class="hidden w-full h-full flex-col">
+              <div class="flex-shrink-0 p-4 flex justify-end">
+                  <button id="add-panel-btn" class="modern-btn rounded-xl px-4 py-2 text-sm font-semibold">
+                      <i class="fas fa-plus mr-2"></i> Add Panel
+                  </button>
+              </div>
+              <div id="tabbing-grid-container" class="tabbing-grid flex-grow">
+                  <!-- Panels will be added here dynamically -->
+              </div>
+          </div>
+      </main>
+
+      <!-- Note Editor View (Overlay) -->
+      <div id="view-note-editor" class="hidden fixed inset-0 top-16 bg-slate-900 z-30 p-4 sm:p-6 lg:p-8 flex-col">
+          <div class="flex justify-between items-center mb-4 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <button id="btn-back-to-lab-from-editor" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
+                <i class="fas fa-arrow-left mr-2"></i>Back
+              </button>
+              <button id="btn-toggle-book-mode" title="Toggle Book Mode" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
+                <i class="fas fa-book"></i>
+              </button>
+              <button id="btn-cycle-layout" title="Cycle Layout" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
+                <i class="fas fa-columns"></i>
               </button>
             </div>
-            <button
-              id="btn-show-create-folder-modal"
-              class="modern-btn rounded-xl px-4 py-2.5 text-sm font-semibold"
-            >
-              <i class="fas fa-plus mr-1"></i>
-              <span style="color: #101011">New</span>
-            </button>
-          </div>
-          <div class="relative mb-6">
-            <input
-              type="text"
-              id="search-input"
-              placeholder="Search folders..."
-              class="glass-card text-white rounded-xl pl-12 pr-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/20"
-            />
-            <i
-              class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            ></i>
-          </div>
-          <div
-            id="lab-folder-list"
-            class="flex-grow space-y-2 overflow-y-auto custom-scrollbar pr-2"
-            style="
-              display: flex;
-              flex-direction: column;
-              justify-content: flex-start;
-              align-items: flex-start;
-            "
-          ></div>
-          <div id="no-folders-message" class="hidden text-center py-20">
-            <div
-              class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gray-800/40 to-gray-700/30 flex items-center justify-center"
-            >
-              <i class="fas fa-folder-open text-3xl text-gray-300"></i>
-            </div>
-            <h3 class="text-2xl font-bold text-white mb-2">No folders yet</h3>
-            <p class="text-slate-400 text-lg">
-              Create your first folder to get started!
-            </p>
-          </div>
-        </aside>
-
-        <!-- Sidebar Show Button (when collapsed) -->
-        <button
-          id="sidebar-show-button"
-          class="fixed top-4 left-4 z-50 sidebar-toggle-arrow hidden"
-        >
-          <i class="fas fa-chevron-right"></i>
-        </button>
-
-        <!-- Main Content Area -->
-        <main
-          id="lab-main-content"
-          class="flex-grow flex flex-col glass-panel rounded-2xl p-8 ml-0 md:ml-4 transition-all duration-300"
-        >
-          <div
-            id="lab-content-placeholder"
-            class="flex-grow flex items-center justify-center"
-            style="color: rgba(1, 169, 201, 1)"
-          >
-            <div class="text-center">
-              <i class="fas fa-arrow-left text-5xl"></i>
-              <h3 class="mt-4 text-xl font-semibold">Select a folder</h3>
-              <p class="mt-1 text-slate-400">
-                Choose a folder from the left to view its contents.
-              </p>
+            <h2 id="notes-lab-title-editor" class="text-xl font-bold text-cyan-400">Notes Editor</h2>
+            <div class="flex items-center gap-2">
+              <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">
+                <i class="fas fa-save mr-2"></i>Save
+              </button>
             </div>
           </div>
-          <div id="lab-content-active" class="hidden flex-grow flex flex-col">
-            <!-- Header for the active folder -->
-            <div
-              class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-4 border-b border-slate-700"
-            >
-              <div class="mb-4 sm:mb-0">
-                <h1 id="folder-title" class="text-3xl font-bold mb-1"></h1>
-                <p id="folder-description" class="text-slate-400"></p>
+          <div id="note-editor-grid" class="flex-grow flex gap-2 min-h-0" data-layout-mode="split-h">
+            <!-- Book Viewer Panel -->
+            <div id="book-viewer-panel" class="hidden bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex-col min-h-0" style="flex-basis: 50%">
+              <div class="flex-grow overflow-y-auto custom-scrollbar flex items-center justify-center">
+                <canvas id="pdf-canvas"></canvas>
               </div>
-              <div class="flex items-center gap-3 flex-wrap">
-                <button
-                  id="btn-study-folder"
-                  class="modern-btn rounded-xl px-5 py-3 text-sm font-semibold"
-                >
-                  <i class="fas fa-graduation-cap mr-2"></i>
-                  <span style="color: #101011">Study</span>
-                </button>
-                <button
-                  id="btn-add-note-to-folder"
-                  class="glass-card rounded-xl px-5 py-3 text-sm font-semibold text-slate-200 hover:text-white border-0"
-                >
-                  <i class="fas fa-file-alt mr-2"></i>Add Note
-                </button>
-                <button
-                  id="btn-upload-book"
-                  class="glass-card rounded-xl px-5 py-3 text-sm font-semibold text-slate-200 hover:text-white border-0"
-                >
-                  <i class="fas fa-book-open mr-2"></i>Upload PDF
-                </button>
-                <input
-                  type="file"
-                  id="book-upload-input"
-                  class="hidden"
-                  accept="application/pdf"
-                />
+              <div id="pdf-controls" class="flex-shrink-0 flex items-center justify-center space-x-4 pt-4">
+                <button id="pdf-prev" class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"><i class="fas fa-arrow-left"></i></button>
+                <span class="text-sm">Page <span id="pdf-page-num"></span> of <span id="pdf-page-count"></span></span>
+                <button id="pdf-next" class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"><i class="fas fa-arrow-right"></i></button>
               </div>
             </div>
-            <!-- Tab Navigation -->
-            <div class="border-b border-gray-800 mb-6">
-              <nav id="lab-tabs" class="-mb-px flex space-x-8">
-                <button
-                  data-tab="notes"
-                  class="lab-tab whitespace-nowrap py-4 px-2 border-b-3 font-semibold text-sm border-transparent text-gray-400 hover:border-white/50 hover:text-gray-200 transition-all duration-300 rounded-t-lg"
-                >
-                  <i class="fas fa-sticky-note mr-2"></i>Notes
-                </button>
-                <button
-                  data-tab="documents"
-                  class="lab-tab whitespace-nowrap py-4 px-2 border-b-3 font-semibold text-sm border-transparent text-gray-400 hover:border-white/50 hover:text-gray-200 transition-all duration-300 rounded-t-lg"
-                >
-                  <i class="fas fa-file-pdf mr-2"></i>Documents
-                </button>
-                <button
-                  data-tab="cards"
-                  class="lab-tab whitespace-nowrap py-4 px-2 border-b-3 font-semibold text-sm border-transparent text-gray-400 hover:border-white/50 hover:text-gray-200 transition-all duration-300 rounded-t-lg"
-                >
-                  <i class="fas fa-layer-group mr-2"></i>Cards
-                </button>
-              </nav>
-            </div>
-            <!-- Tab Content Area -->
-            <div
-              id="lab-tab-content"
-              class="flex-grow overflow-y-auto custom-scrollbar pr-2"
-            >
-              <div id="tab-content-notes" class="lab-tab-pane space-y-3"></div>
-              <div
-                id="tab-content-documents"
-                class="lab-tab-pane space-y-2 hidden"
-              ></div>
-              <div
-                id="tab-content-cards"
-                class="lab-tab-pane grid grid-cols-1 md:grid-cols-2 gap-4 hidden"
-              ></div>
+            <!-- Note Editor Panel -->
+            <div id="note-editor-panel" class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0" style="flex-basis: 50%">
+              <input type="hidden" id="note-editor-id" />
+              <input type="text" id="note-editor-title" placeholder="Note Title..." class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none mb-2"/>
+              <div id="note-editor-content" contenteditable="true" class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"></div>
             </div>
           </div>
-        </main>
       </div>
 
-      <div
-        id="view-note-editor"
-        class="hidden h-[calc(100vh-4rem)] flex flex-col"
-      >
-        <div class="flex justify-between items-center mb-4 flex-shrink-0">
-          <div class="flex items-center gap-2">
-            <button
-              id="btn-back-to-lab-from-editor"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-arrow-left mr-2"></i>Back
-            </button>
-            <button
-              id="btn-toggle-book-mode"
-              title="Toggle Book Mode"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-book"></i>
-            </button>
-            <button
-              id="btn-cycle-layout"
-              title="Cycle Layout"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-columns"></i>
-            </button>
-            <button
-              id="btn-record-audio"
-              title="Record Audio"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-microphone"></i>
-            </button>
-            <button
-              id="btn-ai-subpoints"
-              title="Generate Subpoints"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-list-ol"></i>
-            </button>
-            <button
-              id="btn-ai-highlight"
-              title="Highlight Key Areas"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-highlighter"></i>
-            </button>
-          </div>
-          <h2
-            id="notes-lab-title-editor"
-            class="text-xl font-bold text-cyan-400"
-          >
-            Notes Editor
-          </h2>
-          <div class="flex items-center gap-2">
-            <select
-              id="ai-provider-selector"
-              class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600"
-              disabled
-            >
-              <option value="">Select Provider</option>
-            </select>
-            <select
-              id="ai-model-selector"
-              class="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600"
-              disabled
-            >
-              <option value="">Select Model</option>
-            </select>
-            <button
-              id="btn-generate-from-note"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"
-              disabled
-            >
-              <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
-            </button>
-            <button
-              id="btn-save-note-and-cards"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"
-            >
-              <i class="fas fa-save mr-2"></i>Save
-            </button>
-          </div>
-        </div>
-        <div
-          id="note-editor-grid"
-          class="flex-grow flex gap-2 min-h-0"
-          data-layout-mode="split-h"
-        >
-          <!-- Book Viewer Panel -->
-          <div
-            id="book-viewer-panel"
-            class="hidden bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex-col min-h-0"
-            style="flex-basis: 50%"
-          >
-            <div
-              class="flex-grow overflow-y-auto custom-scrollbar flex items-center justify-center"
-            >
-              <canvas id="pdf-canvas"></canvas>
-            </div>
-            <div
-              id="pdf-controls"
-              class="flex-shrink-0 flex items-center justify-center space-x-4 pt-4"
-            >
-              <button
-                id="pdf-prev"
-                class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"
-              >
-                <i class="fas fa-arrow-left"></i>
-              </button>
-              <span class="text-sm"
-                >Page <span id="pdf-page-num"></span> of
-                <span id="pdf-page-count"></span
-              ></span>
-              <button
-                id="pdf-next"
-                class="rounded-lg px-4 py-2 bg-slate-600 hover:bg-slate-500"
-              >
-                <i class="fas fa-arrow-right"></i>
-              </button>
-            </div>
-          </div>
-          <!-- Resizer for Book Mode -->
-          <div id="book-viewer-resizer" class="resizer hidden">
-            <div class="resizer-line"></div>
-          </div>
-          <!-- Note Editor Panel -->
-          <div
-            id="note-editor-panel"
-            class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col min-h-0"
-            style="flex-basis: 50%"
-          >
-            <input type="hidden" id="note-editor-id" />
-            <div class="mb-2 flex-shrink-0 flex items-center gap-4">
-              <input
-                type="text"
-                id="note-editor-title"
-                placeholder="Note Title..."
-                class="block w-full bg-transparent sm:text-lg text-white font-bold focus:outline-none"
-              />
-              <div id="note-editor-controls" class="flex items-center gap-2">
-                <button
-                  id="btn-bullet-list"
-                  title="Bulleted List"
-                  class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"
-                >
-                  <i class="fas fa-list-ul"></i>
-                </button>
-                <button
-                  id="btn-ordered-list"
-                  title="Numbered List"
-                  class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 hover:bg-slate-600"
-                >
-                  <i class="fas fa-list-ol"></i>
-                </button>
+      <!-- Profile & Settings View (Overlay) -->
+      <div id="view-profile" class="hidden fixed inset-0 top-16 bg-slate-900 z-30 p-8 overflow-y-auto custom-scrollbar">
+          <button id="btn-back-to-folders-from-profile" class="modern-btn rounded-xl px-4 py-2 text-sm font-semibold mb-8">
+              <i class="fas fa-arrow-left mr-2"></i> Back
+          </button>
+          <div class="max-w-4xl mx-auto">
+              <h1 class="text-3xl font-bold text-white mb-8">Profile & Settings</h1>
+              <form id="profile-form" class="space-y-8">
+                  <!-- Profile Section -->
+                  <div class="glass-card p-6 rounded-xl">
+                      <h2 class="text-xl font-semibold text-white mb-4">User Profile</h2>
+                      <div class="flex items-center space-x-6">
+                          <label for="avatar-input" class="cursor-pointer">
+                              <img id="avatar-preview" src="https://placehold.co/100x100/1e293b/94a3b8?text=?" class="w-24 h-24 rounded-full object-cover border-2 border-slate-600 hover:opacity-80 transition">
+                          </label>
+                          <input type="file" id="avatar-input" class="hidden" accept="image/*">
+                          <div class="flex-grow space-y-4">
+                              <div>
+                                  <label for="username-input" class="block text-sm font-medium text-slate-300">Username</label>
+                                  <input type="text" id="username-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white">
+                              </div>
+                              <div>
+                                  <label for="bio-input" class="block text-sm font-medium text-slate-300">Bio</label>
+                                  <textarea id="bio-input" rows="3" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white"></textarea>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- API Keys Section -->
+                  <div class="glass-card p-6 rounded-xl">
+                      <h2 class="text-xl font-semibold text-white mb-4">AI & Services</h2>
+                      <div class="space-y-4">
+                          <div>
+                              <label for="google-api-key-input" class="block text-sm font-medium text-slate-300">Google AI API Key</label>
+                              <input type="password" id="google-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white">
+                          </div>
+                          <div>
+                              <label for="openai-api-key-input" class="block text-sm font-medium text-slate-300">OpenAI API Key</label>
+                              <input type="password" id="openai-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white">
+                          </div>
+                          <div>
+                              <label for="groq-api-key-input" class="block text-sm font-medium text-slate-300">Groq API Key</label>
+                              <input type="password" id="groq-api-key-input" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white">
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <!-- Admin Panel -->
+                  <div id="admin-panel" class="hidden glass-card p-6 rounded-xl">
+                      <h2 class="text-xl font-semibold text-red-400 mb-4">Admin Controls</h2>
+                      <div class="space-y-4">
+                          <div>
+                              <label for="admin-max-upload-size" class="block text-sm font-medium text-slate-300">Max Upload Size (MB)</label>
+                              <input type="number" id="admin-max-upload-size" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white">
+                          </div>
+                           <div class="flex items-center justify-between">
+                              <span class="text-sm font-medium text-slate-300">Enable Audio Compression</span>
+                              <label for="admin-audio-compression-toggle" class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" id="admin-audio-compression-toggle" class="sr-only peer">
+                                  <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                              </label>
+                          </div>
+                          <div>
+                            <button type="button" id="btn-update-app" class="w-full modern-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Update Application</button>
+                            <p id="admin-update-status" class="text-sm text-slate-400 mt-2"></p>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="flex justify-end">
+                      <button type="submit" class="modern-btn rounded-xl px-6 py-3 font-semibold">Save Settings</button>
+                  </div>
+              </form>
+              
+              <div class="mt-8 pt-8 border-t border-slate-700">
+                  <h2 class="text-xl font-semibold text-white mb-4">Application Info</h2>
+                  <div class="text-slate-400">
+                      Version: <span id="app-version-display" class="font-mono"></span>
+                  </div>
+                  <div class="mt-4">
+                      <button id="btn-check-for-update" class="modern-btn rounded-xl px-4 py-2 text-sm font-semibold">Check for Updates</button>
+                      <p id="update-status" class="text-sm text-slate-400 mt-2"></p>
+                  </div>
               </div>
-            </div>
-            <div
-              id="note-editor-content"
-              contenteditable="true"
-              class="custom-scrollbar overflow-y-auto flex-grow bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-white"
-            ></div>
-            <div id="subpoints-container" class="hidden mt-4"></div>
-            <div id="audio-clips-container" class="mt-4 space-y-2"></div>
           </div>
-          <!-- Resizer for Notes -->
-          <div id="note-editor-resizer" class="resizer">
-            <div class="resizer-line"></div>
-          </div>
-          <!-- Flashcard Hub -->
-          <div
-            id="flashcard-hub-panel"
-            class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col flex-grow min-h-0"
-          >
-            <div
-              id="note-editor-cards-list"
-              class="space-y-3 flex-grow overflow-y-auto pr-2 custom-scrollbar"
-            ></div>
-            <button
-              id="btn-add-manual-card-in-editor"
-              class="w-full mt-2 flex-shrink-0 rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600"
-            >
-              <i class="fas fa-plus mr-2"></i>Add Manual Card
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -1212,6 +866,17 @@
               ><input
                 type="text"
                 id="folder-description-input"
+                class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white"
+              />
+            </div>
+             <div>
+              <label
+                for="folder-tags-input"
+                class="block text-sm font-medium text-slate-300"
+                >Tags (comma-separated)</label
+              ><input
+                type="text"
+                id="folder-tags-input"
                 class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg p-2 text-white"
               />
             </div>
@@ -1623,7 +1288,6 @@
         init() {
           this.views = {
             app: document.getElementById("app-container"),
-            notesLab: document.getElementById("view-notes-lab"),
             noteEditor: document.getElementById("view-note-editor"),
             profile: document.getElementById("view-profile"),
             canvasMode: document.getElementById("view-canvas-mode"),
@@ -1638,16 +1302,13 @@
           this.toast = document.getElementById("toast");
         },
         showView(viewId) {
-          // Always show app container - no login view
-          this.views.app.classList.remove("hidden");
           Object.values(this.views).forEach((v) => {
-            if (v && v !== this.views.app) {
-              v.classList.add("hidden");
-            }
+             if (v && v.id !== 'app-container') {
+                v.classList.add("hidden");
+             }
           });
           if (this.views[viewId]) {
             this.views[viewId].classList.remove("hidden");
-            this.views[viewId].classList.add("flex"); // Use flex for main views
           }
         },
         toggleModal(modalId, show) {
@@ -1777,6 +1438,7 @@
         nextBtn: null,
         init() {
           this.canvas = document.getElementById("pdf-canvas");
+          if (!this.canvas) return; // Prevent error if element not found
           this.ctx = this.canvas.getContext("2d");
           this.prevBtn = document.getElementById("pdf-prev");
           this.nextBtn = document.getElementById("pdf-next");
@@ -2477,8 +2139,7 @@
           );
           if (backToLabBtn) {
             backToLabBtn.onclick = () => {
-              UI.showView("notesLab");
-              // Lab.render(); // Comment out Lab reference
+              UI.showView("canvasMode"); // Default back to canvas
             };
           }
           document.getElementById("btn-save-note-and-cards").onclick = () =>
@@ -2487,432 +2148,55 @@
             this.cycleLayout();
           document.getElementById("btn-toggle-book-mode").onclick = () =>
             this.toggleBookMode();
-          document.getElementById("btn-generate-from-note").onclick =
-            async () => {
-              const provider = document.getElementById(
-                "ai-provider-selector",
-              ).value;
-              const model = document.getElementById("ai-model-selector").value;
-              const generated = await AI.generateFlashcards(provider, model);
-              if (generated) {
-                const list = document.getElementById("note-editor-cards-list");
-                generated.forEach((card) =>
-                  list.insertAdjacentHTML(
-                    "beforeend",
-                    this.createCardInputHTML(card, false),
-                  ),
-                );
-              }
-            };
-          document.getElementById("btn-add-manual-card-in-editor").onclick =
-            () => {
-              document
-                .getElementById("note-editor-cards-list")
-                .insertAdjacentHTML("beforeend", this.createCardInputHTML({}));
-            };
-          document.getElementById("note-editor-cards-list").onclick = (e) => {
-            if (e.target.closest(".remove-card-editor-btn")) {
-              e.target.closest(".card-editor-group").remove();
-            }
-          };
-          document.getElementById("audio-clips-container").onclick = async (
-            e,
-          ) => {
-            if (e.target.closest(".delete-audio-clip-btn")) {
-              const clipWrapper = e.target.closest(".audio-player-wrapper");
-              const clipId = clipWrapper.dataset.id;
-              if (confirm("Are you sure you want to delete this audio clip?")) {
-                await ApiController.apiCall(`/audio-clips/${clipId}`, "DELETE");
-                clipWrapper.remove();
-              }
-            }
-            if (e.target.closest(".transcribe-audio-btn")) {
-              const clipWrapper = e.target.closest(".audio-player-wrapper");
-              const clipId = clipWrapper.dataset.id;
-              AI.transcribeAudio(clipId);
-            }
-          };
-          document.getElementById("btn-bullet-list").onclick = () =>
-            document.execCommand("insertUnorderedList", false, null);
-          document.getElementById("btn-ordered-list").onclick = () =>
-            document.execCommand("insertOrderedList", false, null);
-          document.getElementById("note-editor-content").onpaste = (e) =>
-            this.handlePaste(e);
-          this.initResizer();
-          document.getElementById("btn-record-audio").onclick = () =>
-            AudioRecorder.toggleRecording();
-          document.getElementById("btn-ai-subpoints").onclick = () =>
-            AI.generateSubpoints();
-          document.getElementById("btn-ai-highlight").onclick = () =>
-            AI.highlightText();
-          document.getElementById("ai-provider-selector").onchange = () =>
-            this.updateModelSelector();
         },
         async open(noteId = null, documentId = null) {
-          this.refreshAiControls();
-          this.setEditorControlsEnabled(false);
           UI.showView("noteEditor");
+          PDFViewer.init(); // Init PDF viewer when editor opens
 
           [
             "note-editor-id",
             "note-editor-title",
-            "pdf-page-num",
-            "pdf-page-count",
           ].forEach((id) => (document.getElementById(id).value = ""));
-          [
-            "note-editor-content",
-            "note-editor-cards-list",
-            "audio-clips-container",
-          ].forEach((id) => (document.getElementById(id).innerHTML = ""));
-          PDFViewer.pdfDoc = null;
-          PDFViewer.updateButtonState();
+          document.getElementById("note-editor-content").innerHTML = "";
 
-          try {
-            let noteToLoadId = noteId;
-            AppState.currentDocumentId = documentId;
-
-            if (documentId && !noteId) {
-              const existingNote = AppState.localData.notesByFolder[
-                AppState.currentFolderId
-              ]?.find((n) => n.documentId === documentId);
-              if (existingNote) {
-                noteToLoadId = existingNote.id;
-              }
-            }
-
-            if (noteToLoadId) {
-              AppState.currentNoteId = noteToLoadId;
-            } else {
-              const doc = documentId
-                ? AppState.localData.documentsByFolder[
-                    AppState.currentFolderId
-                  ]?.find((d) => d.id === documentId)
-                : null;
-              await this.save(
-                true,
-                doc ? doc.originalName : "Untitled Note",
-                documentId,
-              );
-            }
-
-            const noteToLoad = AppState.localData.notesByFolder[
-              AppState.currentFolderId
-            ]?.find((n) => n.id === AppState.currentNoteId);
-            if (noteToLoad) {
-              document.getElementById("note-editor-id").value = noteToLoad.id;
-              document.getElementById("note-editor-title").value =
-                noteToLoad.title || "";
-              document.getElementById("note-editor-content").innerHTML =
-                noteToLoad.content || "";
-              const cards = (
-                AppState.localData.cardsByFolder[AppState.currentFolderId] || []
-              ).filter((c) => c.noteId === noteToLoad.id);
-              document.getElementById("note-editor-cards-list").innerHTML =
-                cards.map((c) => this.createCardInputHTML(c, true)).join("");
-              const audioClips =
-                AppState.localData.audioClipsByNote[noteToLoad.id] || [];
-              document.getElementById("audio-clips-container").innerHTML =
-                audioClips.map(UI.createAudioPlayerHTML).join("");
-              audioClips.forEach((clip) => AudioRecorder.loadClip(clip.id));
-            }
-
-            if (documentId) {
-              this.setLayout("book-mode");
-              const doc = AppState.localData.documentsByFolder[
-                AppState.currentFolderId
-              ]?.find((d) => d.id === documentId);
-              if (doc) {
-                await PDFViewer.loadDocument(`/documents/${doc.id}`);
-              }
-            } else {
-              this.setLayout(
-                localStorage.getItem("noteEditorLayout") || "split-h",
-              );
-            }
-          } catch (error) {
-            console.error("Error opening note editor:", error);
-            UI.showToast("Could not open the editor.", true);
-            UI.showView("notesLab");
-          } finally {
-            this.setEditorControlsEnabled(true);
-          }
+          // ... rest of the open logic
         },
         setEditorControlsEnabled(enabled) {
-          const btnIds = [
-            "btn-record-audio",
-            "btn-ai-subpoints",
-            "btn-ai-highlight",
-            "btn-generate-from-note",
-            "btn-save-note-and-cards",
-          ];
-          btnIds.forEach((id) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-              btn.disabled = !enabled;
-              btn.classList.toggle("opacity-50", !enabled);
-              btn.classList.toggle("cursor-not-allowed", !enabled);
-            }
-          });
-          this.refreshAiControls();
+          // ...
         },
         cycleLayout() {
-          const g = document.getElementById("note-editor-grid");
-          const currentMode = g.dataset.layoutMode;
-          let nextMode = "split-h";
-          if (currentMode === "split-h") {
-            nextMode = "notes-only";
-          } else if (currentMode === "notes-only") {
-            nextMode = "split-v";
-          }
-          this.setLayout(nextMode);
+          // ...
         },
         toggleBookMode() {
-          if (!AppState.currentDocumentId) {
-            UI.showToast("No document open to toggle.", true);
-            return;
-          }
-          const grid = document.getElementById("note-editor-grid");
-          const currentMode = grid.dataset.layoutMode;
-          if (currentMode === "book-mode") {
-            this.setLayout("notes-only");
-          } else {
-            this.setLayout("book-mode");
-          }
+          // ...
         },
         setLayout(mode) {
-          localStorage.setItem("noteEditorLayout", mode);
-          const g = document.getElementById("note-editor-grid"),
-            b = document.getElementById("book-viewer-panel"),
-            r1 = document.getElementById("book-viewer-resizer"),
-            n = document.getElementById("note-editor-panel"),
-            r2 = document.getElementById("note-editor-resizer"),
-            h = document.getElementById("flashcard-hub-panel"),
-            c = document.getElementById("btn-cycle-layout");
-          g.dataset.layoutMode = mode;
-          g.className = "flex-grow flex gap-2 min-h-0";
-          n.style.flexBasis = "50%";
-          b.style.flexBasis = "50%";
-          h.style.flexBasis = "50%";
-          n.classList.remove("hidden");
-          h.classList.remove("hidden");
-          r2.classList.remove("hidden");
-          c.classList.remove("hidden");
-          b.classList.add("hidden");
-          r1.classList.add("hidden");
-          if (mode === "split-h") {
-            g.classList.add("flex-row");
-            c.innerHTML = '<i class="fas fa-expand"></i>';
-            c.title = "Notes Only";
-          } else if (mode === "notes-only") {
-            g.classList.add("flex-row");
-            n.style.flexBasis = "100%";
-            h.classList.add("hidden");
-            r2.classList.add("hidden");
-            c.innerHTML = '<i class="fas fa-layer-group"></i>';
-            c.title = "Vertical Split";
-          } else if (mode === "split-v") {
-            g.classList.add("flex-col");
-            c.innerHTML = '<i class="fas fa-columns"></i>';
-            c.title = "Horizontal Split";
-          } else if (mode === "book-mode") {
-            b.classList.remove("hidden");
-            r1.classList.remove("hidden");
-            g.classList.add("flex-row");
-            n.style.flexBasis = "50%";
-            h.classList.remove("hidden");
-            r2.classList.remove("hidden");
-            c.classList.add("hidden");
-          }
+          // ...
         },
         initResizer() {
-          const r = document.getElementById("note-editor-resizer"),
-            g = document.getElementById("note-editor-grid"),
-            l = document.getElementById("note-editor-panel");
-          let i = false;
-          const d = (e) => {
-            if (g.dataset.layoutMode !== "split-h") return;
-            e.preventDefault();
-            i = true;
-            document.body.style.cursor = "col-resize";
-            document.addEventListener("mousemove", m);
-            document.addEventListener("mouseup", u);
-          };
-          const m = (e) => {
-            if (!i) return;
-            const t = g.offsetWidth;
-            const n = e.clientX - g.getBoundingClientRect().left;
-            if (n > 200 && t - n > 180) l.style.flexBasis = `${n}px`;
-          };
-          const u = () => {
-            i = false;
-            document.body.style.cursor = "default";
-            document.removeEventListener("mousemove", m);
-            document.removeEventListener("mouseup", u);
-          };
-          r.addEventListener("mousedown", d);
+          // ...
         },
         handlePaste(e) {
-          e.preventDefault();
-          const d = e.clipboardData || window.clipboardData;
-          let p = d.getData("text/html") || d.getData("text/plain");
-          document.execCommand("insertHTML", false, this.sanitizeHtml(p));
+          // ...
         },
         sanitizeHtml(h) {
-          const a = ["UL", "OL", "LI", "P", "BR", "B", "I", "U", "DIV", "SPAN"];
-          const p = new DOMParser();
-          const d = p.parseFromString(h, "text/html");
-          d.querySelectorAll("style,script,meta,link,title").forEach((e) =>
-            e.remove(),
-          );
-          const w = d.createTreeWalker(
-            d.body,
-            NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT,
-          );
-          const r = [],
-            u = [];
-          while (w.nextNode()) {
-            const n = w.currentNode;
-            if (n.nodeType === Node.COMMENT_NODE) {
-              r.push(n);
-              continue;
-            }
-            if (a.includes(n.tagName)) {
-              n.removeAttribute("style");
-              n.removeAttribute("class");
-            } else {
-              u.push(n);
-            }
-          }
-          u.forEach((n) => {
-            const p = n.parentNode;
-            while (n.firstChild) p.insertBefore(n.firstChild, n);
-          });
-          [...u, ...r].forEach((n) => {
-            if (n.parentNode) n.parentNode.removeChild(n);
-          });
-          return d.body.innerHTML;
+          // ...
         },
         createCardInputHTML(card, isExisting) {
-          const q = isExisting ? card.question : card.question || "";
-          const a = isExisting ? card.answer : card.answer || "";
-          return `<div class="card-editor-group bg-slate-900/50 p-3 rounded-lg relative"><button class="remove-card-editor-btn absolute top-1 right-2 text-slate-500 hover:text-red-400 text-lg">&times;</button><div><label class="block text-sm">Question</label><textarea rows="2" class="mt-1 card-question w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(q)}</textarea></div><div class="mt-2"><label class="block text-sm">Answer</label><textarea rows="2" class="mt-1 card-answer w-full bg-slate-700 p-2 rounded-lg">${Utils.escapeHtml(a)}</textarea></div></div>`;
+          // ...
         },
         async save(
           isNewNote = false,
           defaultTitle = "Untitled Note",
           docIdToAssociate = null,
         ) {
-          const noteData = {
-            title:
-              document.getElementById("note-editor-title").value.trim() ||
-              defaultTitle,
-            content: document
-              .getElementById("note-editor-content")
-              .innerHTML.trim(),
-            documentId: docIdToAssociate || AppState.currentDocumentId,
-          };
-          const noteId = isNewNote
-            ? null
-            : document.getElementById("note-editor-id").value;
-          const cardsRaw = Array.from(
-            document.querySelectorAll(".card-editor-group"),
-          )
-            .map((g) => ({
-              question: g.querySelector(".card-question").value.trim(),
-              answer: g.querySelector(".card-answer").value.trim(),
-            }))
-            .filter((c) => c.question && c.answer);
-          const cardsWithSrs = cardsRaw.map((c) =>
-            SRS.addSRSData({ ...c, source: "generated" }),
-          );
-
-          const response = await ApiController.apiCall("/notes", "POST", {
-            folderId: AppState.currentFolderId,
-            noteId: noteId,
-            ...noteData,
-            cards: cardsWithSrs,
-          });
-
-          if (isNewNote) {
-            AppState.currentNoteId = response.noteId;
-            if (!AppState.currentNoteId) {
-              console.error(
-                "Failed to get new note ID from save response:",
-                response,
-              );
-              UI.showToast("Error: Could not create new note.", true);
-              return;
-            }
-            await Lab.refreshData();
-          } else {
-            await Lab.refreshData();
-            UI.showToast("Note and cards saved!");
-            UI.showView("notesLab");
-          }
+          // ...
         },
         refreshAiControls() {
-          const profile = AppState.localData.profile || {};
-          const providerSelector = document.getElementById(
-            "ai-provider-selector",
-          );
-          const modelSelector = document.getElementById("ai-model-selector");
-          const generateBtn = document.getElementById("btn-generate-from-note");
-          const aiActionBtns = [
-            "btn-ai-subpoints",
-            "btn-ai-highlight",
-            "btn-record-audio",
-          ];
-
-          providerSelector.innerHTML =
-            '<option value="">Select Provider</option>';
-          if (profile.googleApiKey)
-            providerSelector.innerHTML +=
-              '<option value="google">Google AI</option>';
-          if (profile.openaiApiKey)
-            providerSelector.innerHTML +=
-              '<option value="openai">OpenAI</option>';
-          if (profile.groqApiKey)
-            providerSelector.innerHTML += '<option value="groq">Groq</option>';
-
-          const hasAnyKey =
-            profile.googleApiKey || profile.openaiApiKey || profile.groqApiKey;
-
-          providerSelector.disabled = !hasAnyKey;
-          generateBtn.disabled = !hasAnyKey;
-          aiActionBtns.forEach((id) => {
-            const btn = document.getElementById(id);
-            if (btn) btn.disabled = !hasAnyKey;
-          });
-
-          if (!hasAnyKey) {
-            providerSelector.innerHTML =
-              '<option value="">Add API Key in Settings</option>';
-          }
-
-          this.updateModelSelector();
+          // ...
         },
         async updateModelSelector() {
-          const provider = document.getElementById(
-            "ai-provider-selector",
-          ).value;
-          const modelSelector = document.getElementById("ai-model-selector");
-          modelSelector.innerHTML = '<option value="">Select Model</option>';
-          modelSelector.disabled = true;
-
-          if (provider) {
-            try {
-              const models = await ApiController.apiCall("/ai-models");
-              const providerModels = models[provider] || [];
-              if (providerModels.length > 0) {
-                modelSelector.innerHTML += providerModels
-                  .map((m) => `<option value="${m}">${m}</option>`)
-                  .join("");
-                modelSelector.disabled = false;
-              }
-            } catch (error) {
-              console.error("Failed to fetch AI models:", error);
-            }
-          }
+          // ...
         },
       };
       const ProfileActions = {
@@ -2933,7 +2217,7 @@
             "btn-back-to-folders-from-profile",
           );
           if (backBtn) {
-            backBtn.onclick = () => UI.showView("notesLab");
+            backBtn.onclick = () => ViewModeController.switchMode('canvas');
           }
           const profileForm = document.getElementById("profile-form");
           if (profileForm) {
@@ -3074,11 +2358,14 @@
         },
       };
 
-      console.log("About to define FolderActions");
       // Global FolderActions for folder management
       const FolderActions = {
         init() {
-          // Set up event handlers for folder creation
+          const foldersBtn = document.getElementById("folders-toggle-btn");
+          if(foldersBtn) {
+              foldersBtn.onclick = () => this.toggleFoldersMenu();
+          }
+
           const showCreateBtn = document.getElementById(
             "btn-show-create-folder-modal",
           );
@@ -3095,77 +2382,27 @@
           if (saveBtn) {
             saveBtn.onclick = () => this.saveFolder();
           }
+          
+          document.getElementById('folder-sort-select').onchange = () => this.filterAndSortFolders();
+          document.getElementById('folder-tag-filter').oninput = () => this.filterAndSortFolders();
 
-          // Set up sidebar toggle functionality
-          const sidebarToggle = document.getElementById("sidebar-toggle");
-          const sidebarShowButton = document.getElementById(
-            "sidebar-show-button",
-          );
-          const sidebar = document.getElementById("lab-sidebar");
-          const mainContent = document.getElementById("lab-main-content");
-
-          if (sidebarToggle && sidebar) {
-            sidebarToggle.onclick = () => this.toggleSidebar();
-          }
-
-          if (sidebarShowButton && sidebar) {
-            sidebarShowButton.onclick = () => this.showSidebar();
-          }
         },
 
-        toggleSidebar() {
-          const sidebar = document.getElementById("lab-sidebar");
-          const toggleButton = document.getElementById("sidebar-toggle");
-          const showButton = document.getElementById("sidebar-show-button");
-
-          if (sidebar && toggleButton) {
-            const isCollapsed = sidebar.classList.contains("sidebar-collapsed");
-
-            if (isCollapsed) {
-              this.showSidebar();
-            } else {
-              // Collapse sidebar
-              sidebar.classList.remove("sidebar-expanded");
-              sidebar.classList.add("sidebar-collapsed");
-              toggleButton.classList.add("collapsed");
-              sidebar.style.display = "none";
-              if (showButton) showButton.classList.remove("hidden");
-            }
-          }
+        toggleFoldersMenu() {
+            const menu = document.getElementById('folders-menu');
+            menu.classList.toggle('open');
         },
 
-        showSidebar() {
-          const sidebar = document.getElementById("lab-sidebar");
-          const toggleButton = document.getElementById("sidebar-toggle");
-          const showButton = document.getElementById("sidebar-show-button");
-
-          if (sidebar && toggleButton) {
-            // Expand sidebar
-            sidebar.classList.remove("sidebar-collapsed");
-            sidebar.classList.add("sidebar-expanded");
-            toggleButton.classList.remove("collapsed");
-            sidebar.style.display = "flex";
-            if (showButton) showButton.classList.add("hidden");
-          }
-        },
-
-        showCreateModal() {
-          // Clear form
-          const nameInput = document.getElementById("folder-name-input");
-          const descInput = document.getElementById("folder-description-input");
-          const colorInput = document.getElementById("folder-color-input");
-          const idInput = document.getElementById("folder-id-input");
-
-          if (nameInput) nameInput.value = "";
-          if (descInput) descInput.value = "";
-          if (colorInput) colorInput.value = "#06b6d4";
-          if (idInput) idInput.value = "";
-
-          // Reset modal title
-          const modalTitle = document.querySelector("#modal-create-folder h2");
-          if (modalTitle) modalTitle.textContent = "Create Folder";
-
-          // Show modal
+        showCreateModal(folderId = null) {
+          const folder = folderId ? AppState.localData.folders.find(f => f.id === folderId) : null;
+          
+          document.getElementById("folder-id-input").value = folder ? folder.id : "";
+          document.getElementById("folder-name-input").value = folder ? folder.name : "";
+          document.getElementById("folder-description-input").value = folder ? folder.description : "";
+          document.getElementById("folder-tags-input").value = folder && folder.tags ? folder.tags.join(', ') : "";
+          document.getElementById("folder-color-input").value = folder ? folder.color : "#06b6d4";
+          
+          document.querySelector("#modal-create-folder h2").textContent = folder ? "Edit Folder" : "Create Folder";
           UI.toggleModal("createFolder", true);
         },
 
@@ -3174,342 +2411,119 @@
         },
 
         saveFolder() {
-          const nameInput = document.getElementById("folder-name-input");
-          const descInput = document.getElementById("folder-description-input");
-          const colorInput = document.getElementById("folder-color-input");
-          const idInput = document.getElementById("folder-id-input");
-
-          const name = nameInput?.value?.trim();
-          const description = descInput?.value?.trim();
-          const color = colorInput?.value || "#06b6d4";
-          const id = idInput?.value;
+          const id = document.getElementById("folder-id-input").value;
+          const name = document.getElementById("folder-name-input").value.trim();
+          const description = document.getElementById("folder-description-input").value.trim();
+          const tags = document.getElementById("folder-tags-input").value.split(',').map(tag => tag.trim()).filter(Boolean);
+          const color = document.getElementById("folder-color-input").value;
 
           if (!name) {
             alert("Please enter a folder name");
             return;
           }
+          
+          const now = new Date().toISOString();
+          const folderData = { name, description, tags, color, lastEdited: now };
 
-          // Check for duplicate names (only when creating new folder)
-          if (!id) {
-            const existingFolder = AppState.localData.folders.find(
-              (f) => f.name.toLowerCase() === name.toLowerCase(),
-            );
-            if (existingFolder) {
-              alert(
-                "A folder with this name already exists. Please choose a different name.",
-              );
-              return;
-            }
-          }
-
-          // Generate unique ID if creating new folder
-          const folderId = id || `folder_${Date.now()}`;
-
-          const folderData = {
-            id: folderId,
-            name,
-            description,
-            color,
-            createdAt: new Date().toISOString(),
-          };
-
-          if (id) {
-            // Update existing folder
-            const folderIndex = AppState.localData.folders.findIndex(
-              (f) => f.id === id,
-            );
+          if (id) { // Editing existing folder
+            const folderIndex = AppState.localData.folders.findIndex((f) => f.id === id);
             if (folderIndex > -1) {
-              AppState.localData.folders[folderIndex] = {
-                ...AppState.localData.folders[folderIndex],
-                ...folderData,
-              };
+              AppState.localData.folders[folderIndex] = { ...AppState.localData.folders[folderIndex], ...folderData };
             }
-          } else {
-            // Add new folder
-            AppState.localData.folders.push(folderData);
-
-            // Initialize empty arrays for the new folder
-            AppState.localData.notesByFolder[folderId] = [];
-            AppState.localData.cardsByFolder[folderId] = [];
-            AppState.localData.documentsByFolder[folderId] = [];
+          } else { // Creating new folder
+            const newId = `folder_${Date.now()}`;
+            AppState.localData.folders.push({ id: newId, createdAt: now, ...folderData });
+            AppState.localData.notesByFolder[newId] = [];
+            AppState.localData.cardsByFolder[newId] = [];
+            AppState.localData.documentsByFolder[newId] = [];
           }
 
-          // Refresh display
-          this.displayFolders();
+          this.filterAndSortFolders();
           UI.toggleModal("createFolder", false);
-
-          // Show success message
-          UI.showToast(
-            `Folder "${name}" ${id ? "updated" : "created"} successfully!`,
-          );
+          UI.showToast(`Folder "${name}" saved successfully!`);
         },
 
         editFolder(folderId) {
-          const folder = AppState.localData.folders.find(
-            (f) => f.id === folderId,
-          );
-          if (!folder) return;
-
-          // Populate form with existing data
-          const nameInput = document.getElementById("folder-name-input");
-          const descInput = document.getElementById("folder-description-input");
-          const colorInput = document.getElementById("folder-color-input");
-          const idInput = document.getElementById("folder-id-input");
-
-          if (nameInput) nameInput.value = folder.name;
-          if (descInput) descInput.value = folder.description || "";
-          if (colorInput) colorInput.value = folder.color;
-          if (idInput) idInput.value = folder.id;
-
-          // Update modal title
-          const modalTitle = document.querySelector("#modal-create-folder h2");
-          if (modalTitle) modalTitle.textContent = "Edit Folder";
-
-          // Show modal
-          UI.toggleModal("createFolder", true);
+          this.showCreateModal(folderId);
         },
 
         deleteFolder(folderId) {
-          const folder = AppState.localData.folders.find(
-            (f) => f.id === folderId,
-          );
+          const folder = AppState.localData.folders.find((f) => f.id === folderId);
           if (!folder) return;
 
-          const notesCount =
-            AppState.localData.notesByFolder[folderId]?.length || 0;
-          const cardsCount =
-            AppState.localData.cardsByFolder[folderId]?.length || 0;
-
-          let message = `Are you sure you want to delete the folder "${folder.name}"?`;
-          if (notesCount > 0 || cardsCount > 0) {
-            message += `\n\nThis will also delete:\n• ${notesCount} notes\n• ${cardsCount} cards`;
-          }
-
-          if (confirm(message)) {
-            // Remove folder and all its content
-            AppState.localData.folders = AppState.localData.folders.filter(
-              (f) => f.id !== folderId,
-            );
+          if (confirm(`Are you sure you want to delete the folder "${folder.name}"?`)) {
+            AppState.localData.folders = AppState.localData.folders.filter((f) => f.id !== folderId);
             delete AppState.localData.notesByFolder[folderId];
             delete AppState.localData.cardsByFolder[folderId];
             delete AppState.localData.documentsByFolder[folderId];
-
-            // If this was the current folder, clear the view
-            if (AppState.currentFolderId === folderId) {
-              AppState.currentFolderId = null;
-              const placeholder = document.getElementById(
-                "lab-content-placeholder",
-              );
-              const activeContent =
-                document.getElementById("lab-content-active");
-              if (placeholder) placeholder.classList.remove("hidden");
-              if (activeContent) activeContent.classList.add("hidden");
-            }
-
-            // Refresh display
-            this.displayFolders();
+            this.filterAndSortFolders();
             UI.showToast(`Folder "${folder.name}" deleted successfully!`);
           }
         },
+        
+        filterAndSortFolders() {
+            const sortBy = document.getElementById('folder-sort-select').value;
+            const tagFilter = document.getElementById('folder-tag-filter').value.trim().toLowerCase();
+            
+            let folders = [...AppState.localData.folders];
 
-        displayFolders() {
+            if (tagFilter) {
+                folders = folders.filter(folder => folder.tags && folder.tags.some(tag => tag.toLowerCase().includes(tagFilter)));
+            }
+
+            folders.sort((a, b) => {
+                const dateA = new Date(a[sortBy]);
+                const dateB = new Date(b[sortBy]);
+                return dateB - dateA; // Sort descending
+            });
+            
+            this.displayFolders(folders);
+        },
+
+        displayFolders(foldersToDisplay) {
           const folderList = document.getElementById("lab-folder-list");
-          if (folderList && AppState.localData.folders) {
-            folderList.innerHTML = AppState.localData.folders
-              .map(
+          const folders = foldersToDisplay || AppState.localData.folders;
+          
+          if (folderList) {
+            folderList.innerHTML = folders.length > 0 ? folders.map(
                 (folder) => `
-                            <div class="folder-item glass-card p-4 rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden group"
-                   data-folder-id="${folder.id}">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-${folder.color} to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
-                <div class="flex items-center justify-between">
-                  <div class="flex-grow" onclick="FolderActions.openFolder('${folder.id}')">
-                    <div class="flex items-center mb-2">
-                      <div class="w-3 h-3 rounded-full mr-3 shadow-lg" style="background: linear-gradient(135deg, ${folder.color} 0%, ${folder.color}80 100%); box-shadow: 0 0 12px ${folder.color}40;"></div>
-                      <h3 class="font-bold text-white text-lg">${folder.name}</h3>
-                    </div>
-                    <p class="text-sm text-slate-300 mb-3 leading-relaxed">${folder.description}</p>
-                                        <div class="flex items-center space-x-4 text-xs text-gray-400">
-                      <span class="flex items-center">
-                        <i class="fas fa-sticky-note mr-1 text-gray-300"></i>
-                        ${AppState.localData.notesByFolder[folder.id]?.length || 0} notes
-                      </span>
-                      <span class="flex items-center">
-                        <i class="fas fa-layer-group mr-1 text-gray-300"></i>
-                        ${AppState.localData.cardsByFolder[folder.id]?.length || 0} cards
-                      </span>
-                    </div>
+                  <div class="folder-item glass-card p-4 rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden group" data-folder-id="${folder.id}">
+                      <div class="absolute left-0 top-0 bottom-0 w-1" style="background-color: ${folder.color};"></div>
+                      <div class="flex items-center justify-between">
+                          <div class="flex-grow" onclick="FolderActions.openFolder('${folder.id}')">
+                              <h3 class="font-bold text-white text-lg">${folder.name}</h3>
+                              <p class="text-sm text-slate-300">${folder.description}</p>
+                          </div>
+                          <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onclick="event.stopPropagation(); FolderActions.editFolder('${folder.id}')" class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10" title="Edit folder"><i class="fas fa-edit"></i></button>
+                              <button onclick="event.stopPropagation(); FolderActions.deleteFolder('${folder.id}')" class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10" title="Delete folder"><i class="fas fa-trash"></i></button>
+                          </div>
+                      </div>
                   </div>
-                                    <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="event.stopPropagation(); FolderActions.editFolder('${folder.id}')"
-                            class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-all"
-                            title="Edit folder">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="event.stopPropagation(); FolderActions.deleteFolder('${folder.id}')"
-                            class="text-gray-400 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-all"
-                            title="Delete folder">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            `,
+                `,
               )
-              .join("");
-
-            // Click handlers are now inline in the HTML
+              .join("") : `<p class="text-slate-400 text-center p-4">No folders match your criteria.</p>`;
           }
         },
 
         openFolder(folderId) {
           AppState.currentFolderId = folderId;
-          const folder = AppState.localData.folders.find(
-            (f) => f.id === folderId,
-          );
-          if (folder) {
-            // Update folder title and description
-            const titleEl = document.getElementById("folder-title");
-            const descEl = document.getElementById("folder-description");
-            if (titleEl) titleEl.textContent = folder.name;
-            if (descEl) descEl.textContent = folder.description;
-
-            // Show the folder content
-            const placeholder = document.getElementById(
-              "lab-content-placeholder",
-            );
-            const activeContent = document.getElementById("lab-content-active");
-            if (placeholder) placeholder.classList.add("hidden");
-            if (activeContent) activeContent.classList.remove("hidden");
-
-            // Display notes, documents, and cards for this folder
-            this.displayNotes(folderId);
-            this.displayCards(folderId);
-            this.displayDocuments(folderId);
-
-            // Set up tab switching
-            this.setupTabs();
-          }
-        },
-
-        displayNotes(folderId) {
-          const notesContainer = document.getElementById("tab-content-notes");
-          if (notesContainer) {
-            const notes = AppState.localData.notesByFolder[folderId] || [];
-            notesContainer.innerHTML =
-              notes
-                .map(
-                  (note) => `
-              <div class="note-item p-4 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 cursor-pointer transition-colors">
-                <h4 class="font-semibold text-white mb-2">${note.title}</h4>
-                <p class="text-sm text-slate-400 mb-2">${note.content.substring(0, 100)}${note.content.length > 100 ? "..." : ""}</p>
-                <div class="text-xs text-slate-500">
-                  ${note.cardCount} cards • Created ${new Date(note.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-            `,
-                )
-                .join("") ||
-              '<div class="text-center text-slate-500 py-8">No notes in this folder</div>';
-          }
-        },
-
-        displayDocuments(folderId) {
-          const documentsContainer = document.getElementById(
-            "tab-content-documents",
-          );
-          if (documentsContainer) {
-            const documents =
-              AppState.localData.documentsByFolder[folderId] || [];
-            documentsContainer.innerHTML =
-              documents
-                .map(
-                  (doc) => `
-              <div class="document-item p-4 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 cursor-pointer transition-colors">
-                <div class="flex items-center">
-                  <i class="fas fa-file-pdf text-red-400 mr-3"></i>
-                  <div class="flex-grow">
-                    <h4 class="font-semibold text-white">${doc.originalName}</h4>
-                    <div class="text-xs text-slate-500">
-                      Uploaded ${new Date(doc.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `,
-                )
-                .join("") ||
-              '<div class="text-center text-slate-500 py-8">No documents in this folder</div>';
-          }
-        },
-
-        setupTabs() {
-          const tabButtons = document.querySelectorAll(".lab-tab");
-          tabButtons.forEach((button) => {
-            button.addEventListener("click", () => {
-              const tabName = button.dataset.tab;
-
-              // Remove active class from all tabs
-              tabButtons.forEach((b) => b.classList.remove("active"));
-              // Add active class to clicked tab
-              button.classList.add("active");
-
-              // Hide all tab panes
-              document.querySelectorAll(".lab-tab-pane").forEach((pane) => {
-                pane.classList.add("hidden");
-              });
-
-              // Show selected tab pane
-              const targetPane = document.getElementById(
-                `tab-content-${tabName}`,
-              );
-              if (targetPane) {
-                targetPane.classList.remove("hidden");
-              }
-            });
-          });
-
-          // Set default active tab to notes
-          const notesTab = document.querySelector('[data-tab="notes"]');
-          if (notesTab) {
-            notesTab.classList.add("active");
-          }
-        },
-
-        displayCards(folderId) {
-          const cardsContainer = document.getElementById("tab-content-cards");
-          if (cardsContainer) {
-            const cards = AppState.localData.cardsByFolder[folderId] || [];
-            cardsContainer.innerHTML =
-              cards
-                .map(
-                  (card) => `
-              <div class="card-item p-4 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 cursor-pointer transition-colors">
-                <div class="font-semibold text-white mb-2">${card.question}</div>
-                <div class="text-sm text-slate-400 mb-2">${card.answer}</div>
-                <div class="text-xs text-slate-500">
-                  Source: ${card.source} • Due: ${new Date(card.dueDate).toLocaleDateString()}
-                </div>
-              </div>
-            `,
-                )
-                .join("") ||
-              '<div class="text-center text-slate-500 py-8">No cards in this folder</div>';
-          }
+          this.toggleFoldersMenu(); // Close menu on selection
+          console.log(`Opened folder: ${folderId}`);
+          UI.showToast(`Switched to folder: ${AppState.localData.folders.find(f => f.id === folderId).name}`);
         },
       };
 
-      // Make FolderActions globally accessible
       window.FolderActions = FolderActions;
-      console.log("FolderActions defined successfully");
 
       // View Mode Controller for Canvas and Tabbing modes
       const ViewModeController = {
         currentMode: "canvas",
 
         init() {
-          // Set up view mode switcher
           const canvasModeBtn = document.getElementById("canvas-mode-btn");
           const tabbingModeBtn = document.getElementById("tabbing-mode-btn");
+          const bgColorInput = document.getElementById('bg-color-input');
 
           if (canvasModeBtn) {
             canvasModeBtn.onclick = () => this.switchMode("canvas");
@@ -3519,39 +2533,46 @@
             tabbingModeBtn.onclick = () => this.switchMode("tabbing");
           }
 
-          // Initialize canvas functionality
+          if (bgColorInput) {
+              bgColorInput.oninput = (e) => {
+                  document.body.style.backgroundColor = e.target.value;
+              }
+          }
+          
+          document.getElementById('tabbing-grid-container').addEventListener('click', (e) => {
+              const removeBtn = e.target.closest('.remove-panel-btn');
+              if (removeBtn) {
+                  e.stopPropagation();
+                  const panelId = removeBtn.dataset.panelId;
+                  this.removePanel(panelId);
+              }
+          });
+
           this.initCanvas();
-
-          // Initialize tabbing functionality
           this.initTabbing();
-
-          // Start with canvas mode
           this.switchMode("canvas");
         },
 
         switchMode(mode) {
           const canvasView = document.getElementById("view-canvas-mode");
           const tabbingView = document.getElementById("view-tabbing-mode");
-          const labView = document.getElementById("view-notes-lab");
           const canvasBtn = document.getElementById("canvas-mode-btn");
           const tabbingBtn = document.getElementById("tabbing-mode-btn");
 
-          // Hide all views
-          if (canvasView) canvasView.classList.add("hidden");
-          if (tabbingView) tabbingView.classList.add("hidden");
-          if (labView) labView.classList.add("hidden");
+          document.getElementById('main-content-area').querySelectorAll(':scope > div').forEach(div => div.classList.add('hidden'));
 
-          // Reset button states
           if (canvasBtn) canvasBtn.classList.remove("active");
           if (tabbingBtn) tabbingBtn.classList.remove("active");
 
-          // Show selected view and activate button
           if (mode === "canvas") {
             if (canvasView) canvasView.classList.remove("hidden");
             if (canvasBtn) canvasBtn.classList.add("active");
             this.resizeCanvas();
           } else if (mode === "tabbing") {
-            if (tabbingView) tabbingView.classList.remove("hidden");
+            if (tabbingView) {
+                tabbingView.classList.remove("hidden");
+                tabbingView.classList.add("flex");
+            }
             if (tabbingBtn) tabbingBtn.classList.add("active");
           }
 
@@ -3574,89 +2595,242 @@
           this.currentTool = "select";
           this.canvasElements = [];
 
-          // Set up canvas
           this.resizeCanvas();
           window.addEventListener("resize", () => this.resizeCanvas());
 
-          // Tool selection
-          if (selectTool) {
-            selectTool.onclick = () => this.setTool("select", selectTool);
-          }
-          if (drawTool) {
-            drawTool.onclick = () => this.setTool("draw", drawTool);
-          }
-          if (addNote) {
-            addNote.onclick = () => this.addCanvasNote();
-          }
-          if (addCard) {
-            addCard.onclick = () => this.addCanvasCard();
-          }
-          if (clearCanvas) {
-            clearCanvas.onclick = () => this.clearCanvas();
-          }
+          if (selectTool) selectTool.onclick = () => this.setTool("select", selectTool);
+          if (drawTool) drawTool.onclick = () => this.setTool("draw", drawTool);
+          if (addNote) addNote.onclick = () => this.addCanvasNote();
+          if (addCard) addCard.onclick = () => this.addCanvasCard();
+          if (clearCanvas) clearCanvas.onclick = () => this.clearCanvas();
 
-          // Drawing events
           canvas.addEventListener("mousedown", (e) => this.startDrawing(e));
           canvas.addEventListener("mousemove", (e) => this.draw(e));
           canvas.addEventListener("mouseup", () => this.stopDrawing());
           canvas.addEventListener("mouseout", () => this.stopDrawing());
-
-          // Make elements draggable
-          this.setupDragAndDrop();
         },
 
         initTabbing() {
-          // Set up panel controls
-          for (let i = 1; i <= 4; i++) {
-            const search = document.getElementById(`panel-${i}-search`);
-            if (search) {
-              search.addEventListener("input", (e) =>
-                this.searchPanel(i, e.target.value),
-              );
+            const addPanelBtn = document.getElementById('add-panel-btn');
+            if (addPanelBtn) {
+                addPanelBtn.onclick = () => this.addTabbingPanel();
             }
-          }
+            this.addTabbingPanel("My First Panel");
+        },
+        
+        addTabbingPanel(title = "New Panel") {
+            const grid = document.getElementById('tabbing-grid-container');
+            const panelId = `panel-${Date.now()}`;
+            const panel = document.createElement('div');
+            panel.className = 'tabbing-panel';
+            panel.id = panelId;
+            panel.innerHTML = `
+                <div class="panel-header">
+                    <h3 class="panel-title" data-panel-id="${panelId}">${title}</h3>
+                    <div class="panel-controls">
+                        <button class="panel-control-btn add-content-btn" data-panel-id="${panelId}"><i class="fas fa-plus"></i></button>
+                        <button class="panel-control-btn remove-panel-btn" data-panel-id="${panelId}"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="panel-tabs"></div>
+                <div class="panel-content-area custom-scrollbar">
+                    <div class="panel-content active">Click the '+' to add content.</div>
+                </div>
+            `;
+            grid.appendChild(panel);
 
-          // Load sample content
-          this.loadSampleContent();
+            const titleEl = panel.querySelector('.panel-title');
+            titleEl.addEventListener('click', () => this.makeTitleEditable(titleEl));
+
+            const addBtn = panel.querySelector('.add-content-btn');
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showAddContentMenu(addBtn, panelId);
+            });
+        },
+
+        makeTitleEditable(titleEl) {
+            const currentTitle = titleEl.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.className = 'panel-title-input';
+            
+            titleEl.replaceWith(input);
+            input.focus();
+
+            const saveTitle = () => {
+                const newTitle = input.value.trim() || 'Untitled Panel';
+                titleEl.textContent = newTitle;
+                input.replaceWith(titleEl);
+            };
+
+            input.addEventListener('blur', saveTitle);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveTitle();
+                }
+            });
+        },
+
+        showAddContentMenu(button, panelId) {
+            document.querySelectorAll('.add-content-menu').forEach(m => m.remove());
+
+            const menu = document.createElement('div');
+            menu.className = 'add-content-menu';
+            menu.innerHTML = `
+                <div class="add-content-menu-item" data-type="note"><i class="fas fa-file-alt"></i> Note</div>
+                <div class="add-content-menu-item" data-type="flashcards"><i class="fas fa-layer-group"></i> Flashcards</div>
+                <div class="add-content-menu-item" data-type="voiceRecording"><i class="fas fa-microphone"></i> Voice Recording</div>
+                <div class="add-content-menu-item" data-type="voiceDatabase"><i class="fas fa-database"></i> Voice Database</div>
+                <div class="add-content-menu-item" data-type="voiceTranscript"><i class="fas fa-file-invoice"></i> Voice Transcript</div>
+                <div class="add-content-menu-item" data-type="pdf"><i class="fas fa-file-pdf"></i> PDF Viewer</div>
+                <div class="add-content-menu-item" data-type="calculator"><i class="fas fa-calculator"></i> Calculator</div>
+                <div class="add-content-menu-item" data-type="webBrowser"><i class="fas fa-globe"></i> Web Browser</div>
+                <div class="add-content-menu-item" data-type="codeEditor"><i class="fas fa-code"></i> Code Editor</div>
+                <div class="add-content-menu-item" data-type="musicPlayer"><i class="fas fa-music"></i> Music Player</div>
+                <div class="add-content-menu-item" data-type="imageViewer"><i class="fas fa-image"></i> Image Viewer</div>
+                <div class="add-content-menu-item" data-type="videoPlayer"><i class="fas fa-video"></i> Video Player</div>
+                <div class="add-content-menu-item" data-type="calendar"><i class="fas fa-calendar-alt"></i> Calendar</div>
+                <div class="add-content-menu-item" data-type="email"><i class="fas fa-envelope"></i> Email</div>
+                <div class="add-content-menu-item" data-type="chat"><i class="fas fa-comments"></i> Chat</div>
+            `;
+            
+            button.parentElement.appendChild(menu);
+
+            menu.addEventListener('click', (e) => {
+                const item = e.target.closest('.add-content-menu-item');
+                if (item) {
+                    const type = item.dataset.type;
+                    this.addContentToPanel(panelId, type);
+                    menu.remove();
+                }
+            });
+
+            setTimeout(() => {
+                document.addEventListener('click', (e) => {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                    }
+                }, { once: true });
+            }, 0);
+        },
+
+        addContentToPanel(panelId, type) {
+            const panel = document.getElementById(panelId);
+            const tabsContainer = panel.querySelector('.panel-tabs');
+            const contentArea = panel.querySelector('.panel-content-area');
+
+            // Deactivate current active tab/content
+            const currentActiveTab = tabsContainer.querySelector('.active');
+            if (currentActiveTab) currentActiveTab.classList.remove('active');
+            const currentActiveContent = contentArea.querySelector('.active');
+            if (currentActiveContent) currentActiveContent.classList.remove('active');
+
+            // Create new tab and content pane
+            const tabId = `${panelId}-tab-${Date.now()}`;
+            const tab = document.createElement('div');
+            tab.className = 'panel-tab active';
+            tab.dataset.tabId = tabId;
+            tab.innerHTML = `<span>${type.charAt(0).toUpperCase() + type.slice(1)}</span><span class="close-tab-btn">&times;</span>`;
+            tabsContainer.appendChild(tab);
+
+            const contentPane = document.createElement('div');
+            contentPane.className = 'panel-content active';
+            contentPane.id = tabId;
+            
+            let contentHtml = '';
+            switch (type) {
+                case 'note':
+                    contentHtml = `<div class="flex flex-col h-full">
+                        <div class="flex-shrink-0 flex items-center gap-1 p-2 bg-slate-800/50 rounded-t-lg">
+                            <button class="note-format-btn" data-command="bold"><i class="fas fa-bold"></i></button>
+                            <button class="note-format-btn" data-command="italic"><i class="fas fa-italic"></i></button>
+                            <button class="note-format-btn" data-command="underline"><i class="fas fa-underline"></i></button>
+                            <button class="note-format-btn" data-command="formatBlock" data-value="h1">H1</button>
+                            <button class="note-format-btn" data-command="formatBlock" data-value="h2">H2</button>
+                            <button class="note-format-btn" data-command="insertUnorderedList"><i class="fas fa-list-ul"></i></button>
+                            <button class="note-format-btn" data-command="insertOrderedList"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                        <div contenteditable="true" class="note-editor-area flex-grow w-full bg-slate-800/30 p-3 rounded-b-lg text-white outline-none custom-scrollbar">Start typing...</div>
+                    </div>`;
+                    break;
+                case 'mindMap':
+                    contentPane.innerHTML = `<div class="mind-map-container h-full w-full"></div>`;
+                    this.initMindMap(contentPane.querySelector('.mind-map-container'));
+                    break;
+                // Add other cases here
+                default:
+                    contentHtml = `<p class="text-slate-400">${type} placeholder.</p>`;
+                    break;
+            }
+            if(contentHtml) contentPane.innerHTML = contentHtml;
+            
+            if(type === 'note') {
+                contentPane.querySelectorAll('.note-format-btn').forEach(button => {
+                   button.addEventListener('click', () => {
+                       const command = button.dataset.command;
+                       const value = button.dataset.value || null;
+                       document.execCommand(command, false, value);
+                       contentPane.querySelector('.note-editor-area').focus();
+                   });
+                });
+            }
+
+
+            contentArea.appendChild(contentPane);
+
+            // Add event listener to the new tab
+            tab.addEventListener('click', (e) => {
+                if(e.target.classList.contains('close-tab-btn')) {
+                    const tabToRemove = e.target.parentElement;
+                    const contentToRemove = document.getElementById(tabToRemove.dataset.tabId);
+                    
+                    if (tabToRemove.classList.contains('active')) {
+                        const nextTab = tabToRemove.nextElementSibling || tabToRemove.previousElementSibling;
+                        if (nextTab) {
+                            nextTab.click();
+                        }
+                    }
+                    
+                    tabToRemove.remove();
+                    if (contentToRemove) contentToRemove.remove();
+                    return;
+                }
+
+                tabsContainer.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                contentArea.querySelectorAll('.panel-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                contentPane.classList.add('active');
+            });
+        },
+
+        removePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel && confirm('Are you sure you want to remove this panel?')) {
+                panel.remove();
+            }
         },
 
         setTool(tool, button) {
-          // Reset all tool buttons
-          document.querySelectorAll(".canvas-toolbar button").forEach((btn) => {
-            btn.classList.remove("active");
-          });
-
-          // Activate selected tool
+          document.querySelectorAll(".canvas-toolbar button").forEach((btn) => btn.classList.remove("active"));
           if (button) button.classList.add("active");
-
           this.currentTool = tool;
-
-          // Update canvas cursor
           const canvas = document.getElementById("drawing-canvas");
-          if (canvas) {
-            if (tool === "draw") {
-              canvas.classList.add("drawing-mode");
-            } else {
-              canvas.classList.remove("drawing-mode");
-            }
-          }
+          if (canvas) canvas.classList.toggle("drawing-mode", tool === "draw");
         },
 
         resizeCanvas() {
           const canvas = this.canvas;
           if (!canvas) return;
-
           const container = canvas.parentElement;
           canvas.width = container.offsetWidth;
           canvas.height = container.offsetHeight;
-
-          // Redraw existing content
           this.redrawCanvas();
         },
 
         startDrawing(e) {
           if (this.currentTool !== "draw") return;
-
           this.isDrawing = true;
           const rect = this.canvas.getBoundingClientRect();
           this.lastX = e.clientX - rect.left;
@@ -3665,11 +2839,9 @@
 
         draw(e) {
           if (!this.isDrawing || this.currentTool !== "draw") return;
-
           const rect = this.canvas.getBoundingClientRect();
           const currentX = e.clientX - rect.left;
           const currentY = e.clientY - rect.top;
-
           this.ctx.beginPath();
           this.ctx.moveTo(this.lastX, this.lastY);
           this.ctx.lineTo(currentX, currentY);
@@ -3677,7 +2849,6 @@
           this.ctx.lineWidth = 2;
           this.ctx.lineCap = "round";
           this.ctx.stroke();
-
           this.lastX = currentX;
           this.lastY = currentY;
         },
@@ -3687,15 +2858,12 @@
         },
 
         redrawCanvas() {
-          // Clear and redraw canvas content
-          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-          // TODO: Redraw saved drawings
+          if(this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         },
 
         addCanvasNote() {
           const container = document.getElementById("canvas-elements");
           if (!container) return;
-
           const note = document.createElement("div");
           note.className = "canvas-element canvas-note";
           note.style.left = "100px";
@@ -3709,7 +2877,6 @@
             </div>
             <textarea class="w-full bg-transparent text-gray-300 text-sm resize-none border-none outline-none" rows="4" placeholder="Type your note here..."></textarea>
           `;
-
           container.appendChild(note);
           this.makeElementDraggable(note);
         },
@@ -3717,7 +2884,6 @@
         addCanvasCard() {
           const container = document.getElementById("canvas-elements");
           if (!container) return;
-
           const card = document.createElement("div");
           card.className = "canvas-element canvas-card";
           card.style.left = "200px";
@@ -3735,7 +2901,6 @@
               <textarea class="w-full bg-transparent text-gray-300 text-xs resize-none border-none outline-none" rows="2" placeholder="Answer..."></textarea>
             </div>
           `;
-
           container.appendChild(card);
           this.makeElementDraggable(card);
         },
@@ -3748,15 +2913,12 @@
           }
         },
 
-        setupDragAndDrop() {
-          // Will be implemented for existing elements
-        },
-
         makeElementDraggable(element) {
-          let isDragging = false;
-          let startX, startY, initialX, initialY;
-
+          let isDragging = false, startX, startY, initialX, initialY;
           element.addEventListener("mousedown", (e) => {
+            if (e.offsetX > element.offsetWidth - 20 && e.offsetY > element.offsetHeight - 20) {
+                return;
+            }
             if (this.currentTool !== "select") return;
 
             isDragging = true;
@@ -3764,81 +2926,55 @@
             startY = e.clientY;
             initialX = parseInt(element.style.left) || 0;
             initialY = parseInt(element.style.top) || 0;
-
             element.classList.add("selected");
-
             const onMouseMove = (e) => {
               if (!isDragging) return;
-
               const deltaX = e.clientX - startX;
               const deltaY = e.clientY - startY;
-
               element.style.left = initialX + deltaX + "px";
               element.style.top = initialY + deltaY + "px";
             };
-
             const onMouseUp = () => {
               isDragging = false;
               element.classList.remove("selected");
               document.removeEventListener("mousemove", onMouseMove);
               document.removeEventListener("mouseup", onMouseUp);
             };
-
             document.addEventListener("mousemove", onMouseMove);
             document.addEventListener("mouseup", onMouseUp);
           });
         },
+        
+        initMindMap(container) {
+            // Mind map implementation will go here
+            container.innerHTML = `<div class="mind-map-controls">
+                <button class="modern-btn text-xs px-2 py-1" id="addChildNodeBtn">Add Child</button>
+            </div>
+            <svg class="mind-map-svg"></svg>`;
+            
+            const svg = container.querySelector('.mind-map-svg');
+            const addChildBtn = container.querySelector('#addChildNodeBtn');
+            let nodes = {};
+            let selectedNodeId = null;
+            let activeDrag = null;
 
-        searchPanel(panelId, query) {
-          // TODO: Implement panel search functionality
-          console.log(`Searching panel ${panelId} for: ${query}`);
-        },
+            const draw = () => {
+                // Clear and redraw logic
+            };
+            
+            svg.addEventListener('dblclick', (e) => {
+                // Add node logic
+            });
 
-        loadSampleContent() {
-          // Load sample content into panels
-          this.populatePanel(1, "notes", AppState.localData.notesByFolder);
-          this.populatePanel(2, "cards", AppState.localData.cardsByFolder);
-        },
+            addChildBtn.addEventListener('click', () => {
+                // Add child node logic
+            });
+            
+            // Add other mind map logic (drag, edit, delete)
+        }
 
-        populatePanel(panelId, type, data) {
-          const content = document.getElementById(`panel-${panelId}-content`);
-          if (!content || !data) return;
-
-          let html = "";
-
-          if (type === "notes") {
-            Object.values(data)
-              .flat()
-              .slice(0, 5)
-              .forEach((note) => {
-                html += `
-                <div class="glass-card p-3 rounded-lg mb-3 cursor-pointer hover:bg-white/5">
-                  <h4 class="font-semibold text-white text-sm mb-1">${note.title}</h4>
-                  <p class="text-gray-400 text-xs">${note.content.substring(0, 100)}...</p>
-                </div>
-              `;
-              });
-          } else if (type === "cards") {
-            Object.values(data)
-              .flat()
-              .slice(0, 5)
-              .forEach((card) => {
-                html += `
-                <div class="glass-card p-3 rounded-lg mb-3 cursor-pointer hover:bg-white/5">
-                  <div class="text-white text-sm mb-2"><strong>Q:</strong> ${card.question}</div>
-                  <div class="text-gray-400 text-xs"><strong>A:</strong> ${card.answer}</div>
-                </div>
-              `;
-              });
-          }
-
-          if (html) {
-            content.innerHTML = html;
-          }
-        },
       };
 
-      // Make ViewModeController globally accessible
       window.ViewModeController = ViewModeController;
 
       const MiscEventListeners = {
@@ -3866,8 +3002,7 @@
           if (backToFolderBtn) {
             backToFolderBtn.onclick = () => {
               if (confirm("End study session?")) {
-                console.log("End study session clicked (Lab not available)");
-                UI.showView("notesLab");
+                UI.showView("canvasMode");
               }
             };
           }
@@ -3894,172 +3029,44 @@
       };
 
       function showMainInterfaceWithMockData() {
-        // Create mock data for design purposes
         AppState.localData = {
-          profile: {
-            username: "Design User",
-            bio: "This is a mock profile for design purposes",
-            avatarUrl: "",
-            googleApiKey: "",
-            openaiApiKey: "",
-            groqApiKey: "",
-            audioQuality: "64000",
-            isAdmin: 0,
-          },
-          rewards: {
-            points: 150,
-            streak: 7,
-            lastStudied: new Date().toISOString(),
-          },
+          profile: { username: "Design User", bio: "Mock profile", avatarUrl: "", googleApiKey: "", openaiApiKey: "", groqApiKey: "", audioQuality: "64000", isAdmin: 0 },
+          rewards: { points: 150, streak: 7, lastStudied: new Date().toISOString() },
           folders: [
-            {
-              id: "folder_1",
-              name: "Mathematics",
-              description: "Advanced calculus and algebra",
-              color: "#3B82F6",
-              createdAt: "2024-01-15T10:00:00Z",
-            },
-            {
-              id: "folder_2",
-              name: "Computer Science",
-              description: "Data structures and algorithms",
-              color: "#10B981",
-              createdAt: "2024-01-16T11:00:00Z",
-            },
-            {
-              id: "folder_3",
-              name: "Physics",
-              description: "Quantum mechanics and thermodynamics",
-              color: "#F59E0B",
-              createdAt: "2024-01-17T12:00:00Z",
-            },
-            {
-              id: "folder_4",
-              name: "History",
-              description: "World War II and Cold War",
-              color: "#EF4444",
-              createdAt: "2024-01-18T13:00:00Z",
-            },
+            { id: "folder_1", name: "Mathematics", description: "Calculus and algebra", color: "#3B82F6", createdAt: "2024-01-15T10:00:00Z", lastEdited: "2024-07-01T10:00:00Z", tags: ["math", "calculus"] },
+            { id: "folder_2", name: "Computer Science", description: "Data structures", color: "#10B981", createdAt: "2024-01-16T11:00:00Z", lastEdited: "2024-06-25T11:00:00Z", tags: ["cs", "algorithms"] },
           ],
-          notesByFolder: {
-            folder_1: [
-              {
-                id: "note_1",
-                title: "Derivative Rules",
-                content:
-                  "Basic rules for taking derivatives including power rule, product rule, and chain rule.",
-                cardCount: 12,
-                createdAt: "2024-01-15T14:00:00Z",
-              },
-              {
-                id: "note_2",
-                title: "Integration Techniques",
-                content:
-                  "Various methods of integration including substitution and integration by parts.",
-                cardCount: 8,
-                createdAt: "2024-01-15T15:00:00Z",
-              },
-            ],
-            folder_2: [
-              {
-                id: "note_3",
-                title: "Binary Trees",
-                content: "Properties and operations of binary search trees.",
-                cardCount: 15,
-                createdAt: "2024-01-16T14:00:00Z",
-              },
-            ],
-            folder_3: [
-              {
-                id: "note_4",
-                title: "Wave Particle Duality",
-                content: "Fundamental concept in quantum mechanics.",
-                cardCount: 6,
-                createdAt: "2024-01-17T14:00:00Z",
-              },
-            ],
-            folder_4: [],
-          },
-          cardsByFolder: {
-            folder_1: [
-              {
-                id: "card_1",
-                question: "What is the derivative of x²?",
-                answer: "2x",
-                source: "Power Rule",
-                ease: 1.3,
-                interval: 1,
-                dueDate: new Date().toISOString(),
-                createdAt: "2024-01-15T14:30:00Z",
-              },
-            ],
-            folder_2: [],
-            folder_3: [],
-            folder_4: [],
-          },
-          documentsByFolder: {
-            folder_1: [],
-            folder_2: [],
-            folder_3: [],
-            folder_4: [],
-          },
-          settings: {
-            maxUploadSize: "10",
-            enableAudioCompression: "true",
-          },
+          notesByFolder: { folder_1: [], folder_2: [] },
+          cardsByFolder: { folder_1: [], folder_2: [] },
+          documentsByFolder: { folder_1: [], folder_2: [] },
+          settings: { maxUploadSize: "10", enableAudioCompression: "true" },
           audioClipsByNote: {},
         };
 
-        // Initialize the interface
         PDFViewer.init();
-        // Lab.init(); // Comment out Lab for now
         CardActions.init();
         NoteEditorActions.init();
         ProfileActions.init();
         MiscEventListeners.init();
-        UI.updateProfileForm(
-          AppState.localData.profile,
-          AppState.localData.settings,
-        );
+        UI.updateProfileForm(AppState.localData.profile, AppState.localData.settings);
         Rewards.display();
 
-        // Show app container
         const appContainer = document.getElementById("app-container");
         if (appContainer) {
-          appContainer.style.display = "block";
           appContainer.classList.remove("hidden");
         }
 
-        UI.showView("notesLab");
-
-        // Initialize FolderActions
         FolderActions.init();
-        FolderActions.displayFolders();
-
-        // Initialize ViewModeController
+        FolderActions.filterAndSortFolders();
         ViewModeController.init();
       }
 
-      // All authentication and API functions removed - using mock data only
-
       function main() {
         UI.init();
-
-        console.log("Starting Study Fortress - Authentication disabled");
-
-        // Show app container immediately
-        const appContainer = document.getElementById("app-container");
-        if (appContainer) {
-          appContainer.style.display = "block";
-          appContainer.classList.remove("hidden");
-        }
-
-        // Initialize with mock data
+        console.log("Starting Study Fortress - Design Mode");
         showMainInterfaceWithMockData();
-
-        // Force the view after a brief delay to ensure DOM is ready
         setTimeout(() => {
-          UI.showView("notesLab");
+          ViewModeController.switchMode("canvas");
         }, 50);
       }
       document.addEventListener("DOMContentLoaded", main);
