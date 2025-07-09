@@ -18,6 +18,10 @@
     />
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+      :root {
+          --gradient-start: #a855f7; /* purple-500 */
+          --gradient-end: #3b82f6;   /* blue-500 */
+      }
       body {
         font-family: "Inter", sans-serif;
         background: #000000;
@@ -25,7 +29,7 @@
         overflow-x: hidden;
       }
       .perspective {
-        perspective: 2000px;
+        perspective: 1000px;
       }
       .card {
         transition: all 0.3s ease;
@@ -38,7 +42,7 @@
       }
       .card-inner {
         transform-style: preserve-3d;
-        transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
       .card.is-flipped .card-inner {
         transform: rotateY(180deg);
@@ -46,6 +50,9 @@
       .card-face {
         backface-visibility: hidden;
         -webkit-backface-visibility: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
       }
       .card-back {
         transform: rotateY(180deg);
@@ -68,14 +75,17 @@
         display: inline-block;
       }
       .dark [name="learn-q-type"]:checked + label {
-        @apply bg-cyan-900/50 text-white border-cyan-500;
+        border-color: var(--gradient-start);
+        background: linear-gradient(rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.2));
       }
       .dark [name="learn-q-type"]:checked + label i.fa-check-circle {
-        @apply text-cyan-400;
+        color: var(--gradient-start);
       }
       .matching-item.selected {
         transform: scale(1.05);
-        @apply bg-cyan-600 border-cyan-500 text-white;
+        border-color: var(--gradient-start);
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+        color: white;
       }
       .matching-item.correct {
         background-color: #10b981 !important;
@@ -127,10 +137,10 @@
       }
       .peer:checked ~ .dot {
         transform: translateX(1.5rem);
-        background-color: #22d3ee;
+        background-color: #a855f7;
       }
       .peer:checked ~ .block {
-        background-color: #06b6d4;
+        background-color: var(--gradient-start);
       }
       input[type="date"]::-webkit-calendar-picker-indicator {
         filter: invert(1);
@@ -195,53 +205,55 @@
         height: auto;
       }
       .highlight {
-        background-color: rgba(255, 255, 0, 0.3);
+        background-color: rgba(168, 85, 247, 0.3);
       }
       .folder-item.active {
         background: linear-gradient(
           to right,
-          rgba(64, 64, 64, 0.3),
-          rgba(48, 48, 48, 0.2)
+          rgba(168, 85, 247, 0.1),
+          rgba(59, 130, 246, 0.1)
         );
-        border-left: 4px solid #ffffff;
-        box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+        border-left: 4px solid var(--gradient-start);
+        box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2);
       }
       .lab-tab.active {
-        border-color: #ffffff;
+        border-color: var(--gradient-start);
         color: #ffffff;
         background: linear-gradient(
           135deg,
-          rgba(255, 255, 255, 0.08) 0%,
-          rgba(255, 255, 255, 0.04) 100%
+          rgba(168, 85, 247, 0.2) 0%,
+          rgba(59, 130, 246, 0.1) 100%
         );
       }
 
       /* Sidebar animations */
-      #folders-menu, #canvas-item-bin {
+      #folders-menu, #canvas-item-bin, .canvas-toolbar {
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #folders-menu, #canvas-item-bin, .canvas-toolbar.collapsed {
         transform: translateX(-100%);
       }
-      #folders-menu.open, #canvas-item-bin.open {
+      #folders-menu.open, #canvas-item-bin.open, .canvas-toolbar:not(.collapsed) {
         transform: translateX(0);
       }
       
       /* Modern black theme glassmorphism effects */
       .glass-panel {
-        background: rgba(16, 16, 16, 0.95);
+        background: rgba(0, 0, 0, 0.8);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
       }
 
       .glass-card {
-        background: rgba(24, 24, 24, 0.9);
+        background: rgba(15, 15, 15, 0.8);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.06);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .glass-card:hover {
-        background: rgba(32, 32, 32, 0.95);
+        background: rgba(25, 25, 25, 0.9);
         border-color: rgba(255, 255, 255, 0.12);
         transform: translateY(-2px);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
@@ -249,8 +261,8 @@
 
       /* Modern button styles */
       .modern-btn {
-        background: linear-gradient(135deg, #ffffff 0%, #e5e5e5 100%);
-        color: #000000;
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+        color: #ffffff;
         border: none;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
@@ -259,8 +271,7 @@
 
       .modern-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 12px 40px rgba(255, 255, 255, 0.3);
-        background: linear-gradient(135deg, #f5f5f5 0%, #d0d0d0 100%);
+        box-shadow: 0 12px 40px rgba(168, 85, 247, 0.4);
       }
 
       .modern-btn::before {
@@ -299,9 +310,9 @@
       }
 
       .view-mode-btn.active {
-        background: rgba(255, 255, 255, 0.1);
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
         color: #ffffff;
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
       }
 
       .view-mode-btn:hover:not(.active) {
@@ -321,6 +332,27 @@
           transparent 1px
         );
         background-size: 40px 40px;
+        cursor: grab;
+      }
+      .canvas-container.panning {
+        cursor: grabbing;
+      }
+      .canvas-container.mode-connect .canvas-element {
+        cursor: pointer;
+      }
+      .canvas-container.mode-connect .canvas-element textarea {
+        pointer-events: none;
+      }
+      .canvas-container.mode-draw {
+        cursor: crosshair;
+      }
+
+      #canvas-transform-layer {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        transform-origin: 0 0;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .canvas-element {
@@ -328,24 +360,27 @@
         cursor: move;
         user-select: none;
         transition: box-shadow 0.2s ease;
-        z-index: 1;
+        z-index: 10;
         resize: both;
         overflow: auto;
       }
+      .canvas-element.connecting-from {
+        box-shadow: 0 0 0 3px #38bdf8 !important;
+      }
       
       .canvas-element:hover {
-        box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2);
       }
       
       .canvas-element.selected {
-        box-shadow: 0 0 0 2px #ffffff;
+        box-shadow: 0 0 0 2px #a855f7;
       }
       
       .canvas-note {
         min-width: 200px;
         max-width: 300px;
         padding: 16px;
-        background: rgba(24, 24, 24, 0.95);
+        background: rgba(10, 10, 10, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         backdrop-filter: blur(12px);
@@ -355,8 +390,8 @@
         width: 250px;
         height: 150px;
         padding: 12px;
-        background: rgba(16, 16, 16, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(10, 10, 10, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         backdrop-filter: blur(12px);
         display: flex;
@@ -364,45 +399,40 @@
         justify-content: space-between;
       }
       
-      .canvas-connection {
-        position: absolute;
-        pointer-events: none;
-        z-index: 0;
-      }
-      
-      /* Drawing Canvas */
-      #drawing-canvas {
+      #canvas-connections-layer, #drawing-canvas {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
         pointer-events: none;
-        z-index: 0;
       }
       
       #drawing-canvas.drawing-mode {
         pointer-events: all;
-        cursor: crosshair;
       }
 
       /* Canvas Toolbar */
       .canvas-toolbar {
-        position: absolute;
-        top: 20px;
-        right: 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 80px;
+        height: 100%;
         display: flex;
         flex-direction: column;
+        align-items: center;
+        padding-top: 80px;
         gap: 8px;
-        z-index: 100;
+        z-index: 25;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(16px);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
       }
 
-      .canvas-toolbar button {
+      .canvas-toolbar-btn {
         width: 44px;
         height: 44px;
         border-radius: 12px;
-        background: rgba(16, 16, 16, 0.95);
-        backdrop-filter: blur(16px);
+        background: rgba(30, 30, 30, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: #ffffff;
         font-size: 16px;
@@ -413,15 +443,44 @@
         justify-content: center;
       }
 
-      .canvas-toolbar button:hover {
-        background: rgba(32, 32, 32, 0.95);
+      .canvas-toolbar-btn:hover {
+        background: rgba(45, 45, 45, 0.95);
         border-color: rgba(255, 255, 255, 0.15);
       }
 
-      .canvas-toolbar button.active {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+      .canvas-toolbar-btn.active {
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+        color: #ffffff;
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
       }
+      
+      .canvas-zoom-controls {
+          position: absolute;
+          bottom: 20px;
+          left: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 8px;
+          border-radius: 12px;
+          z-index: 100;
+      }
+      .canvas-zoom-controls button {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          color: #ffffff;
+      }
+       .canvas-zoom-controls span {
+           font-size: 12px;
+           font-weight: 600;
+           min-width: 40px;
+           text-align: center;
+       }
+
 
       /* Multi-Panel Tabbing Mode */
       .tabbing-grid {
@@ -434,7 +493,7 @@
       }
       
       .tabbing-panel {
-        background: rgba(16, 16, 16, 0.95);
+        background: rgba(0, 0, 0, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         backdrop-filter: blur(16px);
@@ -472,7 +531,7 @@
         font-weight: 600;
         width: 100%;
         outline: none;
-        border-bottom: 1px solid #38bdf8;
+        border-bottom: 1px solid var(--gradient-start);
       }
 
       .panel-controls {
@@ -547,9 +606,9 @@
       }
 
       .panel-tab.active {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(168, 85, 247, 0.1);
         color: #ffffff;
-        border-color: rgba(255, 255, 255, 0.08);
+        border-color: rgba(168, 85, 247, 0.2);
       }
 
       .close-tab-btn {
@@ -564,7 +623,7 @@
         right: 0;
         top: 100%;
         margin-top: 8px;
-        background: #27272a;
+        background: #111;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 8px;
         z-index: 10;
@@ -586,38 +645,75 @@
         width: 16px;
         text-align: center;
       }
+
+      /* Item Bin Styles */
+      .item-bin-item {
+        cursor: grab;
+      }
+      .item-bin-item:active {
+        cursor: grabbing;
+      }
+
+      /* Note Editor Toolbar */
+      .note-format-btn {
+          background: transparent;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 6px;
+          width: 32px;
+          height: 32px;
+      }
+      .note-format-btn:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: white;
+      }
+      .note-editor-toolbar {
+          flex-wrap: wrap;
+      }
       
     </style>
   </head>
-  <body class="bg-slate-900 text-slate-100">
+  <body class="bg-black text-slate-100">
     <!-- Main App Container -->
     <div id="app-container" class="hidden min-h-screen">
       <!-- Top Header -->
       <header class="fixed top-0 left-0 right-0 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 glass-panel">
           <!-- Left Side: Profile -->
-          <div class="relative">
-              <button id="profile-button" class="flex items-center space-x-3">
-                  <img id="header-avatar" src="https://placehold.co/40x40/1e293b/94a3b8?text=?" class="w-10 h-10 rounded-full object-cover border-2 border-gray-600"/>
-                  <div id="rewards-display" class="hidden sm:flex items-center space-x-4 text-slate-200">
-                      <div title="Total Points" class="flex items-center space-x-2">
-                          <i class="fas fa-star text-yellow-400"></i>
-                          <span id="points-display" class="font-semibold">0</span>
-                      </div>
-                      <div title="Study Streak" class="flex items-center space-x-2">
-                          <i class="fas fa-fire text-orange-500"></i>
-                          <span id="streak-display" class="font-semibold">0</span>
-                      </div>
-                  </div>
+          <div class="flex items-center gap-4">
+              <button id="canvas-toolbar-toggle-btn" class="view-mode-btn" title="Toggle Tools">
+                  <i class="fas fa-tools"></i>
               </button>
-              <div id="profile-menu" class="hidden absolute left-0 mt-3 w-52 glass-panel rounded-xl shadow-2xl py-2 z-20">
-                  <a href="#" id="btn-go-to-profile" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-slate-600/30 rounded-lg mx-2 transition-all">
-                      <i class="fas fa-user-circle mr-3 text-gray-300"></i>
-                      Profile & Settings
-                  </a>
-                  <a href="#" id="btn-sign-out" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-red-500/20 rounded-lg mx-2 transition-all">
-                      <i class="fas fa-sign-out-alt mr-3 text-red-400"></i>
-                      Sign Out
-                  </a>
+              <div class="relative">
+                  <button id="profile-button" class="flex items-center space-x-3">
+                      <img id="header-avatar" src="https://placehold.co/40x40/1e293b/94a3b8?text=?" class="w-10 h-10 rounded-full object-cover border-2 border-gray-600"/>
+                      <div id="rewards-display" class="hidden sm:flex items-center space-x-4 text-slate-200">
+                          <div title="Total Points" class="flex items-center space-x-2">
+                              <i class="fas fa-star text-yellow-400"></i>
+                              <span id="points-display" class="font-semibold">0</span>
+                          </div>
+                          <div title="Study Streak" class="flex items-center space-x-2">
+                              <i class="fas fa-fire text-orange-500"></i>
+                              <span id="streak-display" class="font-semibold">0</span>
+                          </div>
+                      </div>
+                  </button>
+                  <div id="profile-menu" class="hidden absolute left-0 mt-3 w-52 glass-panel rounded-xl shadow-2xl py-2 z-20">
+                      <a href="#" id="btn-go-to-profile" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-slate-600/30 rounded-lg mx-2 transition-all">
+                          <i class="fas fa-user-circle mr-3 text-gray-300"></i>
+                          Profile & Settings
+                      </a>
+                      <label class="relative flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-slate-600/30 rounded-lg mx-2 transition-all cursor-pointer">
+                          <i class="fas fa-paint-brush mr-3 text-gray-300"></i>
+                          Background
+                          <input type="color" id="bg-color-input" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer">
+                      </label>
+                      <a href="#" id="btn-sign-out" class="flex items-center px-4 py-3 text-sm text-slate-200 hover:bg-red-500/20 rounded-lg mx-2 transition-all">
+                          <i class="fas fa-sign-out-alt mr-3 text-red-400"></i>
+                          Sign Out
+                      </a>
+                  </div>
               </div>
           </div>
 
@@ -638,12 +734,11 @@
               </button>
           </div>
 
-          <!-- Right Side: Background Color Picker -->
-          <div class="relative">
-              <button id="bg-color-picker-btn" class="view-mode-btn" title="Change Background Color">
-                  <i class="fas fa-paint-brush"></i>
-              </button>
-              <input type="color" id="bg-color-input" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer">
+          <!-- Right Side: Add Panel Button -->
+          <div class="flex items-center">
+             <button id="add-panel-btn" class="hidden modern-btn rounded-xl px-4 py-2 text-sm font-semibold">
+                <i class="fas fa-plus mr-2"></i> <span style="color:#ffffff">Add Panel</span>
+            </button>
           </div>
       </header>
 
@@ -653,15 +748,15 @@
               <h2 class="text-2xl font-bold text-white">Folders</h2>
               <button id="btn-show-create-folder-modal" class="modern-btn rounded-xl px-4 py-2.5 text-sm font-semibold">
                   <i class="fas fa-plus mr-1"></i>
-                  <span style="color: #101011">New</span>
+                  <span style="color: #ffffff">New</span>
               </button>
           </div>
           <div class="flex items-center gap-2 mb-4">
-            <select id="folder-sort-select" class="bg-slate-700 text-white text-sm rounded-lg p-2 flex-grow focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600">
+            <select id="folder-sort-select" class="bg-slate-700 text-white text-sm rounded-lg p-2 flex-grow focus:outline-none focus:ring-2 focus:ring-purple-500 border border-slate-600">
               <option value="createdAt">Sort by Date Created</option>
               <option value="lastEdited">Sort by Last Edited</option>
             </select>
-            <input type="text" id="folder-tag-filter" placeholder="Filter by tag..." class="bg-slate-700 text-white text-sm rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-600">
+            <input type="text" id="folder-tag-filter" placeholder="Filter by tag..." class="bg-slate-700 text-white text-sm rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 border border-slate-600">
           </div>
           <div id="lab-folder-list" class="flex-grow space-y-2 overflow-y-auto custom-scrollbar pr-2"></div>
           <div id="no-folders-message" class="hidden text-center py-20">
@@ -672,31 +767,52 @@
               <p class="text-slate-400 text-lg">Create your first folder to get started!</p>
           </div>
       </aside>
+      
+      <!-- Item Bin Slide-out Menu -->
+        <aside id="canvas-item-bin" class="fixed top-0 left-0 h-full w-80 max-w-xs flex-shrink-0 flex flex-col glass-panel p-6 z-40">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-white">Item Bin</h2>
+                <button onclick="ViewModeController.toggleItemBin()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <p class="text-sm text-slate-400 mb-4">Drag items onto the canvas.</p>
+            <div id="item-bin-content" class="flex-grow space-y-2 overflow-y-auto custom-scrollbar pr-2">
+                <!-- Items will be added here dynamically -->
+            </div>
+        </aside>
+
 
       <!-- Main Content Area -->
       <main id="main-content-area" class="pt-16 h-screen">
           <!-- Canvas Mode View -->
-          <div id="view-canvas-mode" class="w-full h-full">
-              <div class="canvas-toolbar">
-                  <button id="canvas-select-tool" class="active" title="Select Tool"><i class="fas fa-mouse-pointer"></i></button>
-                  <button id="canvas-draw-tool" title="Draw Tool"><i class="fas fa-pen"></i></button>
-                  <button id="canvas-add-note" title="Add Note"><i class="fas fa-sticky-note"></i></button>
-                  <button id="canvas-add-card" title="Add Card"><i class="fas fa-layer-group"></i></button>
-                  <button id="canvas-clear" title="Clear Canvas"><i class="fas fa-trash"></i></button>
+          <div id="view-canvas-mode" class="w-full h-full relative">
+              <div id="canvas-toolbar" class="canvas-toolbar">
+                  <button id="item-bin-toggle-btn" class="canvas-toolbar-btn" title="Toggle Item Bin">
+                      <i class="fas fa-box"></i>
+                  </button>
+                  <div class="w-full h-px bg-slate-700 my-2"></div>
+                  <button id="canvas-select-tool" class="canvas-toolbar-btn active" title="Select Tool"><i class="fas fa-mouse-pointer"></i></button>
+                  <button id="canvas-connect-tool" class="canvas-toolbar-btn" title="Connect Tool"><i class="fas fa-project-diagram"></i></button>
+                  <button id="canvas-draw-tool" class="canvas-toolbar-btn" title="Draw Tool"><i class="fas fa-pen"></i></button>
+                  <button id="canvas-add-note" class="canvas-toolbar-btn" title="Add Note"><i class="fas fa-sticky-note"></i></button>
+                  <button id="canvas-add-card" class="canvas-toolbar-btn" title="Add Card"><i class="fas fa-layer-group"></i></button>
+                  <button id="canvas-clear" class="canvas-toolbar-btn" title="Clear Canvas"><i class="fas fa-trash"></i></button>
               </div>
-              <div class="canvas-container">
-                  <canvas id="drawing-canvas"></canvas>
-                  <div id="canvas-elements"></div>
+              <div id="canvas-drop-area" class="canvas-container">
+                  <div id="canvas-transform-layer">
+                      <svg id="canvas-connections-layer"></svg>
+                      <canvas id="drawing-canvas"></canvas>
+                      <div id="canvas-elements"></div>
+                  </div>
+              </div>
+              <div class="canvas-zoom-controls">
+                  <button id="canvas-zoom-out" class="canvas-toolbar-btn" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                  <span id="canvas-zoom-level">100%</span>
+                  <button id="canvas-zoom-in" class="canvas-toolbar-btn" title="Zoom In"><i class="fas fa-search-plus"></i></button>
               </div>
           </div>
 
           <!-- Tabbing Mode View -->
           <div id="view-tabbing-mode" class="hidden w-full h-full flex-col">
-              <div class="flex-shrink-0 p-4 flex justify-end">
-                  <button id="add-panel-btn" class="modern-btn rounded-xl px-4 py-2 text-sm font-semibold">
-                      <i class="fas fa-plus mr-2"></i> Add Panel
-                  </button>
-              </div>
               <div id="tabbing-grid-container" class="tabbing-grid flex-grow">
                   <!-- Panels will be added here dynamically -->
               </div>
@@ -704,7 +820,7 @@
       </main>
 
       <!-- Note Editor View (Overlay) -->
-      <div id="view-note-editor" class="hidden fixed inset-0 top-16 bg-slate-900 z-30 p-4 sm:p-6 lg:p-8 flex-col">
+      <div id="view-note-editor" class="hidden fixed inset-0 top-16 bg-black z-30 p-4 sm:p-6 lg:p-8 flex-col">
           <div class="flex justify-between items-center mb-4 flex-shrink-0">
             <div class="flex items-center gap-2">
               <button id="btn-back-to-lab-from-editor" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-slate-700 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-600">
@@ -717,9 +833,9 @@
                 <i class="fas fa-columns"></i>
               </button>
             </div>
-            <h2 id="notes-lab-title-editor" class="text-xl font-bold text-cyan-400">Notes Editor</h2>
+            <h2 id="notes-lab-title-editor" class="text-xl font-bold text-purple-400">Notes Editor</h2>
             <div class="flex items-center gap-2">
-              <button id="btn-save-note-and-cards" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700">
+              <button id="btn-save-note-and-cards" class="modern-btn rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm">
                 <i class="fas fa-save mr-2"></i>Save
               </button>
             </div>
@@ -746,7 +862,7 @@
       </div>
 
       <!-- Profile & Settings View (Overlay) -->
-      <div id="view-profile" class="hidden fixed inset-0 top-16 bg-slate-900 z-30 p-8 overflow-y-auto custom-scrollbar">
+      <div id="view-profile" class="hidden fixed inset-0 top-16 bg-black z-30 p-8 overflow-y-auto custom-scrollbar">
           <button id="btn-back-to-folders-from-profile" class="modern-btn rounded-xl px-4 py-2 text-sm font-semibold mb-8">
               <i class="fas fa-arrow-left mr-2"></i> Back
           </button>
@@ -805,7 +921,7 @@
                               <span class="text-sm font-medium text-slate-300">Enable Audio Compression</span>
                               <label for="admin-audio-compression-toggle" class="relative inline-flex items-center cursor-pointer">
                                   <input type="checkbox" id="admin-audio-compression-toggle" class="sr-only peer">
-                                  <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                                  <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                               </label>
                           </div>
                           <div>
@@ -888,7 +1004,7 @@
               ><input
                 type="color"
                 id="folder-color-input"
-                value="#06b6d4"
+                value="#a855f7"
                 class="mt-1 block w-full h-10 bg-slate-700 border-slate-600 rounded-lg"
               />
             </div>
@@ -901,7 +1017,7 @@
               Cancel</button
             ><button
               id="btn-save-folder"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"
+              class="modern-btn rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm"
             >
               Save Folder
             </button>
@@ -917,6 +1033,7 @@
           class="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-xl shadow-2xl"
         >
           <h2 class="text-2xl font-bold mb-4">Add Manual Cards</h2>
+          <input type="hidden" id="add-card-modal-source" />
           <div
             id="add-cards-container"
             class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"
@@ -936,7 +1053,7 @@
                 Cancel</button
               ><button
                 id="btn-save-cards"
-                class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"
+                class="modern-btn rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm"
               >
                 Save Cards
               </button>
@@ -969,8 +1086,8 @@
                   class="hidden"
                 /><label
                   for="q-type-mcq"
-                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"
-                  ><i class="fas fa-list-ul text-2xl mb-2 text-cyan-400"></i
+                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-purple-500 transition-all"
+                  ><i class="fas fa-list-ul text-2xl mb-2 text-purple-400"></i
                   ><span class="font-semibold block">Multiple Choice</span
                   ><i
                     class="fas fa-check-circle absolute top-2 right-2 text-xl"
@@ -987,8 +1104,8 @@
                   class="hidden"
                 /><label
                   for="q-type-written"
-                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"
-                  ><i class="fas fa-keyboard text-2xl mb-2 text-cyan-400"></i
+                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-purple-500 transition-all"
+                  ><i class="fas fa-keyboard text-2xl mb-2 text-purple-400"></i
                   ><span class="font-semibold block">Written Answer</span
                   ><i
                     class="fas fa-check-circle absolute top-2 right-2 text-xl"
@@ -1004,9 +1121,9 @@
                   class="hidden"
                 /><label
                   for="q-type-tf"
-                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"
+                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-purple-500 transition-all"
                   ><i
-                    class="fas fa-check-double text-2xl mb-2 text-cyan-400"
+                    class="fas fa-check-double text-2xl mb-2 text-purple-400"
                   ></i
                   ><span class="font-semibold block">True / False</span
                   ><i
@@ -1023,9 +1140,9 @@
                   class="hidden"
                 /><label
                   for="q-type-matching"
-                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-cyan-500 transition-all"
+                  class="relative block cursor-pointer p-4 border-2 border-slate-600 rounded-lg text-center hover:border-purple-500 transition-all"
                   ><i
-                    class="fas fa-puzzle-piece text-2xl mb-2 text-cyan-400"
+                    class="fas fa-puzzle-piece text-2xl mb-2 text-purple-400"
                   ></i
                   ><span class="font-semibold block">Matching Game</span
                   ><i
@@ -1053,7 +1170,7 @@
                   class="sr-only peer"
                   checked />
                 <div
-                  class="w-14 h-8 bg-slate-600 peer-focus:outline-none rounded-full peer block peer-checked:bg-cyan-600"
+                  class="w-14 h-8 bg-slate-600 peer-focus:outline-none rounded-full peer block peer-checked:bg-purple-600"
                 ></div>
                 <div
                   class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition peer-checked:translate-x-6"
@@ -1075,7 +1192,7 @@
               />
               <p
                 id="study-plan-recommendation"
-                class="text-xs text-cyan-300 mt-2 h-4"
+                class="text-xs text-purple-300 mt-2 h-4"
               ></p>
             </div>
           </div>
@@ -1087,7 +1204,7 @@
               Cancel</button
             ><button
               id="btn-start-learn"
-              class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700"
+              class="modern-btn rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm"
             >
               Start Studying
             </button>
@@ -1136,6 +1253,8 @@
         currentFolderId: null,
         currentNoteId: null,
         currentDocumentId: null,
+        lastActiveView: 'canvas',
+        itemBin: [], // Holds items for the canvas bin
         localData: {
           profile: {},
           rewards: {},
@@ -1292,6 +1411,7 @@
             profile: document.getElementById("view-profile"),
             canvasMode: document.getElementById("view-canvas-mode"),
             tabbingMode: document.getElementById("view-tabbing-mode"),
+            learnSession: document.getElementById("view-learn-session"),
           };
           this.modals = {
             createFolder: document.getElementById("modal-create-folder"),
@@ -1309,6 +1429,9 @@
           });
           if (this.views[viewId]) {
             this.views[viewId].classList.remove("hidden");
+            if(viewId === 'canvasMode' || viewId === 'tabbingMode') {
+                AppState.lastActiveView = viewId;
+            }
           }
         },
         toggleModal(modalId, show) {
@@ -1323,7 +1446,7 @@
         },
         createCardHTML: (card) => {
           const m = UI.getMasteryInfo(card.ease);
-          return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-cyan-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-cyan-400">Flip</button></div></div></div></div>`;
+          return `<div id="card-${card.id}" class="card bg-transparent h-48 perspective" data-id="${card.id}"><div class="card-inner relative w-full h-full"><div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">Q:</h4><p>${Utils.escapeHtml(card.question)}</p></div><div class="flex justify-between items-center"><span class="text-xs ${m.textColor}" title="Due: ${new Date(card.dueDate).toLocaleDateString()}">${m.label}</span><button class="flip-card-btn text-purple-400">Flip</button></div></div><div class="card-face card-back absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between"><div><h4 class="font-bold">A:</h4><p>${Utils.escapeHtml(card.answer)}</p></div><div class="flex justify-between items-center"><button class="delete-card-btn text-slate-400 hover:text-red-500" data-id="${card.id}"><i class="fas fa-trash-alt"></i></button><button class="flip-card-btn text-purple-400">Flip</button></div></div></div></div>`;
         },
         createAudioPlayerHTML(clip) {
           const hasOpenAIKey = !!AppState.localData.profile.openaiApiKey;
@@ -1336,7 +1459,7 @@
               : "Google or OpenAI API key required for transcription";
           const transcribeBtnClasses =
             hasOpenAIKey || hasGoogleKey
-              ? "text-cyan-400 hover:text-cyan-300"
+              ? "text-purple-400 hover:text-purple-300"
               : "text-slate-600 cursor-not-allowed";
 
           return `<div class="audio-player-wrapper bg-slate-900/50 p-2 rounded-lg flex items-center gap-2" data-id="${clip.id}">
@@ -1436,19 +1559,21 @@
         ctx: null,
         prevBtn: null,
         nextBtn: null,
-        init() {
-          this.canvas = document.getElementById("pdf-canvas");
-          if (!this.canvas) return; // Prevent error if element not found
+        init(container) {
+          this.canvas = container.querySelector(".pdf-canvas-el");
+          if (!this.canvas) return; 
           this.ctx = this.canvas.getContext("2d");
-          this.prevBtn = document.getElementById("pdf-prev");
-          this.nextBtn = document.getElementById("pdf-next");
+          this.prevBtn = container.querySelector(".pdf-prev-btn");
+          this.nextBtn = container.querySelector(".pdf-next-btn");
+          this.pageNumEl = container.querySelector(".pdf-page-num");
+          this.pageCountEl = container.querySelector(".pdf-page-count");
 
           this.prevBtn.onclick = () => this.onPrevPage();
           this.nextBtn.onclick = () => this.onNextPage();
 
           this.updateButtonState();
         },
-        async loadDocument(url) {
+        async loadDocumentFromUrl(url) {
           this.pdfDoc = null;
           this.updateButtonState();
           try {
@@ -1465,11 +1590,9 @@
                 `Expected a PDF file but received type: ${pdfBlob.type}`,
               );
             }
-            this.pdfDoc = await pdfjsLib.getDocument({
-              data: await pdfBlob.arrayBuffer(),
-            }).promise;
-            document.getElementById("pdf-page-count").textContent =
-              this.pdfDoc.numPages;
+            const data = await pdfBlob.arrayBuffer();
+            this.pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+            this.pageCountEl.textContent = this.pdfDoc.numPages;
             this.pageNum = 1;
             this.renderPage(this.pageNum);
           } catch (error) {
@@ -1478,6 +1601,28 @@
             this.pdfDoc = null;
             this.updateButtonState();
           }
+        },
+        async loadDocumentFromFile(file) {
+            if (!file || file.type !== 'application/pdf') {
+                UI.showToast('Please select a valid PDF file.', true);
+                return;
+            }
+            const fileReader = new FileReader();
+            fileReader.onload = async (e) => {
+                const { pdfjsLib } = globalThis;
+                 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
+                try {
+                    const data = e.target.result;
+                    this.pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+                    this.pageCountEl.textContent = this.pdfDoc.numPages;
+                    this.pageNum = 1;
+                    this.renderPage(this.pageNum);
+                } catch (error) {
+                    UI.showToast('Error loading PDF file.', true);
+                    console.error('PDF File Load Error:', error);
+                }
+            };
+            fileReader.readAsArrayBuffer(file);
         },
         renderPage(num) {
           this.pageRendering = true;
@@ -1499,7 +1644,7 @@
               this.updateButtonState();
             });
           });
-          document.getElementById("pdf-page-num").textContent = num;
+          this.pageNumEl.textContent = num;
         },
         queueRenderPage(num) {
           if (this.pageRendering) {
@@ -1570,7 +1715,7 @@
             return;
           }
           UI.toggleModal("learnOptions", false);
-          UI.showView("learn");
+          UI.showView("learnSession");
           AppState.learnState = {
             cards: Utils.shuffle(cardsToStudy),
             allCardsInFolder: allCards,
@@ -1606,7 +1751,7 @@
             AppState.learnState.cards[AppState.learnState.currentIndex]);
           switch (type) {
             case "written":
-              container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-cyan-600 text-white hover:bg-cyan-700 w-full mt-4">Check Answer</button>`;
+              container.innerHTML = `<p class="text-slate-400 mb-2">Type the answer:</p><h3 class="text-2xl font-semibold mb-4">${Utils.escapeHtml(card.question)}</h3><textarea id="written-answer" class="w-full h-24 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea><button id="submit-written" class="rounded-lg px-3.5 py-2.5 text-sm font-semibold shadow-sm bg-purple-600 text-white hover:bg-purple-700 w-full mt-4">Check Answer</button>`;
               document.getElementById("submit-written").onclick = () =>
                 this.checkAnswer();
               break;
@@ -1707,7 +1852,7 @@
         showSummary() {
           const { total, correctAnswers } = AppState.learnState;
           document.getElementById("learn-question-container").innerHTML =
-            `<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-cyan-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="rounded-lg px-4 py-2 bg-cyan-600">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`;
+            `<div class="text-center"><h2 class="text-3xl font-bold mb-4">Session Complete!</h2><p class="text-5xl font-bold text-purple-400">${correctAnswers} / ${total}</p><div class="space-x-4 mt-8"><button id="learn-again" class="modern-btn rounded-lg px-4 py-2">Study Again</button><button id="learn-finish" class="rounded-lg px-4 py-2 bg-slate-600">Finish</button></div></div>`;
           const learnAgainBtn = document.getElementById("learn-again");
           if (learnAgainBtn) {
             learnAgainBtn.onclick = () =>
@@ -2082,6 +2227,7 @@
       };
 
       const CardActions = {
+        currentTargetTabId: null,
         init() {
           document.getElementById("btn-cancel-add-card").onclick = () =>
             UI.toggleModal("addCard", false);
@@ -2101,7 +2247,7 @@
             .getElementById("add-cards-container")
             .insertAdjacentHTML("beforeend", this.createCardInputHTML());
         },
-        async saveCards() {
+        saveCards() {
           const cardsRaw = Array.from(
             document.querySelectorAll(".card-input-group"),
           )
@@ -2110,22 +2256,23 @@
               answer: g.querySelector(".card-answer").value.trim(),
             }))
             .filter((c) => c.question && c.answer);
+
           if (cardsRaw.length > 0) {
-            const cards = cardsRaw.map((c) => ({
-              ...SRS.addSRSData(c),
-              source: "manual",
-            }));
-            await ApiController.apiCall("/manual-cards", "POST", {
-              folderId: AppState.currentFolderId,
-              cards,
+            if (this.currentTargetTabId) {
+                FlashcardTabManager.addCards(this.currentTargetTabId, cardsRaw);
+            }
+            cardsRaw.forEach(cardData => {
+                ItemBinController.addItem('flashcard', cardData);
             });
-            Lab.render();
             UI.toggleModal("addCard", false);
+            UI.showToast(`${cardsRaw.length} flashcard(s) created.`);
+            this.currentTargetTabId = null;
           } else {
             UI.showToast("Fill out at least one card.", true);
           }
         },
-        openAddCardModal() {
+        openAddCardModal(tabId = null) {
+          this.currentTargetTabId = tabId;
           document.getElementById("add-cards-container").innerHTML =
             this.createCardInputHTML();
           UI.toggleModal("addCard", true);
@@ -2217,7 +2364,7 @@
             "btn-back-to-folders-from-profile",
           );
           if (backBtn) {
-            backBtn.onclick = () => ViewModeController.switchMode('canvas');
+            backBtn.onclick = () => ViewModeController.switchMode(AppState.lastActiveView);
           }
           const profileForm = document.getElementById("profile-form");
           if (profileForm) {
@@ -2240,6 +2387,12 @@
           );
           if (closeUpdateBtn) {
             closeUpdateBtn.onclick = () => UI.toggleModal("update-log", false);
+          }
+          const bgColorInput = document.getElementById('bg-color-input');
+          if (bgColorInput) {
+              bgColorInput.oninput = (e) => {
+                  document.body.style.backgroundColor = e.target.value;
+              }
           }
         },
         async openProfile() {
@@ -2310,13 +2463,13 @@
         async checkForUpdate() {
           const statusEl = document.getElementById("update-status");
           statusEl.textContent = "Checking for updates...";
-          statusEl.classList.remove("text-green-400", "text-cyan-400");
+          statusEl.classList.remove("text-green-400", "text-purple-400");
           document.getElementById("btn-check-for-update").disabled = true;
           try {
             const latest = await ApiController.apiCall("/version");
             if (latest.version > APP_VERSION) {
-              statusEl.innerHTML = `Update available (v${latest.version})! <a href="https://github.com/dertder25t/StudyFortressV1" target="_blank" class="font-bold underline text-cyan-400 hover:text-cyan-300">View on GitHub</a>`;
-              statusEl.classList.add("text-cyan-400");
+              statusEl.innerHTML = `Update available (v${latest.version})! <a href="https://github.com/dertder25t/StudyFortressV1" target="_blank" class="font-bold underline text-purple-400 hover:text-purple-300">View on GitHub</a>`;
+              statusEl.classList.add("text-purple-400");
             } else {
               statusEl.textContent = `You are on the latest version (v${APP_VERSION}).`;
               statusEl.classList.add("text-green-400");
@@ -2400,7 +2553,7 @@
           document.getElementById("folder-name-input").value = folder ? folder.name : "";
           document.getElementById("folder-description-input").value = folder ? folder.description : "";
           document.getElementById("folder-tags-input").value = folder && folder.tags ? folder.tags.join(', ') : "";
-          document.getElementById("folder-color-input").value = folder ? folder.color : "#06b6d4";
+          document.getElementById("folder-color-input").value = folder ? folder.color : "#a855f7";
           
           document.querySelector("#modal-create-folder h2").textContent = folder ? "Edit Folder" : "Create Folder";
           UI.toggleModal("createFolder", true);
@@ -2516,35 +2669,229 @@
 
       window.FolderActions = FolderActions;
 
+      const ItemBinController = {
+        addItem(type, data) {
+            const item = {
+                id: `bin-item-${Date.now()}`,
+                type: type,
+                data: data,
+            };
+            AppState.itemBin.push(item);
+            this.render();
+        },
+        render() {
+            const container = document.getElementById('item-bin-content');
+            container.innerHTML = AppState.itemBin.map(item => {
+                let icon = 'fa-question-circle';
+                let title = 'Unknown Item';
+                if (item.type === 'note') {
+                    icon = 'fa-sticky-note';
+                    title = item.data.title;
+                } else if (item.type === 'flashcard') {
+                    icon = 'fa-layer-group';
+                    title = item.data.question;
+                }
+                return `
+                    <div class="item-bin-item glass-card p-3 rounded-lg flex items-center gap-3" draggable="true" data-item-id="${item.id}">
+                        <i class="fas ${icon} text-purple-400"></i>
+                        <span class="text-sm text-white truncate">${Utils.escapeHtml(title)}</span>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.item-bin-item').forEach(el => {
+                el.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', el.dataset.itemId);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+        }
+      };
+      
+      const FlashcardTabManager = {
+        tabs: {}, 
+
+        initTab(tabId, container) {
+            this.tabs[tabId] = {
+                cards: [],
+                view: 'list',
+                deckIndex: 0,
+                container: container
+            };
+            this.addEventListeners(tabId);
+        },
+
+        addEventListeners(tabId) {
+            const container = this.tabs[tabId].container;
+            const toolbar = container.querySelector('.flashcard-toolbar');
+
+            toolbar.querySelector('.add-cards-btn').onclick = () => {
+                CardActions.openAddCardModal(tabId);
+            };
+
+            toolbar.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.onclick = () => {
+                    toolbar.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.setView(tabId, btn.dataset.view);
+                };
+            });
+
+            toolbar.querySelector('.randomize-btn').onclick = () => {
+                this.randomize(tabId);
+            };
+        },
+
+        addCards(tabId, newCards) {
+            if (!this.tabs[tabId]) return;
+            this.tabs[tabId].cards.push(...newCards);
+            this.render(tabId);
+        },
+
+        setView(tabId, view) {
+            if (!this.tabs[tabId]) return;
+            this.tabs[tabId].view = view;
+            this.render(tabId);
+        },
+        
+        randomize(tabId) {
+            if (!this.tabs[tabId]) return;
+            this.tabs[tabId].cards = Utils.shuffle(this.tabs[tabId].cards);
+            this.tabs[tabId].deckIndex = 0; // Reset deck view
+            this.render(tabId);
+            UI.showToast('Cards randomized!');
+        },
+
+        render(tabId) {
+            const tabState = this.tabs[tabId];
+            if (!tabState) return;
+            
+            if (tabState.view === 'list') {
+                this.renderListView(tabId);
+            } else {
+                this.renderDeckView(tabId);
+            }
+        },
+
+        renderListView(tabId) {
+            const { cards, container } = this.tabs[tabId];
+            const viewContainer = container.querySelector('.flashcard-view-container');
+            if (cards.length === 0) {
+                viewContainer.innerHTML = `<div class="text-center text-slate-400 p-8"><p>No flashcards yet. Click "Add Cards" to begin.</p></div>`;
+                return;
+            }
+            viewContainer.innerHTML = `<div class="p-4 space-y-3"></div>`;
+            const list = viewContainer.querySelector('.p-4');
+            cards.forEach(cardData => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card perspective h-32 cursor-pointer';
+                cardEl.innerHTML = `
+                    <div class="card-inner relative w-full h-full">
+                        <div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-center text-center">
+                            <p>${Utils.escapeHtml(cardData.question)}</p>
+                        </div>
+                        <div class="card-face card-back absolute w-full h-full bg-slate-700 border border-slate-600 rounded-xl p-4 flex items-center justify-center text-center">
+                            <p>${Utils.escapeHtml(cardData.answer)}</p>
+                        </div>
+                    </div>
+                `;
+                cardEl.addEventListener('click', () => cardEl.classList.toggle('is-flipped'));
+                list.appendChild(cardEl);
+            });
+        },
+
+        renderDeckView(tabId) {
+            const tabState = this.tabs[tabId];
+            const { cards, container, deckIndex } = tabState;
+            const viewContainer = container.querySelector('.flashcard-view-container');
+
+            if (cards.length === 0) {
+                viewContainer.innerHTML = `<div class="text-center text-slate-400 p-8"><p>No flashcards yet. Click "Add Cards" to begin.</p></div>`;
+                return;
+            }
+
+            const currentCard = cards[deckIndex];
+            viewContainer.innerHTML = `
+                <div class="flex flex-col h-full items-center justify-center p-4">
+                    <div class="card perspective h-48 w-full max-w-md cursor-pointer is-flipped">
+                        <div class="card-inner relative w-full h-full">
+                            <div class="card-face card-front absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-center text-center">
+                                <p>${Utils.escapeHtml(currentCard.question)}</p>
+                            </div>
+                            <div class="card-face card-back absolute w-full h-full bg-slate-700 border border-slate-600 rounded-xl p-4 flex items-center justify-center text-center">
+                                <p>${Utils.escapeHtml(currentCard.answer)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 mt-4">
+                        <button class="deck-prev-btn text-xl p-2 hover:text-purple-400"><i class="fas fa-arrow-left"></i></button>
+                        <span>${deckIndex + 1} / ${cards.length}</span>
+                        <button class="deck-next-btn text-xl p-2 hover:text-purple-400"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            `;
+            
+            const cardEl = viewContainer.querySelector('.card');
+            cardEl.onclick = () => cardEl.classList.toggle('is-flipped');
+            
+            setTimeout(() => cardEl.classList.remove('is-flipped'), 10);
+
+            viewContainer.querySelector('.deck-prev-btn').onclick = () => {
+                tabState.deckIndex = (tabState.deckIndex - 1 + cards.length) % cards.length;
+                this.renderDeckView(tabId);
+            };
+            viewContainer.querySelector('.deck-next-btn').onclick = () => {
+                 tabState.deckIndex = (tabState.deckIndex + 1) % cards.length;
+                 this.renderDeckView(tabId);
+            };
+        }
+    };
+    
       // View Mode Controller for Canvas and Tabbing modes
       const ViewModeController = {
         currentMode: "canvas",
+        zoomLevel: 1,
+        minZoom: 0.2,
+        maxZoom: 3,
+        panX: 0,
+        panY: 0,
+        isPanning: false,
+        panStartX: 0,
+        panStartY: 0,
+        connections: [],
+        connectionStartElement: null,
 
         init() {
           const canvasModeBtn = document.getElementById("canvas-mode-btn");
           const tabbingModeBtn = document.getElementById("tabbing-mode-btn");
-          const bgColorInput = document.getElementById('bg-color-input');
-
-          if (canvasModeBtn) {
-            canvasModeBtn.onclick = () => this.switchMode("canvas");
-          }
-
-          if (tabbingModeBtn) {
-            tabbingModeBtn.onclick = () => this.switchMode("tabbing");
-          }
-
-          if (bgColorInput) {
-              bgColorInput.oninput = (e) => {
-                  document.body.style.backgroundColor = e.target.value;
-              }
-          }
+          const addPanelBtn = document.getElementById('add-panel-btn');
+          const itemBinBtn = document.getElementById('item-bin-toggle-btn');
+          const toolbarToggleBtn = document.getElementById('canvas-toolbar-toggle-btn');
+          
+          if (toolbarToggleBtn) toolbarToggleBtn.onclick = () => this.toggleToolbar();
+          if (itemBinBtn) itemBinBtn.onclick = () => this.toggleItemBin();
+          if (canvasModeBtn) canvasModeBtn.onclick = () => this.switchMode("canvas");
+          if (tabbingModeBtn) tabbingModeBtn.onclick = () => this.switchMode("tabbing");
+          if (addPanelBtn) addPanelBtn.onclick = () => this.addTabbingPanel();
           
           document.getElementById('tabbing-grid-container').addEventListener('click', (e) => {
-              const removeBtn = e.target.closest('.remove-panel-btn');
-              if (removeBtn) {
-                  e.stopPropagation();
-                  const panelId = removeBtn.dataset.panelId;
-                  this.removePanel(panelId);
+              const removePanelBtn = e.target.closest('.remove-panel-btn');
+              if (removePanelBtn) {
+                  this.removePanel(removePanelBtn.closest('.tabbing-panel').id);
+                  return;
+              }
+
+              const closeTabBtn = e.target.closest('.close-tab-btn');
+              if(closeTabBtn) {
+                  const tab = closeTabBtn.parentElement;
+                  const panel = tab.closest('.tabbing-panel');
+                  this.removeTab(tab, panel);
+                  return;
+              }
+
+              const tabToActivate = e.target.closest('.panel-tab:not(.active)');
+              if(tabToActivate) {
+                  this.activateTab(tabToActivate);
               }
           });
 
@@ -2558,6 +2905,8 @@
           const tabbingView = document.getElementById("view-tabbing-mode");
           const canvasBtn = document.getElementById("canvas-mode-btn");
           const tabbingBtn = document.getElementById("tabbing-mode-btn");
+          const toolbarToggle = document.getElementById('canvas-toolbar-toggle-btn');
+          const addPanelBtn = document.getElementById('add-panel-btn');
 
           document.getElementById('main-content-area').querySelectorAll(':scope > div').forEach(div => div.classList.add('hidden'));
 
@@ -2567,6 +2916,8 @@
           if (mode === "canvas") {
             if (canvasView) canvasView.classList.remove("hidden");
             if (canvasBtn) canvasBtn.classList.add("active");
+            if(toolbarToggle) toolbarToggle.style.display = 'flex';
+            if(addPanelBtn) addPanelBtn.classList.add('hidden');
             this.resizeCanvas();
           } else if (mode === "tabbing") {
             if (tabbingView) {
@@ -2574,48 +2925,152 @@
                 tabbingView.classList.add("flex");
             }
             if (tabbingBtn) tabbingBtn.classList.add("active");
+            if(toolbarToggle) toolbarToggle.style.display = 'none';
+            if(addPanelBtn) addPanelBtn.classList.remove('hidden');
           }
 
           this.currentMode = mode;
+          AppState.lastActiveView = mode;
+        },
+        
+        toggleItemBin() {
+            document.getElementById('canvas-item-bin').classList.toggle('open');
+        },
+        
+        toggleToolbar() {
+            document.getElementById('canvas-toolbar').classList.toggle('collapsed');
         },
 
         initCanvas() {
-          const canvas = document.getElementById("drawing-canvas");
-          const selectTool = document.getElementById("canvas-select-tool");
-          const drawTool = document.getElementById("canvas-draw-tool");
-          const addNote = document.getElementById("canvas-add-note");
-          const addCard = document.getElementById("canvas-add-card");
-          const clearCanvas = document.getElementById("canvas-clear");
+            const canvas = document.getElementById("drawing-canvas");
+            const dropArea = document.getElementById("canvas-drop-area");
+            const elementsContainer = document.getElementById("canvas-elements");
+            const selectTool = document.getElementById("canvas-select-tool");
+            const connectTool = document.getElementById("canvas-connect-tool");
+            const drawTool = document.getElementById("canvas-draw-tool");
+            const addNote = document.getElementById("canvas-add-note");
+            const addCard = document.getElementById("canvas-add-card");
+            const clearCanvas = document.getElementById("canvas-clear");
+            const zoomInBtn = document.getElementById("canvas-zoom-in");
+            const zoomOutBtn = document.getElementById("canvas-zoom-out");
 
-          if (!canvas) return;
+            if (!canvas) return;
 
-          this.canvas = canvas;
-          this.ctx = canvas.getContext("2d");
-          this.isDrawing = false;
-          this.currentTool = "select";
-          this.canvasElements = [];
+            this.canvas = canvas;
+            this.ctx = canvas.getContext("2d");
+            this.connectionsLayer = document.getElementById('canvas-connections-layer');
+            this.isDrawing = false;
+            this.currentTool = "select";
 
-          this.resizeCanvas();
-          window.addEventListener("resize", () => this.resizeCanvas());
+            this.resizeCanvas();
+            window.addEventListener("resize", () => this.resizeCanvas());
 
-          if (selectTool) selectTool.onclick = () => this.setTool("select", selectTool);
-          if (drawTool) drawTool.onclick = () => this.setTool("draw", drawTool);
-          if (addNote) addNote.onclick = () => this.addCanvasNote();
-          if (addCard) addCard.onclick = () => this.addCanvasCard();
-          if (clearCanvas) clearCanvas.onclick = () => this.clearCanvas();
+            if (selectTool) selectTool.onclick = () => this.setTool("select", selectTool);
+            if (connectTool) connectTool.onclick = () => this.setTool("connect", connectTool);
+            if (drawTool) drawTool.onclick = () => this.setTool("draw", drawTool);
+            if (addNote) addNote.onclick = () => this.addCanvasNote();
+            if (addCard) addCard.onclick = () => this.addCanvasCard();
+            if (clearCanvas) clearCanvas.onclick = () => this.clearCanvas();
+            if (zoomInBtn) zoomInBtn.onclick = () => this.zoom(1.2);
+            if (zoomOutBtn) zoomOutBtn.onclick = () => this.zoom(0.8);
 
-          canvas.addEventListener("mousedown", (e) => this.startDrawing(e));
-          canvas.addEventListener("mousemove", (e) => this.draw(e));
-          canvas.addEventListener("mouseup", () => this.stopDrawing());
-          canvas.addEventListener("mouseout", () => this.stopDrawing());
+            dropArea.addEventListener('wheel', e => {
+                e.preventDefault();
+                const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                this.zoom(zoomFactor, e.clientX, e.clientY);
+            });
+
+            dropArea.addEventListener('mousedown', e => {
+                if (e.button === 1 || this.currentTool === 'pan') { 
+                    e.preventDefault();
+                    this.isPanning = true;
+                    this.panStartX = e.clientX;
+                    this.panStartY = e.clientY;
+                    dropArea.classList.add('panning');
+                }
+            });
+
+            window.addEventListener('mouseup', e => {
+                if (this.isPanning) {
+                    this.isPanning = false;
+                    dropArea.classList.remove('panning');
+                }
+            });
+
+            window.addEventListener('mousemove', e => {
+                if (this.isPanning) {
+                    e.preventDefault();
+                    const dx = e.clientX - this.panStartX;
+                    const dy = e.clientY - this.panStartY;
+                    this.panX += dx;
+                    this.panY += dy;
+                    this.panStartX = e.clientX;
+                    this.panStartY = e.clientY;
+                    this.applyTransform();
+                }
+            });
+
+            dropArea.addEventListener("mousedown", (e) => this.startDrawing(e));
+            dropArea.addEventListener("mousemove", (e) => this.draw(e));
+            dropArea.addEventListener("mouseup", () => this.stopDrawing());
+            dropArea.addEventListener("mouseout", () => this.stopDrawing());
+            
+            elementsContainer.addEventListener('click', (e) => {
+                if (this.currentTool === 'connect') {
+                    const targetElement = e.target.closest('.canvas-element');
+                    if (targetElement) {
+                        this.handleConnectionClick(targetElement);
+                    }
+                }
+            });
+
+            dropArea.addEventListener('dragover', e => e.preventDefault());
+            dropArea.addEventListener('drop', e => {
+                e.preventDefault();
+                const itemId = e.dataTransfer.getData('text/plain');
+                const item = AppState.itemBin.find(i => i.id === itemId);
+                if (!item) return;
+                
+                const rect = dropArea.getBoundingClientRect();
+                const x = (e.clientX - rect.left - this.panX) / this.zoomLevel;
+                const y = (e.clientY - rect.top - this.panY) / this.zoomLevel;
+
+                if (item.type === 'note') {
+                    this.addCanvasNote(x, y, item.data.title, item.data.content);
+                } else if (item.type === 'flashcard') {
+                    this.addCanvasCard(x, y, item.data.question, item.data.answer);
+                }
+            });
+        },
+        
+        zoom(factor, mouseX, mouseY) {
+            const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel * factor));
+            
+            if (mouseX !== undefined && mouseY !== undefined) {
+                const dropArea = document.getElementById('canvas-drop-area').getBoundingClientRect();
+                const mousePointX = mouseX - dropArea.left;
+                const mousePointY = mouseY - dropArea.top;
+
+                const newPanX = mousePointX - (mousePointX - this.panX) * (newZoom / this.zoomLevel);
+                const newPanY = mousePointY - (mousePointY - this.panY) * (newZoom / this.zoomLevel);
+                
+                this.panX = newPanX;
+                this.panY = newPanY;
+            }
+
+            this.zoomLevel = newZoom;
+            this.applyTransform();
+        },
+
+        applyTransform() {
+            const transformLayer = document.getElementById('canvas-transform-layer');
+            transformLayer.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
+            document.getElementById('canvas-zoom-level').textContent = `${Math.round(this.zoomLevel * 100)}%`;
+            this.drawConnections();
         },
 
         initTabbing() {
-            const addPanelBtn = document.getElementById('add-panel-btn');
-            if (addPanelBtn) {
-                addPanelBtn.onclick = () => this.addTabbingPanel();
-            }
-            this.addTabbingPanel("My First Panel");
+            // This is now handled by the button in the header
         },
         
         addTabbingPanel(title = "New Panel") {
@@ -2632,9 +3087,9 @@
                         <button class="panel-control-btn remove-panel-btn" data-panel-id="${panelId}"><i class="fas fa-times"></i></button>
                     </div>
                 </div>
-                <div class="panel-tabs"></div>
+                <div class="panel-tabs custom-scrollbar"></div>
                 <div class="panel-content-area custom-scrollbar">
-                    <div class="panel-content active">Click the '+' to add content.</div>
+                    <div class="panel-content active p-4">Click the '+' to add content.</div>
                 </div>
             `;
             grid.appendChild(panel);
@@ -2646,6 +3101,12 @@
             addBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.showAddContentMenu(addBtn, panelId);
+            });
+            
+            const removeBtn = panel.querySelector('.remove-panel-btn');
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removePanel(panelId);
             });
         },
 
@@ -2681,19 +3142,7 @@
             menu.innerHTML = `
                 <div class="add-content-menu-item" data-type="note"><i class="fas fa-file-alt"></i> Note</div>
                 <div class="add-content-menu-item" data-type="flashcards"><i class="fas fa-layer-group"></i> Flashcards</div>
-                <div class="add-content-menu-item" data-type="voiceRecording"><i class="fas fa-microphone"></i> Voice Recording</div>
-                <div class="add-content-menu-item" data-type="voiceDatabase"><i class="fas fa-database"></i> Voice Database</div>
-                <div class="add-content-menu-item" data-type="voiceTranscript"><i class="fas fa-file-invoice"></i> Voice Transcript</div>
                 <div class="add-content-menu-item" data-type="pdf"><i class="fas fa-file-pdf"></i> PDF Viewer</div>
-                <div class="add-content-menu-item" data-type="calculator"><i class="fas fa-calculator"></i> Calculator</div>
-                <div class="add-content-menu-item" data-type="webBrowser"><i class="fas fa-globe"></i> Web Browser</div>
-                <div class="add-content-menu-item" data-type="codeEditor"><i class="fas fa-code"></i> Code Editor</div>
-                <div class="add-content-menu-item" data-type="musicPlayer"><i class="fas fa-music"></i> Music Player</div>
-                <div class="add-content-menu-item" data-type="imageViewer"><i class="fas fa-image"></i> Image Viewer</div>
-                <div class="add-content-menu-item" data-type="videoPlayer"><i class="fas fa-video"></i> Video Player</div>
-                <div class="add-content-menu-item" data-type="calendar"><i class="fas fa-calendar-alt"></i> Calendar</div>
-                <div class="add-content-menu-item" data-type="email"><i class="fas fa-envelope"></i> Email</div>
-                <div class="add-content-menu-item" data-type="chat"><i class="fas fa-comments"></i> Chat</div>
             `;
             
             button.parentElement.appendChild(menu);
@@ -2743,89 +3192,169 @@
             switch (type) {
                 case 'note':
                     contentHtml = `<div class="flex flex-col h-full">
-                        <div class="flex-shrink-0 flex items-center gap-1 p-2 bg-slate-800/50 rounded-t-lg">
-                            <button class="note-format-btn" data-command="bold"><i class="fas fa-bold"></i></button>
-                            <button class="note-format-btn" data-command="italic"><i class="fas fa-italic"></i></button>
-                            <button class="note-format-btn" data-command="underline"><i class="fas fa-underline"></i></button>
-                            <button class="note-format-btn" data-command="formatBlock" data-value="h1">H1</button>
-                            <button class="note-format-btn" data-command="formatBlock" data-value="h2">H2</button>
-                            <button class="note-format-btn" data-command="insertUnorderedList"><i class="fas fa-list-ul"></i></button>
-                            <button class="note-format-btn" data-command="insertOrderedList"><i class="fas fa-list-ol"></i></button>
+                        <div class="note-editor-toolbar flex-shrink-0 flex items-center gap-1 p-2 bg-slate-800/50 rounded-t-lg">
+                            <button class="note-format-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                            <button class="note-format-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                            <button class="note-format-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                             <div class="h-5 w-px bg-slate-600 mx-1"></div>
+                            <button class="note-format-btn" data-command="insertUnorderedList" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                            <button class="note-format-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                            <div class="h-5 w-px bg-slate-600 mx-1"></div>
+                            <div class="relative">
+                                <button class="note-format-btn" title="Font Color"><i class="fas fa-palette"></i></button>
+                                <input type="color" class="note-font-color-picker absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer">
+                            </div>
+                            <button class="note-save-btn ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold bg-purple-600 text-white hover:bg-purple-700">Save</button>
                         </div>
+                        <input type="text" placeholder="Note Title..." class="note-title-input bg-slate-800/30 p-2 text-white font-semibold outline-none">
                         <div contenteditable="true" class="note-editor-area flex-grow w-full bg-slate-800/30 p-3 rounded-b-lg text-white outline-none custom-scrollbar">Start typing...</div>
                     </div>`;
                     break;
-                case 'mindMap':
-                    contentPane.innerHTML = `<div class="mind-map-container h-full w-full"></div>`;
-                    this.initMindMap(contentPane.querySelector('.mind-map-container'));
+                case 'flashcards':
+                    contentPane.innerHTML = `<div class="flex flex-col h-full">
+                        <div class="flashcard-toolbar flex-shrink-0 flex items-center gap-2 p-2 bg-slate-800/50 rounded-t-lg">
+                             <button class="add-cards-btn modern-btn rounded-lg px-3 py-1.5 text-xs font-semibold">
+                                <span style="color: #ffffff;"><i class="fas fa-plus mr-1"></i> Add Cards</span>
+                            </button>
+                            <div class="h-5 w-px bg-slate-600 mx-1"></div>
+                            <button class="view-mode-btn active" data-view="list" title="List View"><i class="fas fa-list"></i></button>
+                            <button class="view-mode-btn" data-view="deck" title="Deck View"><i class="fas fa-layer-group"></i></button>
+                            <button class="randomize-btn ml-auto text-slate-400 hover:text-white p-2 rounded-lg" title="Randomize"><i class="fas fa-random"></i></button>
+                        </div>
+                        <div class="flashcard-view-container flex-grow overflow-y-auto custom-scrollbar">
+                            <div class="text-center text-slate-400 p-8">
+                                <p>No flashcards yet. Click "Add Cards" to begin.</p>
+                            </div>
+                        </div>
+                    </div>`;
+                    FlashcardTabManager.initTab(tabId, contentPane);
                     break;
-                // Add other cases here
+                case 'pdf':
+                    contentHtml = `<div class="flex flex-col h-full">
+                        <div class="flex-shrink-0 p-2 flex items-center justify-center gap-4 bg-slate-800/50 rounded-t-lg">
+                            <label class="modern-btn rounded-xl px-4 py-2.5 text-sm font-semibold cursor-pointer">
+                                <span style="color: #ffffff">Load PDF</span>
+                                <input type="file" class="hidden pdf-file-input" accept=".pdf">
+                            </label>
+                            <button class="pdf-prev-btn rounded-lg p-2.5 bg-slate-600 hover:bg-slate-500 disabled:opacity-50" disabled><i class="fas fa-arrow-left"></i></button>
+                            <span class="text-sm">Page <span class="pdf-page-num">0</span> of <span class="pdf-page-count">0</span></span>
+                            <button class="pdf-next-btn rounded-lg p-2.5 bg-slate-600 hover:bg-slate-500 disabled:opacity-50" disabled><i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        <div class="flex-grow overflow-auto custom-scrollbar flex items-center justify-center p-4">
+                            <canvas class="pdf-canvas-el"></canvas>
+                        </div>
+                    </div>`;
+                    break;
                 default:
-                    contentHtml = `<p class="text-slate-400">${type} placeholder.</p>`;
+                    contentHtml = `<p class="p-4 text-slate-400">${type} placeholder.</p>`;
                     break;
             }
             if(contentHtml) contentPane.innerHTML = contentHtml;
             
             if(type === 'note') {
+                const editorArea = contentPane.querySelector('.note-editor-area');
                 contentPane.querySelectorAll('.note-format-btn').forEach(button => {
                    button.addEventListener('click', () => {
                        const command = button.dataset.command;
-                       const value = button.dataset.value || null;
-                       document.execCommand(command, false, value);
-                       contentPane.querySelector('.note-editor-area').focus();
+                       if(command) {
+                           document.execCommand(command, false, null);
+                           editorArea.focus();
+                       }
                    });
                 });
+                contentPane.querySelector('.note-font-color-picker').addEventListener('input', (e) => {
+                    document.execCommand('foreColor', false, e.target.value);
+                    editorArea.focus();
+                });
+                contentPane.querySelector('.note-save-btn').addEventListener('click', () => {
+                    const title = contentPane.querySelector('.note-title-input').value.trim() || 'Untitled Note';
+                    const content = contentPane.querySelector('.note-editor-area').innerHTML;
+                    ItemBinController.addItem('note', { title, content });
+                    UI.showToast(`Note "${title}" added to Item Bin.`);
+                });
+            } else if (type === 'pdf') {
+                const pdfViewerInstance = Object.create(PDFViewer);
+                pdfViewerInstance.init(contentPane);
+                contentPane.querySelector('.pdf-file-input').onchange = (e) => {
+                    pdfViewerInstance.loadDocumentFromFile(e.target.files[0]);
+                };
             }
 
 
             contentArea.appendChild(contentPane);
+        },
 
-            // Add event listener to the new tab
-            tab.addEventListener('click', (e) => {
-                if(e.target.classList.contains('close-tab-btn')) {
-                    const tabToRemove = e.target.parentElement;
-                    const contentToRemove = document.getElementById(tabToRemove.dataset.tabId);
-                    
-                    if (tabToRemove.classList.contains('active')) {
-                        const nextTab = tabToRemove.nextElementSibling || tabToRemove.previousElementSibling;
-                        if (nextTab) {
-                            nextTab.click();
-                        }
+        activateTab(tab) {
+            const panel = tab.closest('.tabbing-panel');
+            const tabsContainer = panel.querySelector('.panel-tabs');
+            const contentArea = panel.querySelector('.panel-content-area');
+            const tabId = tab.dataset.tabId;
+
+            tabsContainer.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+            contentArea.querySelectorAll('.panel-content').forEach(c => c.classList.remove('active'));
+            
+            tab.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        },
+
+        removeTab(tab, panel) {
+            const contentToRemove = document.getElementById(tab.dataset.tabId);
+            
+            if (tab.classList.contains('active')) {
+                const nextTab = tab.nextElementSibling || tab.previousElementSibling;
+                if (nextTab) {
+                    this.activateTab(nextTab);
+                } else {
+                    // If no tabs left, show the default message
+                    const contentArea = panel.querySelector('.panel-content-area');
+                    if (!contentArea.querySelector('.panel-content')) {
+                        contentArea.innerHTML = `<div class="panel-content active p-4">Click the '+' to add content.</div>`;
                     }
-                    
-                    tabToRemove.remove();
-                    if (contentToRemove) contentToRemove.remove();
-                    return;
                 }
-
-                tabsContainer.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
-                contentArea.querySelectorAll('.panel-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                contentPane.classList.add('active');
-            });
+            }
+            
+            tab.remove();
+            if (contentToRemove) contentToRemove.remove();
         },
 
         removePanel(panelId) {
             const panel = document.getElementById(panelId);
-            if (panel && confirm('Are you sure you want to remove this panel?')) {
+            if (panel) {
                 panel.remove();
             }
         },
 
         setTool(tool, button) {
-          document.querySelectorAll(".canvas-toolbar button").forEach((btn) => btn.classList.remove("active"));
+          document.querySelectorAll(".canvas-toolbar-btn").forEach((btn) => btn.classList.remove("active"));
           if (button) button.classList.add("active");
           this.currentTool = tool;
-          const canvas = document.getElementById("drawing-canvas");
-          if (canvas) canvas.classList.toggle("drawing-mode", tool === "draw");
+          
+          const dropArea = document.getElementById('canvas-drop-area');
+          dropArea.classList.toggle('mode-connect', tool === 'connect');
+          dropArea.classList.toggle('mode-draw', tool === 'draw');
+          
+          // Explicitly disable/enable textareas to prevent focus stealing
+          const textareas = document.querySelectorAll('#canvas-elements textarea');
+          textareas.forEach(ta => {
+              ta.disabled = (tool === 'connect');
+          });
+
+          if (this.connectionStartElement) {
+              this.connectionStartElement.classList.remove('connecting-from');
+              this.connectionStartElement = null;
+          }
         },
 
         resizeCanvas() {
           const canvas = this.canvas;
           if (!canvas) return;
-          const container = canvas.parentElement;
-          canvas.width = container.offsetWidth;
-          canvas.height = container.offsetHeight;
+          const container = document.getElementById('canvas-transform-layer');
+          // Make the canvas larger than the viewport to allow drawing "off-screen"
+          const buffer = 2000;
+          canvas.width = container.offsetWidth + buffer * 2;
+          canvas.height = container.offsetHeight + buffer * 2;
+          canvas.style.left = `-${buffer}px`;
+          canvas.style.top = `-${buffer}px`;
           this.redrawCanvas();
         },
 
@@ -2833,20 +3362,20 @@
           if (this.currentTool !== "draw") return;
           this.isDrawing = true;
           const rect = this.canvas.getBoundingClientRect();
-          this.lastX = e.clientX - rect.left;
-          this.lastY = e.clientY - rect.top;
+          this.lastX = (e.clientX - rect.left);
+          this.lastY = (e.clientY - rect.top);
         },
 
         draw(e) {
           if (!this.isDrawing || this.currentTool !== "draw") return;
           const rect = this.canvas.getBoundingClientRect();
-          const currentX = e.clientX - rect.left;
-          const currentY = e.clientY - rect.top;
+          const currentX = (e.clientX - rect.left);
+          const currentY = (e.clientY - rect.top);
           this.ctx.beginPath();
           this.ctx.moveTo(this.lastX, this.lastY);
           this.ctx.lineTo(currentX, currentY);
           this.ctx.strokeStyle = "#ffffff";
-          this.ctx.lineWidth = 2;
+          this.ctx.lineWidth = 2 / this.zoomLevel;
           this.ctx.lineCap = "round";
           this.ctx.stroke();
           this.lastX = currentX;
@@ -2861,118 +3390,176 @@
           if(this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         },
 
-        addCanvasNote() {
-          const container = document.getElementById("canvas-elements");
-          if (!container) return;
-          const note = document.createElement("div");
-          note.className = "canvas-element canvas-note";
-          note.style.left = "100px";
-          note.style.top = "100px";
-          note.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-              <h4 class="font-semibold text-white text-sm">New Note</h4>
-              <button class="delete-element text-gray-400 hover:text-red-400 text-xs" onclick="this.parentElement.parentElement.remove()">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-            <textarea class="w-full bg-transparent text-gray-300 text-sm resize-none border-none outline-none" rows="4" placeholder="Type your note here..."></textarea>
-          `;
-          container.appendChild(note);
-          this.makeElementDraggable(note);
+        addCanvasNote(x, y, title = "New Note", content = "Type your note here...") {
+            const container = document.getElementById("canvas-elements");
+            const dropArea = document.getElementById("canvas-drop-area");
+            if (!container) return;
+            
+            // If x and y are not provided, place it in the center of the current view
+            if (x === undefined || y === undefined) {
+                const rect = dropArea.getBoundingClientRect();
+                x = (rect.width / 2 - this.panX) / this.zoomLevel;
+                y = (rect.height / 2 - this.panY) / this.zoomLevel;
+            }
+
+            const note = document.createElement("div");
+            note.id = `canvas-el-${Date.now()}`;
+            note.className = "canvas-element canvas-note";
+            note.style.left = `${x}px`;
+            note.style.top = `${y}px`;
+            note.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                <h4 class="font-semibold text-white text-sm">${Utils.escapeHtml(title)}</h4>
+                <button class="delete-element text-gray-400 hover:text-red-400 text-xs" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                </div>
+                <div class="w-full bg-transparent text-gray-300 text-sm resize-none border-none outline-none custom-scrollbar" style="min-height: 80px;">${content}</div>
+            `;
+            container.appendChild(note);
+            this.makeElementInteractive(note);
         },
 
-        addCanvasCard() {
-          const container = document.getElementById("canvas-elements");
-          if (!container) return;
-          const card = document.createElement("div");
-          card.className = "canvas-element canvas-card";
-          card.style.left = "200px";
-          card.style.top = "200px";
-          card.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-              <h4 class="font-semibold text-white text-xs">Flashcard</h4>
-              <button class="delete-element text-gray-400 hover:text-red-400 text-xs" onclick="this.parentElement.parentElement.remove()">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-            <div class="flex-1">
-              <textarea class="w-full bg-transparent text-gray-300 text-xs resize-none border-none outline-none mb-2" rows="2" placeholder="Question..."></textarea>
-              <hr class="border-gray-700 my-2">
-              <textarea class="w-full bg-transparent text-gray-300 text-xs resize-none border-none outline-none" rows="2" placeholder="Answer..."></textarea>
-            </div>
-          `;
-          container.appendChild(card);
-          this.makeElementDraggable(card);
+        addCanvasCard(x, y, question = "Question...", answer = "Answer...") {
+            const container = document.getElementById("canvas-elements");
+            const dropArea = document.getElementById("canvas-drop-area");
+            if (!container) return;
+
+            if (x === undefined || y === undefined) {
+                const rect = dropArea.getBoundingClientRect();
+                x = (rect.width / 2 - this.panX) / this.zoomLevel;
+                y = (rect.height / 2 - this.panY) / this.zoomLevel;
+            }
+
+            const card = document.createElement("div");
+            card.id = `canvas-el-${Date.now()}`;
+            card.className = "canvas-element canvas-card";
+            card.style.left = `${x}px`;
+            card.style.top = `${y}px`;
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                <h4 class="font-semibold text-white text-xs">Flashcard</h4>
+                <button class="delete-element text-gray-400 hover:text-red-400 text-xs" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                </div>
+                <div class="flex-1">
+                <textarea class="w-full bg-transparent text-gray-300 text-xs resize-none border-none outline-none mb-2" rows="2" placeholder="Question...">${Utils.escapeHtml(question)}</textarea>
+                <hr class="border-gray-700 my-2">
+                <textarea class="w-full bg-transparent text-gray-300 text-xs resize-none border-none outline-none" rows="2" placeholder="Answer...">${Utils.escapeHtml(answer)}</textarea>
+                </div>
+            `;
+            container.appendChild(card);
+            this.makeElementInteractive(card);
         },
+        
+        handleConnectionClick(element) {
+            if (this.currentTool !== 'connect') return;
+
+            if (!this.connectionStartElement) {
+                this.connectionStartElement = element;
+                element.classList.add('connecting-from');
+            } else {
+                if (this.connectionStartElement.id !== element.id) {
+                    this.connections.push({ from: this.connectionStartElement.id, to: element.id });
+                    this.drawConnections();
+                }
+                this.connectionStartElement.classList.remove('connecting-from');
+                this.connectionStartElement = null;
+            }
+        },
+
+        drawConnections() {
+            this.connectionsLayer.innerHTML = '';
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = `
+                <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" 
+                        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#fff" />
+                </marker>
+            `;
+            this.connectionsLayer.appendChild(defs);
+
+            this.connections.forEach(conn => {
+                const fromEl = document.getElementById(conn.from);
+                const toEl = document.getElementById(conn.to);
+                if (!fromEl || !toEl) return;
+
+                const fromX = fromEl.offsetLeft + fromEl.offsetWidth / 2;
+                const fromY = fromEl.offsetTop + fromEl.offsetHeight / 2;
+                const toX = toEl.offsetLeft + toEl.offsetWidth / 2;
+                const toY = toEl.offsetTop + toEl.offsetHeight / 2;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', fromX);
+                line.setAttribute('y1', fromY);
+                line.setAttribute('x2', toX);
+                line.setAttribute('y2', toY);
+                line.setAttribute('stroke', '#fff');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                this.connectionsLayer.appendChild(line);
+            });
+        },
+
 
         clearCanvas() {
           if (confirm("Clear all canvas content?")) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             const container = document.getElementById("canvas-elements");
             if (container) container.innerHTML = "";
+            this.connections = [];
+            this.drawConnections();
           }
         },
 
-        makeElementDraggable(element) {
-          let isDragging = false, startX, startY, initialX, initialY;
-          element.addEventListener("mousedown", (e) => {
-            if (e.offsetX > element.offsetWidth - 20 && e.offsetY > element.offsetHeight - 20) {
-                return;
-            }
-            if (this.currentTool !== "select") return;
+        makeElementInteractive(element) {
+            // Dragging logic
+            let isDragging = false, startX, startY, initialX, initialY;
+            element.addEventListener("mousedown", (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.closest('.delete-element')) return;
+                if (e.offsetX > element.offsetWidth - 20 && e.offsetY > element.offsetHeight - 20) return;
+                if (this.currentTool !== "select") return;
 
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            initialX = parseInt(element.style.left) || 0;
-            initialY = parseInt(element.style.top) || 0;
-            element.classList.add("selected");
-            const onMouseMove = (e) => {
-              if (!isDragging) return;
-              const deltaX = e.clientX - startX;
-              const deltaY = e.clientY - startY;
-              element.style.left = initialX + deltaX + "px";
-              element.style.top = initialY + deltaY + "px";
-            };
-            const onMouseUp = () => {
-              isDragging = false;
-              element.classList.remove("selected");
-              document.removeEventListener("mousemove", onMouseMove);
-              document.removeEventListener("mouseup", onMouseUp);
-            };
-            document.addEventListener("mousemove", onMouseMove);
-            document.addEventListener("mouseup", onMouseUp);
-          });
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialX = parseInt(element.style.left) || 0;
+                initialY = parseInt(element.style.top) || 0;
+                element.classList.add("selected");
+                
+                const onMouseMove = (e) => {
+                    if (!isDragging) return;
+                    const deltaX = (e.clientX - startX) / this.zoomLevel;
+                    const deltaY = (e.clientY - startY) / this.zoomLevel;
+                    element.style.left = initialX + deltaX + "px";
+                    element.style.top = initialY + deltaY + "px";
+                    this.drawConnections();
+                };
+                
+                const onMouseUp = () => {
+                    isDragging = false;
+                    element.classList.remove("selected");
+                    document.removeEventListener("mousemove", onMouseMove);
+                    document.removeEventListener("mouseup", onMouseUp);
+                };
+                
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup", onMouseUp);
+            });
+
+            // Connection logic
+            element.addEventListener('click', (e) => {
+                if(this.currentTool === 'connect') {
+                    e.stopPropagation();
+                    this.handleConnectionClick(element);
+                }
+            });
+
+            // Observer for redrawing connections when element is resized
+            const observer = new ResizeObserver(() => this.drawConnections());
+            observer.observe(element);
         },
-        
-        initMindMap(container) {
-            // Mind map implementation will go here
-            container.innerHTML = `<div class="mind-map-controls">
-                <button class="modern-btn text-xs px-2 py-1" id="addChildNodeBtn">Add Child</button>
-            </div>
-            <svg class="mind-map-svg"></svg>`;
-            
-            const svg = container.querySelector('.mind-map-svg');
-            const addChildBtn = container.querySelector('#addChildNodeBtn');
-            let nodes = {};
-            let selectedNodeId = null;
-            let activeDrag = null;
-
-            const draw = () => {
-                // Clear and redraw logic
-            };
-            
-            svg.addEventListener('dblclick', (e) => {
-                // Add node logic
-            });
-
-            addChildBtn.addEventListener('click', () => {
-                // Add child node logic
-            });
-            
-            // Add other mind map logic (drag, edit, delete)
-        }
-
       };
 
       window.ViewModeController = ViewModeController;
@@ -3002,7 +3589,7 @@
           if (backToFolderBtn) {
             backToFolderBtn.onclick = () => {
               if (confirm("End study session?")) {
-                UI.showView("canvasMode");
+                UI.showView(AppState.lastActiveView);
               }
             };
           }
@@ -3043,7 +3630,7 @@
           audioClipsByNote: {},
         };
 
-        PDFViewer.init();
+        // PDFViewer.init(); - This is now initialized inside the tab content
         CardActions.init();
         NoteEditorActions.init();
         ProfileActions.init();
@@ -3059,6 +3646,7 @@
         FolderActions.init();
         FolderActions.filterAndSortFolders();
         ViewModeController.init();
+        ItemBinController.render();
       }
 
       function main() {
